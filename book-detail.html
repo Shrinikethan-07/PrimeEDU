@@ -1,0 +1,245 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Book Insights | PrimeEDU</title>
+    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link
+        href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,500;0,9..40,600;0,9..40,700&family=Inter:wght@400;500;600&display=swap"
+        rel="stylesheet">
+    <style>
+        .book-hero {
+            padding: 4rem 3rem;
+            border-radius: var(--border-radius);
+            margin-bottom: 3rem;
+            text-align: center;
+            color: white;
+        }
+
+        .book-hero h1 {
+            font-size: 2.5rem;
+            margin-bottom: 0.5rem;
+        }
+
+        .book-hero p {
+            font-size: 1.2rem;
+            opacity: 0.9;
+        }
+
+        .excerpt-card {
+            background: var(--glass-bg);
+            border: 1px solid var(--glass-border);
+            padding: 2rem;
+            border-radius: var(--border-radius);
+            margin-bottom: 1.5rem;
+            position: relative;
+            border-left: 4px solid var(--neon-cyan);
+        }
+
+        .excerpt-card .excerpt-num {
+            position: absolute;
+            top: -10px;
+            left: -10px;
+            background: var(--neon-purple);
+            width: 30px;
+            height: 30px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 800;
+            font-size: 0.8rem;
+        }
+
+        .excerpt-card blockquote {
+            font-style: italic;
+            color: var(--neon-yellow);
+            font-size: 1.15rem;
+            line-height: 1.8;
+            margin-bottom: 1rem;
+        }
+
+        .excerpt-card .takeaway {
+            color: var(--text-secondary);
+            font-size: 0.95rem;
+        }
+
+        .back-btn {
+            color: var(--neon-cyan);
+            text-decoration: none;
+            font-weight: 600;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            margin-bottom: 2rem;
+        }
+
+        .back-btn:hover {
+            text-decoration: underline;
+        }
+    </style>
+</head>
+
+<body>
+    <div style="max-width: 900px; margin: 0 auto; padding: 3rem;">
+        <a href="modules.html" class="back-btn"><i class="fas fa-arrow-left"></i> Back to Modules</a>
+
+        <div class="book-hero" id="book-hero"></div>
+
+        <h2 style="color: var(--neon-cyan); font-family: var(--font-heading); margin-bottom: 2rem;">
+            <i class="fas fa-gem"></i> KEY INSIGHTS & EXACT LINES
+        </h2>
+
+        <div id="excerpts-container"></div>
+    </div>
+
+    <script>
+        const BOOKS = {
+            'atomic-habits': {
+                title: 'Atomic Habits',
+                author: 'James Clear',
+                gradient: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                excerpts: [
+                    { quote: "You do not rise to the level of your goals. You fall to the level of your systems.", takeaway: "Design systems that make good habits inevitable and bad habits impossible." },
+                    { quote: "Every action you take is a vote for the type of person you wish to become.", takeaway: "Focus on identity change, not outcome change. Ask: 'What would a disciplined person do?'" },
+                    { quote: "Habits are the compound interest of self-improvement.", takeaway: "1% better every day = 37x better in a year. The math of tiny gains is staggering." },
+                    { quote: "The task of breaking a bad habit is like uprooting a powerful oak within us.", takeaway: "Make bad habits invisible, unattractive, difficult, and unsatisfying." },
+                    { quote: "You should be far more concerned with your current trajectory than with your current results.", takeaway: "Are you on the right path? That matters more than where you are right now." },
+                ]
+            },
+            'miracle-morning': {
+                title: 'The Miracle Morning',
+                author: 'Hal Elrod',
+                gradient: 'linear-gradient(135deg, #f093fb 0%, #f5576c 100%)',
+                excerpts: [
+                    { quote: "Your level of success will rarely exceed your level of personal development.", takeaway: "Invest in yourself first thing every morning using S.A.V.E.R.S." },
+                    { quote: "How you wake up each day and your morning routine dramatically affects your levels of success.", takeaway: "Silence, Affirmations, Visualization, Exercise, Reading, Scribing — do all six." },
+                    { quote: "The moment you accept responsibility for everything in your life is the moment you gain power to change anything.", takeaway: "No excuses. Your morning, your rules, your destiny." },
+                    { quote: "Love the life you have while you create the life of your dreams.", takeaway: "Gratitude in the morning sets the tone for an abundant day." },
+                ]
+            },
+            'deep-work': {
+                title: 'Deep Work',
+                author: 'Cal Newport',
+                gradient: 'linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)',
+                excerpts: [
+                    { quote: "Deep work is the ability to focus without distraction on a cognitively demanding task.", takeaway: "This is the superpower of the 21st century. Train it like a muscle." },
+                    { quote: "If you don't produce, you won't thrive — no matter how skilled or talented you are.", takeaway: "Output = Time Spent × Intensity of Focus. Maximize both." },
+                    { quote: "The ability to perform deep work is becoming increasingly rare at exactly the same time it is becoming increasingly valuable.", takeaway: "While everyone else scrolls, you build. That's your competitive advantage." },
+                    { quote: "Efforts to deepen your focus will struggle if you don't simultaneously wean your mind from a dependence on distraction.", takeaway: "Schedule your distractions, not your focus time." },
+                ]
+            },
+            'the-alchemist': {
+                title: 'The Alchemist',
+                author: 'Paulo Coelho',
+                gradient: 'linear-gradient(135deg, #43e97b 0%, #38f9d7 100%)',
+                excerpts: [
+                    { quote: "When you want something, all the universe conspires in helping you to achieve it.", takeaway: "Your Personal Legend is not a fantasy — it's an inevitability if you pursue it." },
+                    { quote: "There is only one thing that makes a dream impossible to achieve: the fear of failure.", takeaway: "Fear is the only real obstacle. Everything else is just a test." },
+                    { quote: "The secret of life is to fall seven times and to get up eight times.", takeaway: "Resilience is not optional. It is the price of every dream worth having." },
+                    { quote: "People learn, early in their lives, what is their reason for being.", takeaway: "Listen to your heart. It already knows the way." },
+                    { quote: "Tell your heart that the fear of suffering is worse than the suffering itself.", takeaway: "Act now. The pain of regret always outweighs the pain of discipline." },
+                ]
+            },
+            'ikigai': {
+                title: 'Ikigai',
+                author: 'Héctor García & Francesc Miralles',
+                gradient: 'linear-gradient(135deg, #fa709a 0%, #fee140 100%)',
+                excerpts: [
+                    { quote: "Our ikigai is different for all of us, but one thing we have in common is that we are all searching for meaning.", takeaway: "Find the intersection of what you love, what you're good at, what the world needs, and what you can be paid for." },
+                    { quote: "There is a tension between what is good for someone and what they want to do.", takeaway: "True purpose often lies outside your comfort zone." },
+                    { quote: "Only staying active will make you want to live a hundred years.", takeaway: "The Okinawan elders never retire. They always have a reason to get up." },
+                    { quote: "Flow state is the experience of being completely immersed in what we're doing.", takeaway: "Find activities that put you in flow. That's where your ikigai lives." },
+                ]
+            },
+            '7-habits': {
+                title: 'The 7 Habits of Highly Effective People',
+                author: 'Stephen R. Covey',
+                gradient: 'linear-gradient(135deg, #a18cd1 0%, #fbc2eb 100%)',
+                excerpts: [
+                    { quote: "Begin with the end in mind.", takeaway: "Visualize your funeral. What do you want people to say about you? Live backwards from that." },
+                    { quote: "Put first things first.", takeaway: "Important but not urgent tasks (Quadrant II) are where life-changing work happens." },
+                    { quote: "Think win-win.", takeaway: "In every interaction, seek mutual benefit. Abundance mentality destroys scarcity thinking." },
+                    { quote: "Seek first to understand, then to be understood.", takeaway: "Empathic listening is the highest form of respect you can give another person." },
+                    { quote: "Sharpen the saw.", takeaway: "Preserve and enhance your greatest asset — yourself. Physical, mental, spiritual, social renewal." },
+                ]
+            },
+            '5am-club': {
+                title: 'The 5 AM Club',
+                author: 'Robin Sharma',
+                gradient: 'linear-gradient(135deg, #ffecd2 0%, #fcb69f 100%)',
+                excerpts: [
+                    { quote: "Own your morning. Elevate your life.", takeaway: "The first hour belongs to your future self. Guard it fiercely." },
+                    { quote: "The 20/20/20 Formula: Move, Reflect, Grow.", takeaway: "20 min exercise, 20 min reflection/meditation, 20 min learning. Every single morning." },
+                    { quote: "All change is hard at first, messy in the middle and gorgeous at the end.", takeaway: "The 66-day habit installation process: Destruction → Installation → Integration." },
+                    { quote: "Victims make excuses. Leaders make progress.", takeaway: "You are not stuck. You are choosing. Choose differently." },
+                ]
+            },
+            'cant-hurt-me': {
+                title: "Can't Hurt Me",
+                author: 'David Goggins',
+                gradient: 'linear-gradient(135deg, #ff0844 0%, #ffb199 100%)',
+                excerpts: [
+                    { quote: "The only person who was going to save me was me.", takeaway: "No one is coming. You are your own rescue team." },
+                    { quote: "We don't rise to the level of our expectations, we fall to the level of our training.", takeaway: "Callous your mind through voluntary discomfort. Seek the hard path." },
+                    { quote: "The 40% Rule: When your mind tells you you're done, you're really only 40% done.", takeaway: "Your body can take far more than your mind thinks. Push through the governor." },
+                    { quote: "Suffering is the true test of life.", takeaway: "Embrace pain as the forge. Every scar is a medal of growth." },
+                    { quote: "You are in danger of living a life so comfortable that you will die without ever realizing your potential.", takeaway: "Comfort is the enemy of achievement. Stay uncomfortable." },
+                ]
+            },
+            'six-habits': {
+                    title: 'Six Habits of Leaders',
+                    author: 'General Principle',
+                    gradient: 'linear-gradient(135deg, #2af598 0%, #009efd 100%)',
+                    excerpts: [
+                        { quote: "Integrity is the bedrock of leadership.", takeaway: "Never compromise your word. Your discipline is your internal integrity." },
+                        { quote: "Decisiveness in the face of uncertainty.", takeaway: "Stop overthinking. The 5-second rule is a leader's tool." },
+                        { quote: "Extreme Ownership of all outcomes.", takeaway: "Everything is your fault. That's why you have the power to fix everything." },
+                        { quote: "Clear Communication and Vision.", takeaway: "Deconstruct your massive goals so clearly that anyone could follow them." },
+                        { quote: "Empowerment of others.", takeaway: "A leader builds other leaders. Your discipline inspires those around you." },
+                        { quote: "Unrelenting Resilience.", takeaway: "The path of a leader is paved with hurdles. Slice through them." }
+                    ]
+                }
+            };
+
+            const ALLOWED_BOOK_KEYS = Object.keys(BOOKS);
+            const params = new URLSearchParams(window.location.search);
+            const rawKey = params.get('book') || '';
+            const bookKey = ALLOWED_BOOK_KEYS.includes(rawKey) ? rawKey : null;
+            const book = bookKey ? BOOKS[bookKey] : null;
+            const esc = (s) => {
+                const d = document.createElement('div');
+                d.textContent = s == null ? '' : String(s);
+                return d.innerHTML;
+            };
+
+            if (book) {
+                document.title = `${book.title} | PrimeEDU`;
+                document.getElementById('book-hero').style.background = book.gradient;
+                document.getElementById('book-hero').innerHTML = `
+                <h1>${esc(book.title)}</h1>
+                <p>by ${esc(book.author)}</p>
+            `;
+
+                const container = document.getElementById('excerpts-container');
+                container.innerHTML = '';
+                book.excerpts.forEach((e, i) => {
+                    container.innerHTML += `
+                    <div class="excerpt-card">
+                        <div class="excerpt-num">${i + 1}</div>
+                        <blockquote>"${esc(e.quote)}"</blockquote>
+                        <p class="takeaway"><strong>Takeaway:</strong> ${esc(e.takeaway)}</p>
+                    </div>
+                `;
+                });
+            } else {
+                document.getElementById('book-hero').innerHTML = '<h1>Book Not Found</h1><p>Return to modules.</p>';
+                document.getElementById('book-hero').style.background = 'var(--glass-bg)';
+            }
+    </script>
+</body>
+
+</html>

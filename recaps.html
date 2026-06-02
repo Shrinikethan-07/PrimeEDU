@@ -1,0 +1,321 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Recap Center | PrimeEDU</title>
+    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Montserrat:wght@700;800&family=Poppins:wght@400;500;600&display=swap"
+        rel="stylesheet">
+    <style>
+        .recap-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+            gap: 2rem;
+            padding: 2.5rem 0;
+        }
+
+        .recap-poster {
+            background: var(--bg-secondary);
+            border: 3px solid var(--neon-purple);
+            border-radius: var(--border-radius);
+            padding: 2.5rem;
+            aspect-ratio: 9/16;
+            position: relative;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            box-shadow: 0 0 30px rgba(157, 0, 255, 0.4);
+            color: white;
+            transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        .recap-poster:hover {
+            transform: translateY(-10px);
+            border-color: var(--neon-cyan);
+            box-shadow: 0 0 50px rgba(0, 243, 255, 0.3);
+        }
+
+        .poster-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 2rem;
+        }
+
+        .poster-header h2 {
+            font-family: var(--font-heading);
+            font-size: 2.2rem;
+            color: var(--neon-cyan);
+            text-shadow: 0 0 10px var(--neon-cyan);
+            margin: 0;
+        }
+
+        .poster-user {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            margin-top: 1rem;
+        }
+
+        .poster-user img {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            border: 2px solid var(--neon-yellow);
+        }
+
+        .poster-user span {
+            font-weight: 700;
+            color: var(--neon-yellow);
+            font-size: 0.9rem;
+        }
+
+        .poster-content {
+            font-family: var(--font-body);
+            font-size: 1.1rem;
+            line-height: 1.6;
+            flex: 1;
+        }
+
+        .subject-stats {
+            margin-top: 1.5rem;
+        }
+
+        .subject-row {
+            margin-bottom: 0.75rem;
+        }
+
+        .subject-label {
+            display: flex;
+            justify-content: space-between;
+            font-size: 0.85rem;
+            margin-bottom: 0.4rem;
+        }
+
+        .character-sheet {
+            width: 100%;
+            height: 250px;
+            background-size: cover;
+            background-position: center;
+            border-radius: 8px;
+            border: 2px solid var(--neon-purple);
+            margin: 1.5rem 0;
+            box-shadow: inset 0 0 20px rgba(157, 0, 255, 0.5);
+        }
+
+        .share-btn {
+            background: linear-gradient(90deg, var(--neon-cyan), var(--neon-purple));
+            color: white;
+            border: none;
+            padding: 1rem;
+            border-radius: 8px;
+            font-weight: 800;
+            cursor: pointer;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            transition: all 0.3s ease;
+        }
+
+        .share-btn:hover {
+            transform: scale(1.05);
+            box-shadow: 0 0 20px var(--neon-cyan);
+        }
+
+        .identity-banner {
+            font-family: var(--font-heading);
+            font-size: 1.6rem;
+            color: var(--neon-yellow);
+            text-align: center;
+            padding: 1rem;
+            border: 1px solid var(--neon-yellow);
+            margin: 1rem 0;
+            text-shadow: 0 0 10px var(--neon-yellow);
+        }
+    </style>
+</head>
+
+<body>
+    <div class="app-container">
+        <nav class="sidebar">
+            <div class="logo">
+                <i class="fas fa-bolt"></i>
+                <span>PrimeEDU</span>
+            </div>
+            <ul class="nav-links">
+                <li class="nav-item"><a href="index.html" class="nav-link"><i
+                            class="fas fa-th-large"></i><span>Dashboard</span></a></li>
+                <li class="nav-item"><a href="journal.html" class="nav-link"><i
+                            class="fas fa-scroll"></i><span>Journal</span></a></li>
+                <li class="nav-item"><a href="modules.html" class="nav-link"><i
+                            class="fas fa-book-open"></i><span>Modules</span></a></li>
+                <li class="nav-item"><a href="recaps.html" class="nav-link active"><i
+                            class="fas fa-magic"></i><span>Recaps</span></a></li>
+                <li class="nav-item"><a href="leaderboard.html" class="nav-link"><i
+                            class="fas fa-trophy"></i><span>Leaderboard</span></a></li>
+            </ul>
+            <div class="sidebar-bottom">
+                <div class="avatar-preview"><img src="" alt="avatar" class="avatar-circle"></div>
+            </div>
+        </nav>
+
+        <main class="main-content">
+            <header>
+                <div class="header-left">
+                    <div style="display:flex; align-items:center; gap:1rem;">
+                        <img src="" alt="avatar" id="header-avatar" class="avatar-circle"
+                            style="width:48px;height:48px;">
+                        <div>
+                            <h1>Recap Center</h1>
+                            <p class="text-secondary">Your achievements, immortalized in premium posters.</p>
+                        </div>
+                    </div>
+                </div>
+            </header>
+
+            <div id="recap-container">
+                <!-- Weekly Section -->
+                <h2 class="section-title"><i class="fas fa-calendar-week"></i> Weekly Insights (2 Cards)</h2>
+                <div class="recap-grid" id="weekly-grid"></div>
+
+                <!-- Monthly Section -->
+                <h2 class="section-title"><i class="fas fa-calendar-alt"></i> Monthly Mastery (4 Cards)</h2>
+                <div class="recap-grid" id="monthly-grid"></div>
+
+                <!-- Yearly Section -->
+                <h2 class="section-title"><i class="fas fa-crown"></i> Yearly Legacy (6 Cards)</h2>
+                <div class="recap-grid" id="yearly-grid"></div>
+            </div>
+        </main>
+    </div>
+
+    <script>
+        const CHARACTERS = [
+            { id: 'sasuke', name: 'Sasuke', img: 'https://i.pinimg.com/736x/4e/40/87/4e4087e01177d1c3ea5e7143e7284f9e.jpg' },
+            { id: 'itachi', name: 'Itachi', img: 'https://i.pinimg.com/736x/f5/0f/52/f50f52e51a8b1f6e24a07e30a8d08157.jpg' },
+            { id: 'naruto', name: 'Naruto', img: 'https://i.pinimg.com/736x/d0/b5/3b/d0b53bc5ddd3b25c55ea471fa30c64d0.jpg' },
+            { id: 'goku', name: 'Goku', img: 'https://i.pinimg.com/736x/c4/11/c9/c411c9e40e6f4b3d6e2a1f0c5b8a7d2e.jpg' },
+        ];
+
+        function getSelectedChar() {
+            const id = localStorage.getItem('primeedu_avatar') || 'sasuke';
+            return CHARACTERS.find(c => c.id === id) || CHARACTERS[0];
+        }
+
+        function updateAvatars() {
+            const char = getSelectedChar();
+            document.querySelectorAll('.avatar-circle').forEach(img => {
+                img.src = char.img;
+            });
+            if (document.getElementById('header-avatar')) {
+                document.getElementById('header-avatar').src = char.img;
+            }
+        }
+
+        updateAvatars();
+
+        function createPoster(data) {
+            const char = getSelectedChar();
+            const poster = document.createElement('div');
+            poster.className = 'recap-poster';
+            poster.innerHTML = `
+                <div class="poster-header">
+                    <div>
+                        <h2>${data.title}</h2>
+                        <div class="poster-user">
+                            <img src="${char.img}" alt="Avatar">
+                            <span>Seetharam</span>
+                        </div>
+                    </div>
+                    <span class="text-secondary" style="font-size:0.8rem;">${new Date().toLocaleDateString(undefined, { month: 'short', year: 'numeric' })}</span>
+                </div>
+                
+                <div class="poster-content" style="display:flex; flex-direction:column; align-items:center; justify-content:center; text-align:center;">
+                    ${data.html || `<p style="font-size: 1.2rem; margin-bottom: 2rem;">${data.content}</p>`}
+                    
+                    ${data.type === 'chart' ? `
+                        <div class="growth-chart-box" style="width:100%; height:200px; position:relative; margin-top:1rem;">
+                            <canvas id="chart-${Math.random().toString(36).substr(2, 5)}" class="growth-canvas" width="300" height="200"></canvas>
+                        </div>
+                    ` : ''}
+                    
+                    ${data.type === 'stat' ? `
+                        <div class="vibrant-stat-circle" style="width:120px; height:120px; border-radius:50%; border:4px solid var(--neon-cyan); display:flex; flex-direction:column; justify-content:center; align-items:center; box-shadow:0 0 20px var(--neon-cyan);">
+                            <span style="font-size:2rem; font-weight:800; color:#fff;">${data.statValue}</span>
+                            <span style="font-size:0.7rem; color:var(--text-secondary);">${data.statLabel}</span>
+                        </div>
+                    ` : ''}
+                </div>
+
+                <div style="position:absolute; bottom:10px; right:20px; font-size:0.7rem; opacity:0.3; font-family:var(--font-heading);">PRIMEEDU.AI</div>
+                <button class="share-btn" style="width:100%;"><i class="fas fa-download"></i> Save & Share</button>
+            `;
+
+            // Draw chart if applicable
+            if (data.type === 'chart') {
+                setTimeout(() => {
+                    const canvases = poster.querySelectorAll('.growth-canvas');
+                    canvases.forEach(canvas => {
+                        const ctx = canvas.getContext('2d');
+                        ctx.strokeStyle = '#00f3ff';
+                        ctx.lineWidth = 3;
+                        ctx.beginPath();
+                        ctx.moveTo(0, 200); // Start from origin
+
+                        // Animate line
+                        let x = 0;
+                        const draw = () => {
+                            if (x < 300) {
+                                ctx.lineTo(x, 200 - (Math.sin(x / 50) * 50 + x / 2));
+                                ctx.stroke();
+                                x += 5;
+                                requestAnimationFrame(draw);
+                            }
+                        };
+                        draw();
+                    });
+                }, 100);
+            }
+
+            return poster;
+        }
+
+        const weeklyData = [
+            { title: "Grit Score", content: "You maintained a 100% focus intensity.", type: 'chart' },
+            { title: "Dragon Balls", statValue: "840", statLabel: "EARNED", type: 'stat' }
+        ];
+
+        const monthlyData = [
+            { title: "Identity", html: `<div class="identity-banner">THE ALCHEMIST</div><p>Surgical Precision in 5 Subjects.</p><div class="character-sheet" style="background-image: url('https://i.pinimg.com/736x/97/4a/5b/974a5b6a4e8b3c2d1f0e9a8b7c6d5e4f.jpg'); height: 300px; margin: 10px 0;"></div>` },
+            { title: "Knowledge Pool", content: "Mastery of 3 Units complete.", type: 'chart' },
+            { title: "Focus Hours", statValue: "154", statLabel: "TOTAL HOURS", type: 'stat' },
+            { title: "Consistency", content: "28 Day Streak. Unstoppable.", type: 'chart' }
+        ];
+
+        const yearlyData = [
+            { title: "Legacy", content: "1,200 Hours of Deep Work.", type: 'chart' },
+            { title: "The Scroll", statValue: "154", statLabel: "ENTRIES", type: 'stat' },
+            { title: "Habits", content: "7 Lifelong Systems installed.", type: 'chart' },
+            { title: "Resilience", content: "42 hurdles sliced through.", type: 'chart' },
+            { title: "Final Form", html: `<div class="identity-banner" style="border-color:#ff00ea; color:#ff00ea;">ASCENDED WARRIOR</div><div class="character-sheet" style="background-image: url('https://i.pinimg.com/736x/4e/40/87/4e4087e01177d1c3ea5e7143e7284f9e.jpg'); height: 350px;"></div>` },
+            { title: "Prime Score", statValue: "9.8", statLabel: "TOTAL RATING", type: 'stat' }
+        ];
+
+        const weeklyGrid = document.getElementById('weekly-grid');
+        weeklyData.forEach(d => weeklyGrid.appendChild(createPoster(d)));
+
+        const monthlyGrid = document.getElementById('monthly-grid');
+        monthlyData.forEach(d => monthlyGrid.appendChild(createPoster(d)));
+
+        const yearlyGrid = document.getElementById('yearly-grid');
+        yearlyData.forEach(d => yearlyGrid.appendChild(createPoster(d)));
+    </script>
+</body>
+
+</html>

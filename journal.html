@@ -1,0 +1,230 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+    <title>Journal | PrimeEDU</title>
+    <link rel="stylesheet" href="style.css?v=2">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link
+        href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,500;0,9..40,600;0,9..40,700&family=Inter:wght@400;500;600&display=swap"
+        rel="stylesheet">
+</head>
+
+<body>
+    <div class="app-container">
+        <nav class="sidebar">
+            <div class="logo">
+                <i class="fas fa-compass"></i>
+                <span>PrimeEDU</span>
+            </div>
+            <ul class="nav-links">
+                <li class="nav-item"><a href="index.html" class="nav-link"><i
+                            class="fas fa-graduation-cap"></i><span>Syllabus</span></a></li>
+                <li class="nav-item"><a href="timer.html" class="nav-link"><i class="fas fa-stopwatch"></i><span>Study Timer</span></a></li>
+                <li class="nav-item"><a href="journal.html" class="nav-link active"><i
+                            class="fas fa-scroll"></i><span>Journal</span></a></li>
+                <li class="nav-item"><a href="modules.html" class="nav-link"><i
+                            class="fas fa-book-open"></i><span>Modules</span></a></li>
+                <li class="nav-item"><a href="recaps.html" class="nav-link"><i
+                            class="fas fa-magic"></i><span>Recaps</span></a></li>
+                <li class="nav-item"><a href="leaderboard.html" class="nav-link"><i
+                            class="fas fa-trophy"></i><span>Leaderboard</span></a></li>
+            </ul>
+            <div class="sidebar-bottom">
+                <div class="avatar-preview"><img src="" alt="avatar" class="avatar-circle"></div>
+            </div>
+        </nav>
+
+        <main class="main-content">
+            <header>
+                <div class="header-left">
+                    <h1><i class="fas fa-scroll"></i> Reflective Journal</h1>
+                    <p class="text-secondary">Record your struggles, wins, and emotional state in a calm, private space.
+                    </p>
+                </div>
+                <div style="display:flex; gap:1rem;">
+                    <button id="save-entry" class="neon-btn"
+                        style="border-color: var(--neon-cyan); color: var(--neon-cyan);">
+                        <i class="fas fa-save"></i> Save Entry
+                    </button>
+                    <button id="save-journal" class="neon-btn">
+                        <i class="fas fa-wand-magic-sparkles"></i> AI Recap
+                    </button>
+                </div>
+            </header>
+
+            <div class="journal-layout">
+                <!-- Past Entries Sidebar -->
+                <div class="journal-sidebar">
+                    <h3 style="color: var(--neon-cyan); font-size: 1rem; margin-bottom: 1rem;">
+                        <i class="fas fa-folder-open"></i> Past Entries
+                    </h3>
+                    <div id="past-entries-list">
+                        <p class="text-secondary" style="font-size: 0.8rem;">No entries yet. Start writing!</p>
+                    </div>
+                </div>
+
+                <!-- Main Editor -->
+                <div>
+                    <div class="scroll-container">
+                        <input type="text" class="scroll-title-input" id="journal-title"
+                            placeholder="Title your scroll entry...">
+                        <textarea class="scroll-paper" id="journal-editor"
+                            placeholder="How was your discipline today? What battles did you fight? What did you learn?"></textarea>
+                    </div>
+
+                    <div id="recap-area" style="display: none;">
+                        <div class="ai-scroll-card">
+                            <div class="ai-badge">AI Insight Card</div>
+                            <h3 style="margin-bottom: 1rem; color: var(--neon-cyan);">Daily Resonant Recap</h3>
+                            <p id="ai-content"
+                                style="font-size: 1.1rem; line-height: 1.8; font-style: italic; color: white;">
+                                "The scroll reveals your resilience..."
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <script src="security.js?v=2"></script>
+    <script src="avatars.js?v=2"></script>
+    <script>
+        const SEC = window.PrimeEDUSecurity || {
+            clampString: (s, n) => String(s ?? '').slice(0, n),
+            safeJsonParse: (r, fb) => { try { return JSON.parse(r); } catch { return fb; } },
+            pickFromAllowlist: (v, list, fb) => (list.includes(v) ? v : fb),
+            LIMITS: { JOURNAL_TITLE: 200, JOURNAL_CONTENT: 50000 },
+        };
+        window.PrimeEDUAvatars?.updateAvatarImages();
+
+        // ═══ FEATHER ANIMATION ═══
+        setTimeout(() => {
+            const overlay = document.getElementById('feather-overlay');
+            if (overlay) overlay.style.display = 'none';
+        }, 2500);
+
+        // ═══ SAVE ENTRY (localStorage + backend) ═══
+        const STORAGE_KEY = 'primeedu_journal_entries';
+
+        function loadEntries() {
+            const entries = SEC.safeJsonParse(localStorage.getItem(STORAGE_KEY), []);
+            return Array.isArray(entries) ? entries.slice(0, 200) : [];
+        }
+
+        function saveEntries(entries) {
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(entries));
+        }
+
+        function renderPastEntries() {
+            const list = document.getElementById('past-entries-list');
+            const entries = loadEntries();
+            if (entries.length === 0) {
+                list.innerHTML = '<p class="text-secondary" style="font-size:0.8rem;">No entries yet.</p>';
+                return;
+            }
+            list.innerHTML = '';
+            entries.forEach((e, i) => {
+                const item = document.createElement('div');
+                item.className = 'journal-entry-item';
+                item.dataset.idx = String(i);
+                const meta = document.createElement('div');
+                meta.className = 'journal-entry-meta';
+                const h4 = document.createElement('h4');
+                h4.textContent = e.title || 'Untitled';
+                const span = document.createElement('span');
+                const ts = e.timestamp ? new Date(e.timestamp) : new Date();
+                span.textContent = Number.isNaN(ts.getTime()) ? '' : ts.toLocaleDateString();
+                meta.append(h4, span);
+                const delBtn = document.createElement('button');
+                delBtn.type = 'button';
+                delBtn.className = 'journal-entry-delete';
+                delBtn.title = 'Delete entry';
+                delBtn.innerHTML = '<i class="fas fa-trash-alt"></i>';
+                delBtn.addEventListener('click', (ev) => {
+                    ev.stopPropagation();
+                    if (!confirm('Delete this journal entry?')) return;
+                    const next = loadEntries();
+                    next.splice(i, 1);
+                    saveEntries(next);
+                    renderPastEntries();
+                });
+                item.append(meta, delBtn);
+                item.addEventListener('click', () => {
+                    document.getElementById('journal-title').value = e.title || '';
+                    document.getElementById('journal-editor').value = e.content || '';
+                });
+                list.appendChild(item);
+            });
+        }
+
+        document.getElementById('save-entry').addEventListener('click', async function () {
+            const title = SEC.clampString(document.getElementById('journal-title').value || 'The Wish', SEC.LIMITS.JOURNAL_TITLE);
+            const content = SEC.clampString(document.getElementById('journal-editor').value, SEC.LIMITS.JOURNAL_CONTENT);
+
+            if (content.length < 5) {
+                alert('The scroll remains empty. Write your wish.');
+                return;
+            }
+
+            const entry = { title, content, timestamp: new Date().toISOString() };
+            const entries = loadEntries();
+            entries.unshift(entry);
+            saveEntries(entries);
+            renderPastEntries();
+
+            // Also save to backend
+            try {
+                await fetch('/api/journal/save', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ content, title })
+                });
+            } catch (e) { console.error(e); }
+
+            this.innerHTML = '<i class="fas fa-check"></i> Saved!';
+            this.style.borderColor = '#4ade80';
+            this.style.color = '#4ade80';
+            setTimeout(() => {
+                this.innerHTML = '<i class="fas fa-save"></i> Save Entry';
+                this.style.borderColor = 'var(--neon-cyan)';
+                this.style.color = 'var(--neon-cyan)';
+            }, 2000);
+        });
+
+        // ═══ AI RECAP ═══
+        document.getElementById('save-journal').addEventListener('click', async function () {
+            const content = document.getElementById('journal-editor').value;
+            const title = document.getElementById('journal-title').value || "Untitled";
+            if (content.length < 10) { alert('Write more for a recap.'); return; }
+
+            this.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Analyzing...';
+            this.disabled = true;
+            try {
+                const res = await fetch('/api/journal', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ content, title })
+                });
+                const data = await res.json();
+                if (data.status === 'success') {
+                    document.getElementById('ai-content').textContent = data.recap.content || '';
+                    document.getElementById('recap-area').style.display = 'block';
+                    this.innerHTML = '<i class="fas fa-check"></i> Done';
+                } else { throw new Error('err'); }
+            } catch (e) {
+                alert('AI Agent offline. Entry saved locally.');
+                this.innerHTML = '<i class="fas fa-wand-magic-sparkles"></i> AI Recap';
+                this.disabled = false;
+            }
+        });
+
+        renderPastEntries();
+    </script>
+</body>
+
+</html>

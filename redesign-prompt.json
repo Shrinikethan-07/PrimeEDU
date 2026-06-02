@@ -1,0 +1,36 @@
+{
+  "project": "PrimeEDU / FocusForge",
+  "theme": "Focused Mind",
+  "aesthetic": "Clean, modern, quietly authoritative — premium professional study tool, not anime/gaming UI",
+  "colors": {
+    "navy_deep": "#0f172a",
+    "navy_mid": "#1e293b",
+    "navy_card": "#243047",
+    "slate": "#64748b",
+    "slate_light": "#94a3b8",
+    "sage": "#5c8a6e",
+    "sage_bright": "#6b9b7a",
+    "cream": "#f8f6f1",
+    "cream_muted": "#e8e4dc",
+    "accent": "#4a7c9e",
+    "warning": "#c45c5c"
+  },
+  "typography": {
+    "heading": "DM Sans",
+    "body": "Inter",
+    "principles": "Ample negative space, clean sans-serif, no all-caps shouting"
+  },
+  "terminology": {
+    "dragon_balls": "Focus Points",
+    "warrior": "Student",
+    "missions": "Tasks",
+    "syllabus_forger": "Chapter Planner",
+    "forge_chapter": "Add Chapter"
+  },
+  "interactions": {
+    "task_complete": "Smooth strike-through + sage highlight fill, optional subtle check pulse — no anime slash overlay",
+    "responsive": "Zero lag on task checking",
+    "avoid": ["neon glow", "bright red/yellow except penalties", "anime avatars as default hero"]
+  },
+  "pages": ["index.html", "timer.html", "journal.html", "modules.html", "leaderboard.html", "recaps.html", "book-detail.html", "teams.html"]
+}

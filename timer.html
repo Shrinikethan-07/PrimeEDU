@@ -1,0 +1,335 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Focus Studio | PrimeEDU</title>
+    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link
+        href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,500;0,9..40,600;0,9..40,700&family=Inter:wght@400;500;600&display=swap"
+        rel="stylesheet">
+    <style>
+        .timer-studio-grid {
+            display: grid;
+            grid-template-columns: 1fr 350px;
+            gap: 2.5rem;
+        }
+
+        .timer-card-main {
+            text-align: center;
+            padding: 4rem;
+            position: relative;
+        }
+
+        .timer-mode-selector {
+            display: flex;
+            justify-content: center;
+            gap: 1rem;
+            margin-bottom: 3rem;
+        }
+
+        .mode-btn {
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid var(--glass-border);
+            color: var(--text-secondary);
+            padding: 0.75rem 1.5rem;
+            border-radius: 30px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: all 0.3s;
+        }
+
+        .mode-btn.active {
+            background: var(--accent);
+            color: var(--cream);
+            border-color: var(--accent);
+        }
+
+        .main-timer-value {
+            font-size: 8rem;
+            font-family: var(--font-heading);
+            font-weight: 700;
+            color: var(--cream);
+            margin: 2rem 0;
+            letter-spacing: -0.02em;
+        }
+
+        .subject-tag-selector {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.5rem;
+            margin-bottom: 2rem;
+            justify-content: center;
+        }
+
+        .subject-tag {
+            padding: 0.4rem 0.8rem;
+            border-radius: 6px;
+            font-size: 0.75rem;
+            cursor: pointer;
+            border: 1px solid var(--glass-border);
+            background: rgba(255, 255, 255, 0.03);
+            transition: all 0.2s;
+        }
+
+        .subject-tag:hover,
+        .subject-tag.selected {
+            border-color: var(--sage);
+            color: var(--neon-yellow);
+        }
+
+        .flip-clock-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: #000;
+            z-index: 9999;
+            display: none;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .flip-clock-overlay.active {
+            display: flex;
+        }
+
+        .back-from-flip {
+            position: absolute;
+            top: 2rem;
+            right: 2rem;
+            color: #444;
+            cursor: pointer;
+            font-size: 1.5rem;
+            transition: color 0.3s;
+        }
+
+        .back-from-flip:hover {
+            color: #fff;
+        }
+    </style>
+</head>
+
+<body>
+    <!-- Flip Clock Screensaver -->
+    <div class="flip-clock-overlay" id="flip-overlay">
+        <i class="fas fa-times back-from-flip" onclick="closeFlipClock()"></i>
+        <div class="flip-clock">
+            <div class="flip-card" id="flip-h">00</div>
+            <div class="flip-card" id="flip-m">00</div>
+            <div class="flip-card" id="flip-s">00</div>
+        </div>
+        <p style="color: #444; margin-top: 2rem; font-family: var(--font-heading); font-weight: 700;">DEEP WORK IN
+            PROGRESS</p>
+    </div>
+
+    <div class="app-container">
+        <nav class="sidebar">
+            <div class="logo">
+                <i class="fas fa-compass"></i>
+                <span>PrimeEDU</span>
+            </div>
+            <ul class="nav-links">
+                <li class="nav-item"><a href="index.html" class="nav-link"><i
+                            class="fas fa-graduation-cap"></i><span>Syllabus</span></a></li>
+                <li class="nav-item"><a href="timer.html" class="nav-link active"><i
+                            class="fas fa-stopwatch"></i><span>Study Timer</span></a></li>
+                <li class="nav-item"><a href="journal.html" class="nav-link"><i
+                            class="fas fa-scroll"></i><span>Journal</span></a></li>
+                <li class="nav-item"><a href="modules.html" class="nav-link"><i
+                            class="fas fa-book-open"></i><span>Library</span></a></li>
+                <li class="nav-item"><a href="leaderboard.html" class="nav-link"><i
+                            class="fas fa-trophy"></i><span>Leaderboard</span></a></li>
+            </ul>
+            <div class="sidebar-bottom">
+                <div class="avatar-preview"><img src="" alt="avatar" class="avatar-circle"></div>
+            </div>
+        </nav>
+
+        <main class="main-content">
+            <header>
+                <div class="header-left">
+                    <h1>Focus Studio</h1>
+                    <p class="text-secondary">Sharpen your mind and harvest Dragon Balls.</p>
+                </div>
+            </header>
+
+            <div class="timer-studio-grid">
+                <div class="card timer-card-main">
+                    <div class="timer-mode-selector">
+                        <button class="mode-btn active" id="btn-pomodoro">POMODORO</button>
+                        <button class="mode-btn" id="btn-stopwatch">STOPWATCH</button>
+                    </div>
+
+                    <div class="subject-tag-selector" id="subject-selector">
+                        <div class="subject-tag selected" data-subject="Physics">Physics</div>
+                        <div class="subject-tag" data-subject="Chemistry">Chemistry</div>
+                        <div class="subject-tag" data-subject="Biology">Biology</div>
+                        <div class="subject-tag" data-subject="Math">Mathematics</div>
+                        <div class="subject-tag" data-subject="Tamil">General Tamil</div>
+                        <div class="subject-tag" data-subject="Polity">Indian Polity</div>
+                    </div>
+
+                    <div class="main-timer-value" id="main-timer">25:00</div>
+
+                    <div style="display:flex; justify-content:center; gap:1.5rem;">
+                        <button class="neon-btn" id="timer-toggle">START SESSION</button>
+                        <button class="neon-btn"
+                            style="border-color:var(--text-secondary); color:var(--text-secondary);"
+                            id="timer-reset">RESET</button>
+                        <button class="neon-btn" style="border-color:var(--neon-yellow); color:var(--neon-yellow);"
+                            onclick="openFlipClock()">
+                            <i class="fas fa-expand"></i> FLIP CLOCK
+                        </button>
+                    </div>
+                </div>
+
+                <div class="sidebar-right">
+                    <div class="card">
+                        <h3><i class="fas fa-history"></i> SESSION HISTORY</h3>
+                        <div id="session-logs" style="margin-top: 1rem; font-size: 0.85rem;">
+                            <p class="text-secondary">No sessions recorded today.</p>
+                        </div>
+                    </div>
+
+                    <div class="card" style="border-color: var(--neon-orange);">
+                        <h3 style="color: var(--neon-orange);"><i class="fas fa-fire"></i> POMODORO TIPS</h3>
+                        <p class="text-secondary" style="font-size: 0.8rem; margin-top: 0.5rem;">
+                            Study for 25 minutes, then take a 5-minute break. After 4 cycles, take a long 20-minute
+                            break for maximum neuroplasticity.
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <script src="avatars.js?v=2"></script>
+    <script>
+        let timer, seconds = 1500, isRunning = false, mode = 'pomodoro', currentSubject = 'Physics', currentSessionId = null;
+
+        const timerDisplay = document.getElementById('main-timer');
+        const timerToggle = document.getElementById('timer-toggle');
+        const flipH = document.getElementById('flip-h');
+        const flipM = document.getElementById('flip-m');
+        const flipS = document.getElementById('flip-s');
+
+        async function startSessionAPI() {
+            try {
+                const res = await fetch('/api/sessions/start', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ subject: currentSubject })
+                });
+                const data = await res.json();
+                currentSessionId = data.session.id;
+            } catch (e) { console.error('API Error:', e); }
+        }
+
+        async function endSessionAPI(early = false) {
+            if (!currentSessionId) return;
+            try {
+                const res = await fetch('/api/sessions/end', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ session_id: currentSessionId, early_exit: early })
+                });
+                const data = await res.json();
+                if (data.balls_earned) alert(`Session Ended! You earned ${data.balls_earned} Dragon Balls.`);
+            } catch (e) { console.error('API Error:', e); }
+            currentSessionId = null;
+        }
+
+        function updateDisplay() {
+            const h = Math.floor(seconds / 3600);
+            const m = Math.floor((seconds % 3600) / 60);
+            const s = seconds % 60;
+
+            const displayStr = (h > 0 ? String(h).padStart(2, '0') + ':' : '') +
+                String(m).padStart(2, '0') + ':' +
+                String(s).padStart(2, '0');
+            timerDisplay.innerText = displayStr;
+
+            // Update flip clock
+            flipH.innerText = String(h).padStart(2, '0');
+            flipM.innerText = String(m).padStart(2, '0');
+            flipS.innerText = String(s).padStart(2, '0');
+        }
+
+        function startTimer() {
+            if (isRunning) return;
+            isRunning = true;
+            timerToggle.innerText = 'PAUSE';
+            startSessionAPI();
+            timer = setInterval(() => {
+                if (mode === 'pomodoro') {
+                    seconds--;
+                    if (seconds <= 0) {
+                        clearInterval(timer);
+                        endSessionAPI(false);
+                        isRunning = false;
+                        timerToggle.innerText = 'START SESSION';
+                    }
+                } else {
+                    seconds++;
+                }
+                updateDisplay();
+            }, 1000);
+        }
+
+        function pauseTimer() {
+            clearInterval(timer);
+            isRunning = false;
+            timerToggle.innerText = 'RESUME';
+            // Optional: partial end or intermediate save
+        }
+
+        timerToggle.onclick = () => {
+            if (!isRunning) startTimer(); else pauseTimer();
+        };
+
+        document.getElementById('timer-reset').onclick = () => {
+            clearInterval(timer);
+            isRunning = false;
+            seconds = mode === 'pomodoro' ? 1500 : 0;
+            timerToggle.innerText = 'START SESSION';
+            updateDisplay();
+        };
+
+        document.getElementById('btn-pomodoro').onclick = function () {
+            mode = 'pomodoro';
+            seconds = 1500;
+            updateDisplay();
+            document.querySelectorAll('.mode-btn').forEach(b => b.classList.remove('active'));
+            this.classList.add('active');
+        };
+
+        document.getElementById('btn-stopwatch').onclick = function () {
+            mode = 'stopwatch';
+            seconds = 0;
+            updateDisplay();
+            document.querySelectorAll('.mode-btn').forEach(b => b.classList.remove('active'));
+            this.classList.add('active');
+        };
+
+        window.openFlipClock = () => document.getElementById('flip-overlay').classList.add('active');
+        window.closeFlipClock = () => document.getElementById('flip-overlay').classList.remove('active');
+
+        // Subject selection
+        document.querySelectorAll('.subject-tag').forEach(tag => {
+            tag.onclick = function () {
+                document.querySelectorAll('.subject-tag').forEach(t => t.classList.remove('selected'));
+                this.classList.add('selected');
+                currentSubject = this.dataset.subject;
+            };
+        });
+
+        window.PrimeEDUAvatars.updateAvatarImages();
+    </script>
+</body>
+
+</html>

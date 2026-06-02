@@ -1,0 +1,14 @@
+{
+  "manifest_version": 3,
+  "name": "FocusForge Regain",
+  "version": "1.0",
+  "description": "Enforce focus blocks and redirect distractions to your FocusForge dashboard.",
+  "permissions": ["storage", "webNavigation", "notifications"],
+  "host_permissions": ["<all_urls>"],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "action": {
+    "default_popup": "popup.html"
+  }
+}

@@ -1,0 +1,197 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+    <title>PrimeEDU | Focus Dashboard</title>
+    <link rel="stylesheet" href="style.css?v=2">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,500;0,9..40,600;0,9..40,700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+</head>
+
+<body>
+    <div id="complete-toast-root"></div>
+
+    <!-- Profile avatar modal -->
+    <div class="modal-overlay" id="char-modal" style="display: none;">
+        <div class="modal-content">
+            <h2 style="margin-bottom: 1.5rem; text-align: center;">Choose profile avatar</h2>
+            <div class="char-grid" id="char-grid"></div>
+            <button class="neon-btn" style="margin-top: 2rem; width: 100%;"
+                onclick="document.getElementById('char-modal').style.display='none'">CONFIRM</button>
+        </div>
+    </div>
+
+    <div class="app-container">
+        <nav class="sidebar">
+            <div class="logo">
+                <i class="fas fa-compass"></i>
+                <span>PrimeEDU</span>
+            </div>
+            <ul class="nav-links">
+                <li class="nav-item"><a href="index.html" class="nav-link active"><i
+                            class="fas fa-graduation-cap"></i><span>Syllabus</span></a></li>
+                <li class="nav-item"><a href="timer.html" class="nav-link"><i class="fas fa-stopwatch"></i><span>Study
+                            Timer</span></a></li>
+                <li class="nav-item"><a href="journal.html" class="nav-link"><i
+                            class="fas fa-scroll"></i><span>Journal</span></a></li>
+                <li class="nav-item"><a href="modules.html" class="nav-link"><i
+                            class="fas fa-book-open"></i><span>Library</span></a></li>
+                <li class="nav-item"><a href="leaderboard.html" class="nav-link"><i
+                            class="fas fa-trophy"></i><span>Leaderboard</span></a></li>
+            </ul>
+            <div class="sidebar-bottom">
+                <div class="avatar-preview"><img src="" alt="avatar" class="avatar-circle"></div>
+                <button class="neon-btn" style="width:100%; font-size:0.7rem; padding:0.4rem;"
+                    onclick="openCharacterSelect()">
+                    <i class="fas fa-user-circle"></i> Change Avatar
+                </button>
+            </div>
+        </nav>
+
+        <main class="main-content">
+            <header>
+                <div class="header-left">
+                    <div style="display:flex; align-items:center; gap:1rem;">
+                        <img src="" alt="avatar" id="header-avatar" class="avatar-circle"
+                            style="width:48px;height:48px;">
+                        <div>
+                            <h1 id="user-greeting">Welcome back, Seetharam</h1>
+                            <div class="quote-slider-box" id="quote-slider">
+                                <p class="quote-text" id="active-quote">"Consistency is the art of showing up."</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="user-stats">
+                    <div class="stat-card">
+                        <i class="fas fa-fire" style="color: #ed8936;"></i>
+                        <span class="stat-value">12</span>
+                        <span class="stat-label">Day Streak</span>
+                    </div>
+                    <div class="stat-card">
+                        <div class="focus-points-icon dragon-ball-icon" aria-hidden="true"></div>
+                        <span class="stat-value" id="ball-count">750</span>
+                        <span class="stat-label">Focus Points</span>
+                    </div>
+                </div>
+            </header>
+
+            <div class="dashboard-grid">
+                <!-- Manual Task Section -->
+                <div class="tasks-container">
+                    <div class="section-title"><i class="fas fa-list-check"></i> Today's tasks</div>
+                    <div class="task-input-box">
+                        <input type="text" id="task-input" placeholder="Add a task for today...">
+                        <button class="neon-btn" onclick="addManualTask()">ADD</button>
+                    </div>
+                    <div id="manual-tasks-list" class="tasks-list">
+                        <!-- Tasks go here -->
+                    </div>
+                </div>
+
+                <!-- Subject Chapter Builder -->
+                <div class="subjects-container">
+                    <div class="section-title"><i class="fas fa-book"></i> Chapter planner</div>
+                    <div class="subject-tabs">
+                        <button class="subj-tab active" onclick="switchSubj('physics')">PHYSICS</button>
+                        <button class="subj-tab" onclick="switchSubj('chemistry')">CHEMISTRY</button>
+                        <button class="subj-tab" id="bio-math-tab" onclick="switchSubj('alt')">BIOLOGY</button>
+                    </div>
+                    <div class="card subject-chapter-box">
+                        <input type="text" id="chapter-input" placeholder="New Chapter Title...">
+                        <button class="neon-btn" style="width: 100%; margin-top: 0.5rem;" onclick="addChapter()">Add chapter</button>
+                        <div id="chapters-grid" class="chapters-grid"></div>
+                    </div>
+                </div>
+
+                <!-- Right Column: Quick Stats & Focus -->
+                <div class="sidebar-right">
+                    <div class="timer-mini-card card">
+                        <h3><i class="fas fa-clock"></i> ACTIVE FOCUS</h3>
+                        <div class="timer-display" id="mini-timer">00:00:00</div>
+                        <div style="display:flex; gap:0.5rem;">
+                            <button class="neon-btn outline"
+                                style="flex:1;"
+                                onclick="location.href='timer.html'">Open timer</button>
+                        </div>
+                    </div>
+
+                    <div class="identity-card card">
+                        <h3><i class="fas fa-id-card"></i> IDENTITY</h3>
+                        <div class="identity-badge" id="user-rank">Consistent learner</div>
+                        <p class="text-secondary" style="font-size:0.8rem;">Building discipline one session at a time</p>
+                    </div>
+                </div>
+
+                <!-- Full-width exam syllabus tracker -->
+                <div class="subjects-container syllabus-container" style="grid-column: 1 / -1;">
+                    <div class="section-title"><i class="fas fa-graduation-cap"></i> EXAM SYLLABUS</div>
+                    <div class="card subject-chapter-box">
+                        <div
+                            style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:1rem; margin-bottom:1rem;">
+                            <h3 id="exam-name" style="margin:0; color:var(--cream); font-size:1rem;">NEET UG</h3>
+                            <select id="exam-selector"
+                                style="padding:0.5rem 0.75rem; background:var(--bg-secondary); color:#fff; border:1px solid var(--glass-border); border-radius:6px; font-family:inherit;">
+                                <option value="neet-ug">NEET UG</option>
+                                <option value="jee-main">JEE Main &amp; Advanced</option>
+                                <option value="tnpsc-group-1">TNPSC Group I</option>
+                                <option value="upsc-cse">UPSC Civil Services</option>
+                                <option value="neet-pg">NEET PG</option>
+                            </select>
+                        </div>
+                        <div
+                            style="height:8px; background:rgba(255,255,255,0.1); border-radius:4px; margin-bottom:0.5rem; overflow:hidden;">
+                            <div class="progress-fill" id="exam-progress-fill" style="width:0%"></div>
+                        </div>
+                        <p style="text-align:right; font-size:0.8rem; color:var(--text-secondary); margin-bottom:1rem;">
+                            Overall: <span id="exam-progress-text">0%</span>
+                        </p>
+                        <div id="syllabus-tree" class="syllabus-tree"></div>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- Flashcard Modal -->
+    <div class="modal-overlay" id="flashcard-modal" style="display: none;">
+        <div class="modal-content" style="max-width: 500px;">
+            <h3 id="fc-topic-title" style="margin-bottom: 1.5rem;">Topic flashcard</h3>
+            <div class="flashcard-scene">
+                <div class="flashcard" id="flashcard-obj" onclick="this.classList.toggle('flipped')">
+                    <div class="flashcard-front">
+                        <p id="fc-question">Click to flip...</p>
+                        <span style="font-size: 0.7rem; color: #444; margin-top: 2rem;">REVEAL ANSWER</span>
+                    </div>
+                    <div class="flashcard-back">
+                        <p id="fc-answer">Answer here.</p>
+                        <span style="font-size: 0.7rem; color: #444; margin-top: 2rem;">BACK TO QUESTION</span>
+                    </div>
+                </div>
+            </div>
+            <div class="leitner-actions">
+                <button class="neon-btn" style="border-color: #ff4d4d; color: #ff4d4d;"
+                    onclick="handleLeitner('hard')">HARD</button>
+                <button class="neon-btn" style="border-color: #ffcc00; color: #ffcc00;"
+                    onclick="handleLeitner('med')">MEDIUM</button>
+                <button class="neon-btn" style="border-color: #4ade80; color: #4ade80;"
+                    onclick="handleLeitner('easy')">EASY</button>
+            </div>
+            <button class="neon-btn"
+                style="margin-top: 2rem; width: 100%; border-color: var(--text-secondary); color: var(--text-secondary);"
+                onclick="document.getElementById('flashcard-modal').style.display='none'">CLOSE</button>
+        </div>
+    </div>
+
+    <script src="data-syllabus.js?v=2"></script>
+    <script src="security.js?v=2"></script>
+    <script src="avatars.js?v=2"></script>
+    <script src="app.js?v=2"></script>
+</body>
+
+</html><

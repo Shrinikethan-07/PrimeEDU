@@ -1,0 +1,53 @@
+{
+    "user_profiles": {
+        "seetharam_01": {
+            "name": "Seetharam",
+            "leaderboard_name": "Seetharam",
+            "balls": 760,
+            "streak": 12,
+            "massive_goal": null
+        }
+    },
+    "sessions": [
+        {
+            "id": 1779629155315,
+            "subject": "Physics",
+            "start_time": "2026-05-24T18:55:55.315088",
+            "end_time": null,
+            "status": "active"
+        },
+        {
+            "id": 1779697590175,
+            "subject": "Tamil",
+            "start_time": "2026-05-25T13:56:30.175923",
+            "end_time": null,
+            "status": "active"
+        }
+    ],
+    "syllabus_progress": {
+        "t1": true,
+        "physics-p-c1-Kinematics": true
+    },
+    "topic_notes": {},
+    "journal": [
+        {
+            "id": 1779712547,
+            "title": "Test",
+            "content": "Hello world test entry",
+            "timestamp": "2026-05-25T18:05:47.142647"
+        }
+    ],
+    "tasks": [
+        {
+            "id": 1779629124393,
+            "text": "tests",
+            "completed": false
+        },
+        {
+            "id": 1779697493063,
+            "text": "hi",
+            "completed": false
+        }
+    ],
+    "custom_syllabus": {}
+}

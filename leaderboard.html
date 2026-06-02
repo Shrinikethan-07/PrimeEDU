@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Leaderboard | PrimeEDU</title>
+    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Montserrat:wght@700;800&family=Poppins:wght@400;500;600&display=swap"
+        rel="stylesheet">
+</head>
+
+<body>
+    <!-- Reworked Sword Animation Overlay -->
+    <div class="leaderboard-overlay" id="leaderboard-overlay">
+        <div class="swords-animation">
+            <i class="fas fa-sword sword-left"></i>
+            <i class="fas fa-sword sword-right"></i>
+        </div>
+        <!-- Sound is handled in JS -->
+    </div>
+
+    <div class="app-container">
+        <nav class="sidebar">
+            <div class="logo">
+                <i class="fas fa-bolt"></i>
+                <span>PrimeEDU</span>
+            </div>
+            <ul class="nav-links">
+                <li class="nav-item"><a href="index.html" class="nav-link"><i
+                            class="fas fa-th-large"></i><span>Dashboard</span></a></li>
+                <li class="nav-item"><a href="journal.html" class="nav-link"><i
+                            class="fas fa-scroll"></i><span>Journal</span></a></li>
+                <li class="nav-item"><a href="modules.html" class="nav-link"><i
+                            class="fas fa-book-open"></i><span>Modules</span></a></li>
+                <li class="nav-item"><a href="recaps.html" class="nav-link"><i
+                            class="fas fa-magic"></i><span>Recaps</span></a></li>
+                <li class="nav-item"><a href="leaderboard.html" class="nav-link active"><i
+                            class="fas fa-trophy"></i><span>Leaderboard</span></a></li>
+            </ul>
+            <div class="sidebar-bottom">
+                <div class="avatar-preview"><img src="" alt="avatar" class="avatar-circle"></div>
+                <button class="neon-btn" style="width:100%; font-size:0.7rem; padding:0.4rem;"
+                    onclick="location.href='index.html#char-modal'">
+                    <i class="fas fa-user-ninja"></i> Change Avatar
+                </button>
+            </div>
+        </nav>
+
+        <main class="main-content">
+            <header>
+                <div class="header-left">
+                    <h1>Royal Leaderboard</h1>
+                    <p class="text-secondary">Champions of Consistency</p>
+                </div>
+            </header>
+
+            <div class="leaderboard-full-wrapper" style="padding-bottom: 5rem;">
+                <table class="royal-table">
+                    <thead>
+                        <tr
+                            style="color: var(--neon-cyan); font-family: var(--font-heading); text-transform: uppercase; letter-spacing: 2px;">
+                            <th class="royal-cell">Rank</th>
+                            <th class="royal-cell">Warrior</th>
+                            <th class="royal-cell">Discipline</th>
+                            <th class="royal-cell">Dragon Balls</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr class="royal-row"
+                            style="background: rgba(255, 215, 0, 0.05); border-left: 4px solid #ffd700;">
+                            <td class="royal-cell rank-gold"><i class="fas fa-crown"></i> 1</td>
+                            <td class="royal-cell">
+                                <div class="lb-warrior-cell">
+                                    <img src="https://i.pinimg.com/736x/f5/0f/52/f50f52e51a8b1f6e24a07e30a8d08157.jpg"
+                                        alt="Itachi">
+                                    <strong>Yellow Flash (Minato)</strong>
+                                </div>
+                            </td>
+                            <td class="royal-cell">99.8%</td>
+                            <td class="royal-cell">15,750</td>
+                        </tr>
+                        <tr class="royal-row">
+                            <td class="royal-cell rank-silver">2</td>
+                            <td class="royal-cell">
+                                <div class="lb-warrior-cell">
+                                    <img src="https://i.pinimg.com/736x/d0/b5/3b/d0b53bc5ddd3b25c55ea471fa30c64d0.jpg"
+                                        alt="Naruto">
+                                    <strong>Sage Mode (Naruto)</strong>
+                                </div>
+                            </td>
+                            <td class="royal-cell">95.2%</td>
+                            <td class="royal-cell">12,200</td>
+                        </tr>
+                        <tr class="royal-row">
+                            <td class="royal-cell rank-bronze">3</td>
+                            <td class="royal-cell">
+                                <div class="lb-warrior-cell">
+                                    <img src="https://i.pinimg.com/736x/c4/11/c9/c411c9e40e6f4b3d6e2a1f0c5b8a7d2e.jpg"
+                                        alt="Goku">
+                                    <strong>Ultra Instinct (Goku)</strong>
+                                </div>
+                            </td>
+                            <td class="royal-cell">92.7%</td>
+                            <td class="royal-cell">11,800</td>
+                        </tr>
+                        <tr class="royal-row user-row-vibrant"
+                            style="background: rgba(0, 243, 255, 0.1); border: 2px solid var(--neon-cyan); box-shadow: 0 0 20px rgba(0, 243, 255, 0.1);">
+                            <td class="royal-cell">8</td>
+                            <td class="royal-cell">
+                                <div class="lb-warrior-cell">
+                                    <img src="" alt="You" id="user-lb-avatar" class="avatar-circle">
+                                    <strong id="user-lb-name">The Legend Seetharam (You)</strong>
+                                </div>
+                            </td>
+                            <td class="royal-cell">88.4%</td>
+                            <td class="royal-cell" id="user-lb-beans">3,450</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </main>
+    </div>
+
+    <!-- Hidden audio for sword clash -->
+    <audio id="sword-sound" src="https://www.soundjay.com/category/swords-clashing-1.php" preload="auto"></audio>
+
+    <script>
+        // ═══ AVATAR LOGIC ═══
+        const CHARACTERS = [
+            { id: 'sasuke', img: 'https://i.pinimg.com/736x/4e/40/87/4e4087e01177d1c3ea5e7143e7284f9e.jpg' },
+            { id: 'itachi', img: 'https://i.pinimg.com/736x/f5/0f/52/f50f52e51a8b1f6e24a07e30a8d08157.jpg' },
+            { id: 'naruto', img: 'https://i.pinimg.com/736x/d0/b5/3b/d0b53bc5ddd3b25c55ea471fa30c64d0.jpg' },
+            { id: 'goku', img: 'https://i.pinimg.com/736x/c4/11/c9/c411c9e40e6f4b3d6e2a1f0c5b8a7d2e.jpg' },
+        ];
+        const DEFAULT_AVATAR = 'https://i.pinimg.com/736x/4e/40/87/4e4087e01177d1c3ea5e7143e7284f9e.jpg';
+
+        function updateAvatars() {
+            const charId = localStorage.getItem('primeedu_avatar') || 'sasuke';
+            const char = CHARACTERS.find(c => c.id === charId) || CHARACTERS[0];
+            document.querySelectorAll('.avatar-circle').forEach(img => {
+                img.src = char.img;
+            });
+            const userAvatar = document.getElementById('user-lb-avatar');
+            if (userAvatar) userAvatar.src = char.img;
+        }
+
+        updateAvatars();
+
+        // ═══ SWORD ANIMATION & SOUND ═══
+        window.addEventListener('load', () => {
+            // Attempt to play sound (browsers might block auto-play without interaction)
+            // But for a professional feel, we'll try.
+            const sound = document.getElementById('sword-sound');
+            // sound.play().catch(e => console.log("Audio autoplay blocked"));
+
+            setTimeout(() => {
+                const overlay = document.getElementById('leaderboard-overlay');
+                if (overlay) {
+                    overlay.style.opacity = '0';
+                    setTimeout(() => overlay.style.display = 'none', 500);
+                }
+            }, 2000);
+        });
+
+        async function loadProfile() {
+            try {
+                const res = await fetch('/api/user/profile');
+                const data = await res.json();
+                document.getElementById('user-lb-name').innerText = (data.leaderboard_name || "Seetharam") + " (You)";
+                document.getElementById('user-lb-beans').innerText = (data.points || 0).toLocaleString();
+            } catch (e) { console.error(e); }
+        }
+        loadProfile();
+    </script>
+</body>
+
+</html>
