@@ -27,6 +27,11 @@
                             class="fas fa-book"></i><span>Journal</span></a></li>
                 <li class="nav-item"><a href="teams.html" class="nav-link active"><i
                             class="fas fa-users-gear"></i><span>Teams (B2B)</span></a></li>
+            <li class="nav-item admin-only-link" style="display: none;">
+                    <a href="admin.html" class="nav-link" style="color: #ff3366;">
+                        <i class="fas fa-user-shield"></i><span>Admin</span>
+                    </a>
+                </li>
             </ul>
         </nav>
 
@@ -62,10 +67,23 @@
                 <ul class="nav-links">
                     <li class="nav-item">ConsistentCathy - 98% Consistency</li>
                     <li class="nav-item">DeepWorker - 95% Consistency</li>
-                </ul>
+                <li class="nav-item admin-only-link" style="display: none;">
+                    <a href="admin.html" class="nav-link" style="color: #ff3366;">
+                        <i class="fas fa-user-shield"></i><span>Admin</span>
+                    </a>
+                </li>
+            </ul>
             </div>
         </main>
     </div>
+<script>
+    // Reveal admin link if user is admin
+    const _me = localStorage.getItem('primeedu_leaderboard_name') || localStorage.getItem('primeedu_name') || '';
+    if(_me.toLowerCase() === 'admin') {
+        const adminLinks = document.querySelectorAll('.admin-only-link');
+        adminLinks.forEach(link => link.style.display = 'flex');
+    }
+</script>
 </body>
 
 </html>
