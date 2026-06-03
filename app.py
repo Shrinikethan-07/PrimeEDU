@@ -1,324 +1,403 @@
 from flask import Flask, render_template, request, jsonify, send_from_directory
+from flask_cors import CORS
 import os
 import json
-import asyncio
 from datetime import datetime, timedelta
-from backend.agents.core import FocusForgeAgent, DisciplineAgent, JournalEntry
+import asyncio
+import secrets
+import hashlib
+import random
+from apscheduler.schedulers.background import BackgroundScheduler
+from backend.agents.core import FocusForgeAgent, DisciplineAgent, JournalEntry, VisualizerAgent
 
-app = Flask(__name__, 
-            static_folder='.', 
-            template_folder='.')
+app = Flask(__name__, static_folder='.', template_folder='.')
+CORS(app)
 
-# Mock database
 DB_PATH = 'data/db.json'
-if not os.path.exists('data'):
-    os.makedirs('data')
+_DB_CACHE = None
+
+def hash_password(password):
+    return hashlib.sha256(password.encode()).hexdigest()
 
 def init_db():
+    global _DB_CACHE
+    if not os.path.exists('data'):
+        os.makedirs('data')
     if not os.path.exists(DB_PATH):
-        initial_data = {
-            "user_profiles": {
-                "seetharam_01": {
-                    "name": "Seetharam",
-                    "leaderboard_name": "Seetharam",
-                    "balls": 750,
-                    "streak": 12,
-                    "massive_goal": None
-                }
-            },
+        _DB_CACHE = {
+            "user_profiles": {},
             "sessions": [],
+            "tasks": [],
             "syllabus_progress": {},
             "topic_notes": {},
             "journal": [],
-            "tasks": [],
-            "custom_syllabus": {}
+            "custom_syllabus": {
+                "physics": [], "chemistry": [], "biology": [], "mathematics": []
+            }
         }
-        with open(DB_PATH, 'w') as f:
-            json.dump(initial_data, f, indent=4)
-
-init_db()
-
-DEFAULT_USER = {
-    "name": "Seetharam",
-    "leaderboard_name": "Seetharam",
-    "balls": 750,
-    "streak": 12,
-    "massive_goal": None
-}
-
-def ensure_db_structure(db):
-    """Merge legacy db.json shapes into the schema the app expects."""
-    if "user_profiles" not in db:
-        db["user_profiles"] = {"seetharam_01": dict(DEFAULT_USER)}
-    elif "seetharam_01" not in db["user_profiles"]:
-        db["user_profiles"]["seetharam_01"] = dict(DEFAULT_USER)
+        save_db(_DB_CACHE)
     else:
-        for key, val in DEFAULT_USER.items():
-            db["user_profiles"]["seetharam_01"].setdefault(key, val)
-
-    for key, default in [
-        ("sessions", []),
-        ("syllabus_progress", {}),
-        ("topic_notes", {}),
-        ("journal", []),
-        ("tasks", []),
-        ("custom_syllabus", {}),
-    ]:
-        db.setdefault(key, default if not isinstance(default, dict) else dict(default))
-    return db
+        with open(DB_PATH, 'r') as f:
+            _DB_CACHE = json.load(f)
 
 def load_db():
-    with open(DB_PATH, 'r') as f:
-        db = json.load(f)
-    before = json.dumps(db, sort_keys=True)
-    db = ensure_db_structure(db)
-    if json.dumps(db, sort_keys=True) != before:
-        save_db(db)
-    return db
+    return _DB_CACHE
 
 def save_db(data):
+    global _DB_CACHE
+    _DB_CACHE = data
     with open(DB_PATH, 'w') as f:
         json.dump(data, f, indent=4)
 
-# Initialize Agents
+init_db()
+
+def get_current_user(db):
+    auth_header = request.headers.get('Authorization')
+    if not auth_header or not auth_header.startswith('Bearer '):
+        return None, None
+    token = auth_header.split(' ')[1]
+    
+    for uid, profile in db.get('user_profiles', {}).items():
+        if token in profile.get('active_tokens', []):
+            return profile, uid
+    return None, None
+
+# --- Gamification Engine ---
+def check_streak_and_login(user):
+    last_login = user.get('last_login')
+    if last_login:
+        last_date = datetime.fromisoformat(last_login)
+        now = datetime.now()
+        diff = now - last_date
+        
+        # Streak logic
+        if diff.days == 1:
+            user['streak'] += 1
+            if user['streak'] == 7: user['balls'] += 20
+            elif user['streak'] == 30: user['balls'] += 100
+            elif user['streak'] == 365: user['balls'] += 1000
+        elif diff.days > 1:
+            user['streak'] = 0 # reset
+            
+    user['last_login'] = datetime.now().isoformat()
+    return user
+
+# --- Cron Job / Scheduler ---
+def midnight_wipe():
+    print("Running 24-Hour Automated Refresh...")
+    db = load_db()
+    db['tasks'] = [] # wipe daily routines
+    save_db(db)
+
+scheduler = BackgroundScheduler()
+scheduler.add_job(func=midnight_wipe, trigger="cron", hour=0, minute=0)
+scheduler.start()
+
 journal_agent = FocusForgeAgent(api_key="LOCAL_DEV")
 discipline_agent = DisciplineAgent()
+visual_agent = VisualizerAgent()
 
 @app.route('/')
 def index():
-    return send_from_directory('.', 'index.html')
+    return send_from_directory('.', 'login.html')
 
+@app.route('/<path:path>')
+def static_files(path):
+    return send_from_directory('.', path)
+
+# --- AUTH ENDPOINTS ---
+@app.route('/api/auth/register', methods=['POST'])
+def register():
+    db = load_db()
+    data = request.json
+    phone = data.get('phone')
+    password = data.get('password')
+    name = data.get('name', 'Warrior')
+    
+    if not phone or not password:
+        return jsonify({"status": "error", "message": "Phone and password required"}), 400
+        
+    if phone in db['user_profiles']:
+        return jsonify({"status": "error", "message": "Phone already registered"}), 400
+        
+    db['user_profiles'][phone] = {
+        "name": name,
+        "leaderboard_name": name,
+        "phone": phone,
+        "password_hash": hash_password(password),
+        "active_tokens": [],
+        "balls": 0,
+        "streak": 0,
+        "last_login": datetime.now().isoformat(),
+        "massive_goals": [],
+        "avatar": "itachi",
+        "creation_date": datetime.now().isoformat()
+    }
+    save_db(db)
+    return jsonify({"status": "success"})
+
+@app.route('/api/auth/login', methods=['POST'])
+def login():
+    db = load_db()
+    data = request.json
+    phone = data.get('phone')
+    password = data.get('password')
+    
+    user = db['user_profiles'].get(phone)
+    if user and user.get('password_hash') == hash_password(password):
+        token = secrets.token_hex(32)
+        if 'active_tokens' not in user:
+            user['active_tokens'] = []
+        user['active_tokens'].append(token)
+        save_db(db)
+        return jsonify({"status": "success", "token": token, "name": user.get('name')})
+        
+    return jsonify({"status": "error", "message": "Invalid credentials"}), 401
+
+@app.route('/api/auth/otp/request', methods=['POST'])
+def request_otp():
+    db = load_db()
+    phone = request.json.get('phone')
+    if phone not in db['user_profiles']:
+        return jsonify({"status": "error", "message": "Phone not found"}), 404
+        
+    otp = str(random.randint(1000, 9999))
+    db['user_profiles'][phone]['reset_otp'] = otp
+    save_db(db)
+    
+    print(f"\n{'='*40}\n[SMS SIMULATOR] OTP for {phone}: {otp}\n{'='*40}\n")
+    return jsonify({"status": "success", "message": "OTP sent to phone"})
+
+@app.route('/api/auth/otp/verify', methods=['POST'])
+def verify_otp():
+    db = load_db()
+    data = request.json
+    phone = data.get('phone')
+    otp = data.get('otp')
+    new_password = data.get('new_password')
+    
+    user = db['user_profiles'].get(phone)
+    if user and user.get('reset_otp') == otp:
+        user['password_hash'] = hash_password(new_password)
+        user['reset_otp'] = None
+        user['active_tokens'] = [] # Log out all devices on reset
+        save_db(db)
+        return jsonify({"status": "success", "message": "Password reset successful"})
+        
+    return jsonify({"status": "error", "message": "Invalid OTP"}), 400
+
+@app.route('/api/auth/logout_all', methods=['POST'])
+def logout_all():
+    db = load_db()
+    user, uid = get_current_user(db)
+    if not user:
+        return jsonify({"status": "error", "message": "Unauthorized"}), 401
+    
+    current_token = request.headers.get('Authorization').split(' ')[1]
+    db['user_profiles'][uid]['active_tokens'] = [current_token]
+    save_db(db)
+    return jsonify({"status": "success"})
+
+
+# --- USER ENDPOINTS ---
 @app.route('/api/user/profile', methods=['GET', 'POST'])
 def handle_profile():
     db = load_db()
-    user_id = "seetharam_01"
+    user, uid = get_current_user(db)
+    if not user:
+        return jsonify({"status": "error", "message": "Unauthorized"}), 401
+        
+    user = check_streak_and_login(user)
+    
     if request.method == 'POST':
         data = request.json
         if 'leaderboard_name' in data:
-            db['user_profiles'][user_id]['leaderboard_name'] = data['leaderboard_name']
+            user['leaderboard_name'] = data['leaderboard_name']
+            
         if 'massive_goal' in data:
-            # Check if existing goal is locked
-            current_goal = db['user_profiles'][user_id].get('massive_goal')
-            if current_goal:
-                deadline = datetime.fromisoformat(current_goal['deadline'])
-                if datetime.now() < deadline:
-                    return jsonify({"status": "error", "message": "Goal is locked until the deadline."}), 403
-            db['user_profiles'][user_id]['massive_goal'] = data['massive_goal']
+            new_goal = data['massive_goal']
+            goals = user.get('massive_goals', [])
+            
+            if len(goals) >= 4:
+                return jsonify({"status": "error", "message": "Max 4 concurrent destinies allowed."}), 403
+            
+            # Prevent overlapping end dates
+            for g in goals:
+                if g['deadline'][:10] == new_goal['deadline'][:10]:
+                    return jsonify({"status": "error", "message": "Cannot have overlapping destinies ending on the same day."}), 403
+                    
+            goals.append(new_goal)
+            user['massive_goals'] = goals
+            user['balls'] += 50 # Reward
+            
         save_db(db)
         return jsonify({"status": "success"})
-    return jsonify(db['user_profiles'].get(user_id, {}))
+        
+    save_db(db)
+    
+    # Calculate account age for Recaps
+    created = datetime.fromisoformat(user.get('creation_date', datetime.now().isoformat()))
+    age_days = (datetime.now() - created).days
+    user['account_age_days'] = age_days
+    
+    return jsonify(user)
+
+@app.route('/api/user/destiny/cancel', methods=['POST'])
+def cancel_destiny():
+    db = load_db()
+    user, uid = get_current_user(db)
+    if not user:
+        return jsonify({"status": "error", "message": "Unauthorized"}), 401
+        
+    data = request.json
+    goal_index = data.get('goal_index')
+    goals = user.get('massive_goals', [])
+    
+    if 0 <= goal_index < len(goals):
+        goals.pop(goal_index)
+        user['massive_goals'] = goals
+        user['balls'] -= 5 # Cancellation penalty
+        save_db(db)
+        return jsonify({"status": "success", "balls": user['balls']})
+    return jsonify({"status": "error", "message": "Goal not found"}), 404
+
+@app.route('/api/user/avatar', methods=['GET', 'POST'])
+def handle_avatar():
+    db = load_db()
+    user, uid = get_current_user(db)
+    if not user:
+        return jsonify({"status": "error", "message": "Unauthorized"}), 401
+        
+    if request.method == 'POST':
+        avatar = request.json.get('avatar', 'itachi')
+        user['avatar'] = avatar
+        save_db(db)
+        return jsonify({"status": "success", "avatar": avatar})
+    return jsonify({"avatar": user.get('avatar', 'itachi')})
 
 @app.route('/api/journal', methods=['POST'])
 def submit_journal():
-    data = request.json or {}
-    content = data.get('content', '')
+    db = load_db()
+    user, uid = get_current_user(db)
+    if not user:
+        return jsonify({"status": "error", "message": "Unauthorized"}), 401
+        
+    data = request.json
+    content = data.get('content')
     title = data.get('title', f"Entry_{datetime.now().strftime('%Y%m%d_%H%M%S')}")
-
-    entry = JournalEntry(
-        user_id="seetharam_01",
+    
+    entry_obj = JournalEntry(
+        user_id=uid,
         content=content,
         timestamp=datetime.now(),
         mood_score=7
     )
-
-    db = load_db()
+    
     db['journal'].append({
+        "user_id": uid,
+        "id": int(datetime.now().timestamp()),
         "title": title,
         "content": content,
         "timestamp": datetime.now().isoformat()
     })
     save_db(db)
-
-    asyncio.run(journal_agent.analyze_journal(entry))
-    recap = asyncio.run(journal_agent.generate_recap_card([entry], period="Daily"))
-
-    return jsonify({
-        "status": "success",
-        "recap": {
-            "title": recap.title,
-            "content": recap.content,
-            "sentiment": recap.sentiment
-        }
-    })
+    
+    analysis = asyncio.run(journal_agent.analyze_journal(entry_obj))
+    recap = asyncio.run(journal_agent.generate_recap_card([entry_obj], period="Daily"))
+    
+    return jsonify({"status": "success", "recap": {"title": recap.title, "content": recap.content, "sentiment": recap.sentiment}})
 
 @app.route('/api/tasks', methods=['GET', 'POST'])
 def handle_tasks():
     db = load_db()
+    user, uid = get_current_user(db)
+    if not user:
+        return jsonify({"status": "error", "message": "Unauthorized"}), 401
+        
+    user_tasks = [t for t in db['tasks'] if t.get('user_id') == uid]
     if request.method == 'POST':
         task = request.json
         task['id'] = len(db['tasks']) + 1
+        task['user_id'] = uid
         db['tasks'].append(task)
         save_db(db)
         return jsonify({"status": "success", "task": task})
-    return jsonify(db['tasks'])
+    return jsonify(user_tasks)
 
 @app.route('/api/tasks/sync', methods=['POST'])
 def sync_tasks():
     db = load_db()
+    user, uid = get_current_user(db)
+    if not user:
+        return jsonify({"status": "error", "message": "Unauthorized"}), 401
+        
     data = request.json
-    db['tasks'] = data.get('tasks', [])
+    new_tasks = data.get('tasks', [])
+    for t in new_tasks: t['user_id'] = uid
+    
+    # Remove old tasks for this user, insert new ones
+    db['tasks'] = [t for t in db['tasks'] if t.get('user_id') != uid] + new_tasks
+    
+    # Very basic balls reward logic (simplified)
+    new_completed = len([t for t in new_tasks if t.get('completed')])
+    db['user_profiles'][uid]['balls'] += (new_completed * 2) # small reward
+        
     save_db(db)
     return jsonify({"status": "success"})
-
-@app.route('/api/syllabus/custom', methods=['POST'])
-def sync_custom_syllabus():
-    db = load_db()
-    data = request.json or {}
-    db['custom_syllabus'] = data.get('chapters', {})
-    save_db(db)
-    return jsonify({"status": "success"})
-
-
-@app.route('/api/syllabus/progress', methods=['GET', 'POST'])
-def syllabus_progress():
-    db = load_db()
-    user_id = "seetharam_01"
-
-    if request.method == 'GET':
-        return jsonify(db.get('syllabus_progress', {}))
-
-    data = request.json or {}
-    topic_id = data.get('topic_id')
-    if topic_id is None:
-        return jsonify({"status": "error", "message": "topic_id required"}), 400
-
-    completed = bool(data.get('completed'))
-    db['syllabus_progress'][topic_id] = completed
-
-    if completed:
-        profile = db['user_profiles'][user_id]
-        profile['balls'] = profile.get('balls', 750) + 5
-
-    save_db(db)
-    return jsonify({
-        "status": "success",
-        "balls": db['user_profiles'][user_id].get('balls', 750)
-    })
-
-
-@app.route('/api/syllabus/notes', methods=['POST'])
-def syllabus_notes():
-    db = load_db()
-    data = request.json or {}
-    topic_id = data.get('topic_id')
-    if not topic_id:
-        return jsonify({"status": "error", "message": "topic_id required"}), 400
-    db['topic_notes'][topic_id] = data.get('content', '')
-    save_db(db)
-    return jsonify({"status": "success"})
-
-@app.route('/api/journal/save', methods=['POST'])
-def save_journal_entry():
-    db = load_db()
-    data = request.json
-    entry = {
-        "id": int(datetime.now().timestamp()),
-        "title": data.get('title', 'The Wish'),
-        "content": data.get('content'),
-        "timestamp": datetime.now().isoformat()
-    }
-    db['journal'].append(entry)
-    save_db(db)
-    return jsonify({"status": "success"})
-
 
 @app.route('/api/sessions/start', methods=['POST'])
 def start_session():
     db = load_db()
-    data = request.json or {}
+    user, uid = get_current_user(db)
+    if not user:
+        return jsonify({"status": "error", "message": "Unauthorized"}), 401
+        
     session = {
-        "id": int(datetime.now().timestamp() * 1000),
-        "subject": data.get('subject', 'General'),
+        "id": f"sess_{int(datetime.now().timestamp())}",
+        "user_id": uid,
+        "subject": request.json.get("subject", "General") if request.json else "General",
+        "mode": request.json.get("mode", "Custom duration") if request.json else "Custom duration",
         "start_time": datetime.now().isoformat(),
-        "end_time": None,
-        "status": "active"
+        "status": "running"
     }
     db['sessions'].append(session)
     save_db(db)
     return jsonify({"status": "success", "session": session})
 
-
 @app.route('/api/sessions/end', methods=['POST'])
 def end_session():
     db = load_db()
+    user, uid = get_current_user(db)
+    if not user:
+        return jsonify({"status": "error", "message": "Unauthorized"}), 401
+        
     data = request.json or {}
-    session_id = data.get('session_id')
-    user_id = "seetharam_01"
-    balls_earned = 0
-
-    for session in db['sessions']:
-        if session.get('id') == session_id and session.get('status') == 'active':
-            session['end_time'] = datetime.now().isoformat()
-            session['status'] = 'abandoned' if data.get('early_exit') else 'completed'
-            if session['status'] == 'completed':
-                start = datetime.fromisoformat(session['start_time'])
-                end = datetime.fromisoformat(session['end_time'])
-                minutes = max(1, int((end - start).total_seconds() / 60))
-                balls_earned = min(50, minutes)
-                profile = db['user_profiles'][user_id]
-                profile['balls'] = profile.get('balls', 750) + balls_earned
+    session_id = data.get("session_id")
+    early_exit = data.get("early_exit", False)
+    
+    for s in db['sessions']:
+        if s['id'] == session_id and s.get('user_id') == uid:
+            s['end_time'] = datetime.now().isoformat()
+            s['status'] = "completed" if not early_exit else "early_exit"
+            
+            earned = 45 if not early_exit else 10
+            db['user_profiles'][uid]['balls'] += earned
             save_db(db)
-            return jsonify({"status": "success", "balls_earned": balls_earned})
-
+            return jsonify({"status": "success", "balls_earned": earned})
+            
     return jsonify({"status": "error", "message": "Session not found"}), 404
 
-
-@app.route('/api/identity', methods=['GET'])
-def get_identity():
+@app.route('/api/recap/dynamic', methods=['GET'])
+def get_dynamic_recap():
     db = load_db()
-    sessions = db['sessions']
-    user = db['user_profiles']["seetharam_01"]
-    
-    if not sessions:
-        return jsonify({"identity": "THE BEGINNER", "description": "Just starting your journey."})
-
-    # Logic for identities
-    night_minutes = 0
-    morning_minutes = 0
-    total_minutes = 0
-    max_session_len = 0
-    subject_times = {}
-
-    for s in sessions:
-        if s['status'] != 'completed': continue
-        start = datetime.fromisoformat(s['start_time'])
-        end = datetime.fromisoformat(s['end_time'])
-        duration = (end - start).total_seconds() / 60
-        total_minutes += duration
-        max_session_len = max(max_session_len, duration)
+    user, uid = get_current_user(db)
+    if not user:
+        return jsonify({"status": "error", "message": "Unauthorized"}), 401
         
-        # Time of day
-        hour = start.hour
-        if 22 <= hour or hour <= 4:
-            night_minutes += duration
-        if 4 <= hour <= 8:
-            morning_minutes += duration
-            
-        # Subject distribution
-        subj = s.get('subject', 'General')
-        subject_times[subj] = subject_times.get(subj, 0) + duration
-
-    if user['streak'] >= 15:
-        return jsonify({"identity": "THE STREAK MASTER", "description": "Maintained study streak of 15+ days straight."})
-    if night_minutes > (total_minutes * 0.5):
-        return jsonify({"identity": "THE NIGHT OWL", "description": "Thrives when the rest of the world is asleep."})
-    if morning_minutes > (total_minutes * 0.6):
-        return jsonify({"identity": "THE EARLY RISER", "description": "Owns the morning before the day even begins."})
-    if max_session_len >= 90:
-        return jsonify({"identity": "THE DEEP DIVER", "description": "Prefers long uninterrupted focus sessions."})
-        
-    # Alchemist check (simplified: 3+ subjects with similar time)
-    if len(subject_times) >= 3:
-        vals = list(subject_times.values())
-        if max(vals) - min(vals) < total_minutes * 0.2:
-            return jsonify({"identity": "THE ALCHEMIST", "description": "Excels at balancing completely different fields of study."})
-
-    return jsonify({"identity": "THE MIND MAKER", "description": "A dedicated practitioner of discipline."})
-
-
-@app.route('/<path:path>')
-def static_files(path):
-    return send_from_directory('.', path)
+    sessions = [s for s in db.get('sessions', []) if s.get('user_id') == uid]
+    tasks = [t for t in db.get('tasks', []) if t.get('user_id') == uid]
+    visuals = visual_agent.get_recap_visuals(sessions, tasks)
+    return jsonify(visuals)
 
 if __name__ == '__main__':
     print("PrimeEDU Local Server Starting...")
