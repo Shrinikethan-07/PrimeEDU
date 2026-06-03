@@ -1,13 +1,5 @@
 {
-    "user_profiles": {
-        "seetharam_01": {
-            "name": "Seetharam",
-            "leaderboard_name": "Seetharam",
-            "balls": 760,
-            "streak": 12,
-            "massive_goal": null
-        }
-    },
+    "user_profiles": {},
     "sessions": [
         {
             "id": 1779629155315,
