@@ -215,7 +215,7 @@
                 <span>PrimeEDU</span>
             </div>
                         <ul class="nav-links">
-                <li class="nav-item"><a href="index.html" class="nav-link"><i class="fas fa-th-large"></i><span>Dashboard</span></a></li>
+                <li class="nav-item"><a href="dashboard.html" class="nav-link"><i class="fas fa-th-large"></i><span>Dashboard</span></a></li>
                 <li class="nav-item"><a href="timer.html" class="nav-link"><i class="fas fa-stopwatch"></i><span>Study Timer</span></a></li>
                 <li class="nav-item"><a href="journal.html" class="nav-link"><i class="fas fa-scroll"></i><span>Journal</span></a></li>
                 <li class="nav-item"><a href="modules.html" class="nav-link"><i class="fas fa-book-open"></i><span>Library</span></a></li>
@@ -420,49 +420,72 @@
                 accountAgeDays = profile.account_age_days || 0;
             } catch(e) {}
 
-            function renderLocked(gridId, requiredDays) {
+            function applyLockOverlay(gridId, requiredDays) {
                 const grid = document.getElementById(gridId);
-                grid.innerHTML = `<div style="grid-column: 1 / -1; padding: 3rem; background: rgba(0,0,0,0.3); border-radius: 12px; text-align: center; border: 1px dashed rgba(255,255,255,0.1);">
-                    <i class="fas fa-lock" style="font-size: 2rem; color: #64748b; margin-bottom: 1rem;"></i>
-                    <h3 style="color: #cbd5e1; font-family: var(--font-heading);">LOCKED UNTIL DAY ${requiredDays}</h3>
-                    <p style="color: #64748b; font-size: 0.9rem; margin-top: 0.5rem;">Keep grinding. You are on day ${accountAgeDays}.</p>
-                </div>`;
+                grid.style.position = 'relative';
+                // Frosted glass overlay
+                const overlay = document.createElement('div');
+                overlay.style.cssText = `
+                    position: absolute; top: 0; left: 0; right: 0; bottom: 0;
+                    background: rgba(13, 4, 26, 0.65);
+                    backdrop-filter: blur(8px);
+                    -webkit-backdrop-filter: blur(8px);
+                    z-index: 100;
+                    display: flex; flex-direction: column; align-items: center; justify-content: center;
+                    border-radius: 20px; text-align: center;
+                `;
+                overlay.innerHTML = `
+                    <i class="fas fa-lock" style="font-size: 3rem; color: rgba(255,255,255,0.8); margin-bottom: 1rem; text-shadow: 0 0 15px rgba(255,255,255,0.4);"></i>
+                    <h3 style="color: white; font-family: var(--font-heading); font-size: 1.2rem; letter-spacing: 2px;">LOCKED UNTIL DAY ${requiredDays}</h3>
+                    <p style="color: var(--neon-cyan); font-size: 0.85rem; margin-top: 0.5rem; font-weight: 600;">You are on Day ${accountAgeDays}. Keep grinding.</p>
+                `;
+                grid.appendChild(overlay);
+                
+                // Disable pointer events on the cards underneath
+                Array.from(grid.children).forEach(child => {
+                    if (child !== overlay) {
+                        child.style.pointerEvents = 'none';
+                        child.style.userSelect = 'none';
+                    }
+                });
             }
 
             try {
                 const response = await fetch(window.API_BASE_URL + '/api/recap/dynamic');
                 const dynamicData = await response.json();
 
-                if(accountAgeDays >= 7) {
-                    const weeklyData = [
-                        { title: "Weekly Grit", content: dynamicData.reason, type: 'chart', image: dynamicData.image },
-                        { title: "Dragon Balls", statValue: dynamicData.highlight_stat, statLabel: dynamicData.label, type: 'stat' }
-                    ];
-                    const weeklyGrid = document.getElementById('weekly-grid');
-                    weeklyData.forEach((d, i) => weeklyGrid.appendChild(createPoster(d, i)));
-                } else renderLocked('weekly-grid', 7);
+                // Weekly Data
+                const weeklyData = [
+                    { title: "Weekly Grit", content: dynamicData.reason || 'No data', type: 'chart', image: dynamicData.image || 'consistency_v2.png' },
+                    { title: "Dragon Balls", statValue: dynamicData.highlight_stat || '0', statLabel: dynamicData.label || 'EARNED', type: 'stat' }
+                ];
+                const weeklyGrid = document.getElementById('weekly-grid');
+                weeklyData.forEach((d, i) => weeklyGrid.appendChild(createPoster(d, i)));
+                if(accountAgeDays < 7) applyLockOverlay('weekly-grid', 7);
 
-                if(accountAgeDays >= 30) {
-                    const monthlyData = [
-                        { title: "Identity", html: `<div style="font-size:0.85rem;color:var(--neon-purple);font-family:var(--font-heading);border:1px solid var(--neon-purple);padding:0.4rem 0.8rem;border-radius:8px;margin-bottom:0.75rem;">THE ALCHEMIST</div><p style="font-size:0.8rem;">Surgical Precision.</p><div style="background-image:url('https://i.pinimg.com/736x/97/4a/5b/974a5b6a4e8b3c2d1f0e9a8b7c6d5e4f.jpg');height:90px;background-size:cover;background-position:center;border-radius:12px;width:100%;"></div>` },
-                        { title: "Consistency", content: "28 Day Streak. Unstoppable.", type: 'chart', image: 'consistency_v2.png' },
-                        { title: "Knowledge", content: "3 Chapters Decoded.", type: 'chart', image: 'focus_bars.png' },
-                        { title: "Focus Master", statValue: "154", statLabel: "HOURS", type: 'stat' }
-                    ];
-                    monthlyData.forEach((d, i) => document.getElementById('monthly-grid').appendChild(createPoster(d, i)));
-                } else renderLocked('monthly-grid', 30);
+                // Monthly Data
+                const monthlyData = [
+                    { title: "Identity", html: `<div style="font-size:0.85rem;color:var(--neon-purple);font-family:var(--font-heading);border:1px solid var(--neon-purple);padding:0.4rem 0.8rem;border-radius:8px;margin-bottom:0.75rem;">THE ALCHEMIST</div><p style="font-size:0.8rem;">Surgical Precision.</p><div style="background-image:url('https://i.pinimg.com/736x/97/4a/5b/974a5b6a4e8b3c2d1f0e9a8b7c6d5e4f.jpg');height:90px;background-size:cover;background-position:center;border-radius:12px;width:100%;"></div>` },
+                    { title: "Consistency", content: "28 Day Streak. Unstoppable.", type: 'chart', image: 'consistency_v2.png' },
+                    { title: "Knowledge", content: "3 Chapters Decoded.", type: 'chart', image: 'focus_bars.png' },
+                    { title: "Focus Master", statValue: "154", statLabel: "HOURS", type: 'stat' }
+                ];
+                const monthlyGrid = document.getElementById('monthly-grid');
+                monthlyData.forEach((d, i) => monthlyGrid.appendChild(createPoster(d, i)));
+                if(accountAgeDays < 30) applyLockOverlay('monthly-grid', 30);
 
-                if(accountAgeDays >= 365) {
-                    const yearlyData = [
-                        { title: "Legacy", content: "Master of Deep Work.", type: 'chart', image: 'consistency_graph.png' },
-                        { title: "Chronos", statValue: "8,400", statLabel: "MINUTES", type: 'stat' },
-                        { title: "Growth Mindset", content: "Peak Form.", type: 'chart', image: 'focus_bars.png' },
-                        { title: "The Scroll", statValue: "154", statLabel: "ENTRIES", type: 'stat' },
-                        { title: "Final Form", html: `<div style="color:#ff00ea;font-family:var(--font-heading);border:1px solid #ff00ea;padding:0.4rem 0.8rem;border-radius:8px;font-size:0.8rem;margin-bottom:0.75rem;">ASCENDED WARRIOR</div><div style="background-image:url('https://i.pinimg.com/736x/4e/40/87/4e4087e01177d1c3ea5e7143e7284f9e.jpg');height:90px;background-size:cover;background-position:center;border-radius:12px;width:100%;"></div>` },
-                        { title: "Prime Rating", statValue: "9.8", statLabel: "TIER S+", type: 'stat' }
-                    ];
-                    yearlyData.forEach((d, i) => document.getElementById('yearly-grid').appendChild(createPoster(d, i)));
-                } else renderLocked('yearly-grid', 365);
+                // Yearly Data
+                const yearlyData = [
+                    { title: "Legacy", content: "Master of Deep Work.", type: 'chart', image: 'consistency_graph.png' },
+                    { title: "Chronos", statValue: "8,400", statLabel: "MINUTES", type: 'stat' },
+                    { title: "Growth Mindset", content: "Peak Form.", type: 'chart', image: 'focus_bars.png' },
+                    { title: "The Scroll", statValue: "154", statLabel: "ENTRIES", type: 'stat' },
+                    { title: "Final Form", html: `<div style="color:#ff00ea;font-family:var(--font-heading);border:1px solid #ff00ea;padding:0.4rem 0.8rem;border-radius:8px;font-size:0.8rem;margin-bottom:0.75rem;">ASCENDED WARRIOR</div><div style="background-image:url('https://i.pinimg.com/736x/4e/40/87/4e4087e01177d1c3ea5e7143e7284f9e.jpg');height:90px;background-size:cover;background-position:center;border-radius:12px;width:100%;"></div>` },
+                    { title: "Prime Rating", statValue: "9.8", statLabel: "TIER S+", type: 'stat' }
+                ];
+                const yearlyGrid = document.getElementById('yearly-grid');
+                yearlyData.forEach((d, i) => yearlyGrid.appendChild(createPoster(d, i)));
+                if(accountAgeDays < 365) applyLockOverlay('yearly-grid', 365);
 
             } catch (e) {
                 console.error("Failed to load recaps", e);

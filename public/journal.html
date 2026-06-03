@@ -111,11 +111,11 @@
             opacity: 0;
         }
 
-        .entry-card:hover .entry-delete-btn {
+        .entry-card:hover .entry-delete-btn, .entry-card:hover .entry-edit-btn {
             opacity: 1;
         }
 
-        .entry-delete-btn:hover {
+        .entry-delete-btn:hover, .entry-edit-btn:hover {
             background: rgba(255, 0, 85, 0.35);
             transform: scale(1.1);
         }
@@ -285,7 +285,7 @@
                 <span>PrimeEDU</span>
             </div>
                         <ul class="nav-links">
-                <li class="nav-item"><a href="index.html" class="nav-link"><i class="fas fa-th-large"></i><span>Dashboard</span></a></li>
+                <li class="nav-item"><a href="dashboard.html" class="nav-link"><i class="fas fa-th-large"></i><span>Dashboard</span></a></li>
                 <li class="nav-item"><a href="timer.html" class="nav-link"><i class="fas fa-stopwatch"></i><span>Study Timer</span></a></li>
                 <li class="nav-item"><a href="journal.html" class="nav-link active"><i class="fas fa-scroll"></i><span>Journal</span></a></li>
                 <li class="nav-item"><a href="modules.html" class="nav-link"><i class="fas fa-book-open"></i><span>Library</span></a></li>
@@ -402,9 +402,19 @@
                 return [];
             }
         }
+        
         function saveEntries(entries) {
             localStorage.setItem(STORAGE_KEY, JSON.stringify(entries));
+            // Sync to backend
+            try {
+                fetch(window.API_BASE_URL + '/api/journal/sync', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + localStorage.getItem('primeedu_token') },
+                    body: JSON.stringify({ entries: entries })
+                });
+            } catch(e) {}
         }
+
 
         function renderPastEntries() {
             const list = document.getElementById('past-entries-list');
@@ -421,7 +431,7 @@
                         ${new Date(e.timestamp).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
                     </div>
                     <div class="entry-preview">${(e.content || '').substring(0, 60)}${e.content && e.content.length > 60 ? '...' : ''}</div>
-                    <button class="entry-delete-btn" onclick="deleteEntry(event, ${i})" title="Delete entry">
+                    <button class="entry-edit-btn" onclick="loadEntry(${i}); event.stopPropagation();" title="Edit entry" style="position:absolute; top:0.75rem; right:2.25rem; width:22px; height:22px; background:rgba(0, 243, 255, 0.15); border:1px solid rgba(0, 243, 255, 0.3); border-radius:6px; color:var(--neon-cyan); font-size:0.65rem; cursor:pointer; display:flex; align-items:center; justify-content:center; transition:all 0.2s; opacity:0;"><i class="fas fa-pencil-alt"></i></button><button class="entry-delete-btn" onclick="deleteEntry(event, ${i})" title="Delete entry">
                         <i class="fas fa-trash-alt"></i>
                     </button>
                 </div>
@@ -437,12 +447,28 @@
             document.getElementById('journal-editor').value = entry.content || '';
             const words = (entry.content || '').trim().split(/\s+/).filter(w => w.length > 0).length;
             document.getElementById('word-count').textContent = `${words} words`;
+            document.getElementById('save-entry').innerHTML = '<i class="fas fa-save"></i> Update Entry';
             renderPastEntries();
         }
 
         function deleteEntry(event, idx) {
             event.stopPropagation();
-            if (!confirm('Delete this journal entry? This cannot be undone.')) return;
+            
+            showConfirmModal('Delete this journal entry? This cannot be undone.', () => {
+                const entries = loadEntries();
+                entries.splice(idx, 1);
+                saveEntries(entries);
+                if (currentEditIndex === idx) {
+                    currentEditIndex = null;
+                    clearEditor();
+                } else if (currentEditIndex > idx) {
+                    currentEditIndex--;
+                }
+                renderPastEntries();
+                showToast('Entry deleted.', 'var(--neon-pink)');
+            });
+            return;
+
             const entries = loadEntries();
             entries.splice(idx, 1);
             saveEntries(entries);
@@ -462,6 +488,7 @@
             document.getElementById('journal-title').value = '';
             document.getElementById('journal-editor').value = '';
             document.getElementById('word-count').textContent = '0 words';
+            document.getElementById('save-entry').innerHTML = '<i class="fas fa-save"></i> Save Entry';
             document.getElementById('recap-area').style.display = 'none';
             renderPastEntries();
         };
@@ -500,7 +527,7 @@
 
             // Backend sync (non-blocking)
             try {
-                await fetch(window.API_BASE_URL + '/api/journal/save', {
+                await fetch(window.API_BASE_URL + '/api/journal', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ content, title })
@@ -568,6 +595,37 @@
             }
         }, 1200);
     </script>
+
+    <!-- Global Confirmation Modal -->
+    <div class="modal-overlay" id="confirm-modal" style="display: none; position: fixed; inset: 0; background: rgba(15, 23, 42, 0.85); backdrop-filter: blur(10px); z-index: 9999; flex-direction: column; align-items: center; justify-content: center;">
+        <div class="modal-content" style="max-width: 400px; text-align: center; border: 1px solid var(--neon-pink); box-shadow: 0 0 30px rgba(255,42,133,0.3); background: rgba(15, 23, 42, 0.9); padding: 2.5rem; border-radius: 24px;">
+            <i class="fas fa-exclamation-triangle" style="font-size: 3rem; color: var(--neon-pink); margin-bottom: 1rem;"></i>
+            <h3 style="color: white; margin-bottom: 0.5rem; font-family: var(--font-heading);">Better think twice</h3>
+            <p id="confirm-msg" style="color: var(--text-secondary); font-size: 0.9rem; margin-bottom: 1.5rem;"></p>
+            <div style="display: flex; gap: 1rem; justify-content: center;">
+                <button class="neon-btn" style="flex: 1; border-color: rgba(255,255,255,0.2); color: white;" onclick="closeConfirmModal()">CANCEL</button>
+                <button class="neon-btn" style="flex: 1; border-color: var(--neon-pink); color: var(--neon-pink);" id="confirm-yes-btn">PROCEED</button>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        let confirmAction = null;
+        function showConfirmModal(msg, action) {
+            document.getElementById('confirm-msg').textContent = msg;
+            confirmAction = action;
+            document.getElementById('confirm-modal').style.display = 'flex';
+        }
+        function closeConfirmModal() {
+            document.getElementById('confirm-modal').style.display = 'none';
+            confirmAction = null;
+        }
+        document.getElementById('confirm-yes-btn').addEventListener('click', () => {
+            if(confirmAction) confirmAction();
+            closeConfirmModal();
+        });
+    </script>
+
 </body>
 
 </html>

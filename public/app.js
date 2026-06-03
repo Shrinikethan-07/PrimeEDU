@@ -24,8 +24,8 @@ document.addEventListener('DOMContentLoaded', () => {
         
         const response = await originalFetch(resource, config);
         
-        if (response.status === 401 && !window.location.pathname.endsWith('login.html')) {
-            window.location.href = 'login.html';
+        if (response.status === 401 && !window.location.pathname.endsWith('index.html')) {
+            window.location.href = 'index.html';
         }
         
         return response;
@@ -690,7 +690,7 @@ document.addEventListener('DOMContentLoaded', () => {
     window.handleLogout = () => {
         showConfirm("Are you sure you want to log out from this device?", () => {
             localStorage.removeItem('primeedu_token');
-            window.location.href = 'login.html';
+            window.location.href = 'index.html';
         });
     };
 

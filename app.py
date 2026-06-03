@@ -275,6 +275,23 @@ def handle_avatar():
         return jsonify({"status": "success", "avatar": avatar})
     return jsonify({"avatar": user.get('avatar', 'itachi')})
 
+
+@app.route('/api/journal/sync', methods=['POST'])
+def sync_journal():
+    db = load_db()
+    user, uid = get_current_user(db)
+    if not user:
+        return jsonify({'status': 'error', 'message': 'Unauthorized'}), 401
+    
+    data = request.json
+    entries = data.get('entries', [])
+    for e in entries:
+        e['user_id'] = uid
+        
+    db['journal'] = [j for j in db['journal'] if j.get('user_id') != uid] + entries
+    save_db(db)
+    return jsonify({'status': 'success'})
+
 @app.route('/api/journal', methods=['POST'])
 def submit_journal():
     db = load_db()
