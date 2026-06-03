@@ -8,7 +8,7 @@ import secrets
 import hashlib
 import random
 from apscheduler.schedulers.background import BackgroundScheduler
-from backend.agents.core import FocusForgeAgent, DisciplineAgent, JournalEntry, VisualizerAgent
+from backend.agents.core import FocusForgeAgent, DisciplineAgent, JournalEntry
 
 app = Flask(__name__, static_folder='.', template_folder='.')
 CORS(app)
@@ -95,7 +95,7 @@ scheduler.start()
 
 journal_agent = FocusForgeAgent(api_key="LOCAL_DEV")
 discipline_agent = DisciplineAgent()
-visual_agent = VisualizerAgent()
+
 
 @app.route('/')
 def index():
@@ -413,7 +413,7 @@ def get_dynamic_recap():
         
     sessions = [s for s in db.get('sessions', []) if s.get('user_id') == uid]
     tasks = [t for t in db.get('tasks', []) if t.get('user_id') == uid]
-    visuals = visual_agent.get_recap_visuals(sessions, tasks)
+    visuals = {}
     return jsonify(visuals)
 
 if __name__ == '__main__':
