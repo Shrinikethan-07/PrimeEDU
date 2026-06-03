@@ -110,20 +110,20 @@ def static_files(path):
 def register():
     db = load_db()
     data = request.json
-    phone = data.get('phone')
+    email = data.get('email')
     password = data.get('password')
     name = data.get('name', 'Warrior')
     
-    if not phone or not password:
-        return jsonify({"status": "error", "message": "Phone and password required"}), 400
+    if not email or not password:
+        return jsonify({"status": "error", "message": "Email and password required"}), 400
         
-    if phone in db['user_profiles']:
-        return jsonify({"status": "error", "message": "Phone already registered"}), 400
+    if email in db['user_profiles']:
+        return jsonify({"status": "error", "message": "Email already registered"}), 400
         
-    db['user_profiles'][phone] = {
+    db['user_profiles'][email] = {
         "name": name,
         "leaderboard_name": name,
-        "phone": phone,
+        "email": email,
         "password_hash": hash_password(password),
         "active_tokens": [],
         "balls": 0,
@@ -140,10 +140,10 @@ def register():
 def login():
     db = load_db()
     data = request.json
-    phone = data.get('phone')
+    email = data.get('email')
     password = data.get('password')
     
-    user = db['user_profiles'].get(phone)
+    user = db['user_profiles'].get(email)
     if user and user.get('password_hash') == hash_password(password):
         token = secrets.token_hex(32)
         if 'active_tokens' not in user:
@@ -157,26 +157,26 @@ def login():
 @app.route('/api/auth/otp/request', methods=['POST'])
 def request_otp():
     db = load_db()
-    phone = request.json.get('phone')
-    if phone not in db['user_profiles']:
-        return jsonify({"status": "error", "message": "Phone not found"}), 404
+    email = request.json.get('email')
+    if email not in db['user_profiles']:
+        return jsonify({"status": "error", "message": "Email not found"}), 404
         
     otp = str(random.randint(1000, 9999))
-    db['user_profiles'][phone]['reset_otp'] = otp
+    db['user_profiles'][email]['reset_otp'] = otp
     save_db(db)
     
-    print(f"\n{'='*40}\n[SMS SIMULATOR] OTP for {phone}: {otp}\n{'='*40}\n")
-    return jsonify({"status": "success", "message": "OTP sent to phone"})
+    print(f"\n{'='*40}\n[EMAIL OTP SIMULATOR] OTP for {email}: {otp}\n{'='*40}\n")
+    return jsonify({"status": "success", "message": "OTP sent to email"})
 
 @app.route('/api/auth/otp/verify', methods=['POST'])
 def verify_otp():
     db = load_db()
     data = request.json
-    phone = data.get('phone')
+    email = data.get('email')
     otp = data.get('otp')
     new_password = data.get('new_password')
     
-    user = db['user_profiles'].get(phone)
+    user = db['user_profiles'].get(email)
     if user and user.get('reset_otp') == otp:
         user['password_hash'] = hash_password(new_password)
         user['reset_otp'] = None
@@ -415,6 +415,45 @@ def get_dynamic_recap():
     tasks = [t for t in db.get('tasks', []) if t.get('user_id') == uid]
     visuals = {}
     return jsonify(visuals)
+
+
+@app.route('/api/leaderboard', methods=['GET'])
+def get_leaderboard():
+    db = load_db()
+    users = list(db.get('user_profiles', {}).values())
+    users.sort(key=lambda x: x.get('balls', 0), reverse=True)
+    
+    leaderboard = []
+    for u in users[:10]:
+        leaderboard.append({
+            "name": u.get("leaderboard_name", u.get("name", "Warrior")),
+            "avatar": u.get("avatar", "itachi"),
+            "balls": u.get("balls", 0),
+            "streak": u.get("streak", 0)
+        })
+    return jsonify(leaderboard)
+
+@app.route('/api/admin/users', methods=['GET'])
+def admin_users():
+    db = load_db()
+    user, uid = get_current_user(db)
+    if not user or user.get('name', '').lower() != 'admin':
+        return jsonify({"status": "error", "message": "Unauthorized. Admin access required."}), 403
+    
+    users_data = []
+    for email, profile in db.get('user_profiles', {}).items():
+        users_data.append({
+            "email": email,
+            "name": profile.get("name", "Unknown"),
+            "balls": profile.get("balls", 0),
+            "streak": profile.get("streak", 0),
+            "creation_date": profile.get("creation_date", ""),
+            "last_login": profile.get("last_login", "")
+        })
+    
+    # Sort by creation date descending
+    users_data.sort(key=lambda x: x.get('creation_date', ''), reverse=True)
+    return jsonify({"status": "success", "users": users_data})
 
 if __name__ == '__main__':
     print("PrimeEDU Local Server Starting...")

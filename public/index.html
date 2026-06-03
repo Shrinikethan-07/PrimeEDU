@@ -128,9 +128,9 @@
         <div class="form-view active" id="view-login">
             <form onsubmit="handleLogin(event)">
                 <div class="input-group">
-                    <label>Mobile Number</label>
-                    <i class="fas fa-phone input-icon"></i>
-                    <input type="tel" id="login-phone" placeholder="Enter mobile number" required>
+                    <label>Google Email ID</label>
+                    <i class="fas fa-envelope input-icon"></i>
+                    <input type="email" id="login-email" placeholder="example@gmail.com" required>
                 </div>
                 <div class="input-group">
                     <label>Password</label>
@@ -154,9 +154,9 @@
                     <input type="text" id="reg-name" placeholder="Enter your display name" required>
                 </div>
                 <div class="input-group">
-                    <label>Mobile Number</label>
-                    <i class="fas fa-phone input-icon"></i>
-                    <input type="tel" id="reg-phone" placeholder="Enter mobile number" required>
+                    <label>Google Email ID</label>
+                    <i class="fas fa-envelope input-icon"></i>
+                    <input type="email" id="reg-email" placeholder="example@gmail.com" required>
                 </div>
                 <div class="input-group">
                     <label>Password</label>
@@ -172,9 +172,9 @@
         <div class="form-view" id="view-otp-req">
             <form onsubmit="handleOtpReq(event)">
                 <div class="input-group">
-                    <label>Registered Mobile Number</label>
-                    <i class="fas fa-phone input-icon"></i>
-                    <input type="tel" id="reset-phone" placeholder="Enter your mobile number" required>
+                    <label>Registered Google Email</label>
+                    <i class="fas fa-envelope input-icon"></i>
+                    <input type="email" id="reset-email" placeholder="example@gmail.com" required>
                 </div>
                 <button type="submit" class="btn-enter">SEND OTP</button>
             </form>
@@ -229,14 +229,14 @@
 
         async function handleLogin(e) {
             e.preventDefault();
-            const phone = document.getElementById('login-phone').value;
+            const email = document.getElementById('login-email').value;
             const pass = document.getElementById('login-pass').value;
             showLoad("AUTHENTICATING...");
             try {
                 const res = await fetch(window.API_BASE_URL + '/api/auth/login', {
                     method: 'POST',
                     headers: {'Content-Type': 'application/json'},
-                    body: JSON.stringify({ phone, password: pass })
+                    body: JSON.stringify({ email, password: pass })
                 });
                 const data = await res.json();
                 if(res.ok) {
@@ -253,14 +253,14 @@
         async function handleRegister(e) {
             e.preventDefault();
             const name = document.getElementById('reg-name').value;
-            const phone = document.getElementById('reg-phone').value;
+            const email = document.getElementById('reg-email').value;
             const pass = document.getElementById('reg-pass').value;
             showLoad("FORGING IDENTITY...");
             try {
                 const res = await fetch(window.API_BASE_URL + '/api/auth/register', {
                     method: 'POST',
                     headers: {'Content-Type': 'application/json'},
-                    body: JSON.stringify({ name, phone, password: pass })
+                    body: JSON.stringify({ name, email, password: pass })
                 });
                 const data = await res.json();
                 if(res.ok) {
@@ -269,7 +269,7 @@
                         const loginRes = await fetch(window.API_BASE_URL + '/api/auth/login', {
                             method: 'POST',
                             headers: {'Content-Type': 'application/json'},
-                            body: JSON.stringify({ phone, password: pass })
+                            body: JSON.stringify({ email, password: pass })
                         });
                         const loginData = await loginRes.json();
                         if(loginRes.ok) {
@@ -278,12 +278,12 @@
                             window.location.href = 'dashboard.html';
                         } else {
                             switchView('view-login');
-                            document.getElementById('login-phone').value = phone;
+                            document.getElementById('login-email').value = email;
                             hideLoad();
                         }
                     } catch(e) {
                         switchView('view-login');
-                        document.getElementById('login-phone').value = phone;
+                        document.getElementById('login-email').value = email;
                         hideLoad();
                     }
                 } else {
@@ -295,13 +295,13 @@
 
         async function handleOtpReq(e) {
             e.preventDefault();
-            const phone = document.getElementById('reset-phone').value;
+            const email = document.getElementById('reset-email').value;
             showLoad("DISPATCHING OTP...");
             try {
                 const res = await fetch(window.API_BASE_URL + '/api/auth/otp/request', {
                     method: 'POST',
                     headers: {'Content-Type': 'application/json'},
-                    body: JSON.stringify({ phone })
+                    body: JSON.stringify({ email })
                 });
                 const data = await res.json();
                 if(res.ok) {
@@ -316,7 +316,7 @@
 
         async function handleOtpVerify(e) {
             e.preventDefault();
-            const phone = document.getElementById('reset-phone').value;
+            const email = document.getElementById('reset-email').value;
             const otp = document.getElementById('reset-otp').value;
             const new_pass = document.getElementById('reset-new-pass').value;
             showLoad("VERIFYING IDENTITY...");
@@ -324,13 +324,13 @@
                 const res = await fetch(window.API_BASE_URL + '/api/auth/otp/verify', {
                     method: 'POST',
                     headers: {'Content-Type': 'application/json'},
-                    body: JSON.stringify({ phone, otp, new_password: new_pass })
+                    body: JSON.stringify({ email, otp, new_password: new_pass })
                 });
                 const data = await res.json();
                 if(res.ok) {
                     showAlert("Password reset successful. Please log in with your new password.");
                     switchView('view-login');
-                    document.getElementById('login-phone').value = phone;
+                    document.getElementById('login-email').value = email;
                     hideLoad();
                 } else {
                     showAlert(data.message || "Failed to verify OTP");

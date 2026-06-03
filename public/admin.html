@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin Dashboard | PrimeEDU</title>
+    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@700;800&family=Poppins:wght@400;500;600&display=swap" rel="stylesheet">
+    <style>
+        .admin-page { max-width: 1000px; margin: 2rem auto; }
+        
+        .admin-stat-cards { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 1.5rem; margin-bottom: 2rem; }
+        .stat-card {
+            background: linear-gradient(135deg, rgba(255,255,255,0.03), rgba(255,255,255,0.01));
+            border: 1px solid rgba(0, 243, 255, 0.2);
+            border-radius: 16px; padding: 1.5rem; text-align: center;
+        }
+        .stat-val { font-family: var(--font-heading); font-size: 2.5rem; color: var(--neon-cyan); }
+        .stat-label { font-size: 0.8rem; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 1px; }
+
+        .admin-table-container {
+            background: rgba(10,5,25,0.8); border: 1px solid rgba(157, 0, 255, 0.2);
+            border-radius: 20px; overflow: hidden;
+        }
+        table { width: 100%; border-collapse: collapse; }
+        th { background: rgba(157, 0, 255, 0.1); color: white; padding: 1rem; text-align: left; font-family: var(--font-heading); font-size: 0.8rem; letter-spacing: 1px; }
+        td { padding: 1rem; border-bottom: 1px solid rgba(255,255,255,0.05); color: #ccc; font-size: 0.9rem; }
+        tr:hover td { background: rgba(0,243,255,0.03); color: white; }
+        .td-email { color: var(--neon-cyan); font-family: monospace; }
+        
+        #unauthorized-view { display: none; text-align: center; margin-top: 100px; }
+    </style>
+</head>
+<body>
+    <div class="app-container" style="display: block; padding: 2rem;">
+        
+        <!-- UNAUTHORIZED STATE -->
+        <div id="unauthorized-view">
+            <i class="fas fa-user-shield" style="font-size: 5rem; color: #ff3366; margin-bottom: 1.5rem;"></i>
+            <h1 style="color: white; font-family: var(--font-heading);">ACCESS DENIED</h1>
+            <p style="color: #999;">Only the user named "admin" can access the Admin Dashboard.</p>
+            <button class="btn-enter" style="width: 200px; margin: 2rem auto;" onclick="window.location.href='index.html'">Return to Login</button>
+        </div>
+
+        <!-- DASHBOARD STATE -->
+        <div id="dashboard-view" class="admin-page" style="display: none;">
+            <header style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem;">
+                <div>
+                    <h1 style="color: white; font-family: var(--font-heading);"><i class="fas fa-server" style="color: var(--neon-purple);"></i> System Administration</h1>
+                    <p style="color: var(--text-secondary);">Real-time monitoring of all active Warriors.</p>
+                </div>
+                <button class="neon-btn" onclick="window.location.href='dashboard.html'">Exit to Dashboard</button>
+            </header>
+
+            <div class="admin-stat-cards">
+                <div class="stat-card">
+                    <div class="stat-val" id="stat-users">0</div>
+                    <div class="stat-label">Total Warriors</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-val" id="stat-balls" style="color: #ffd700;">0</div>
+                    <div class="stat-label">Total Dragon Balls Farmed</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-val" id="stat-streaks" style="color: #ff3366;">0</div>
+                    <div class="stat-label">Highest Active Streak</div>
+                </div>
+            </div>
+
+            <div class="admin-table-container">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>WARRIOR NAME</th>
+                            <th>GOOGLE EMAIL ID</th>
+                            <th>DRAGON BALLS</th>
+                            <th>STREAK</th>
+                            <th>JOINED DATE</th>
+                        </tr>
+                    </thead>
+                    <tbody id="user-table-body">
+                        <!-- Populated via JS -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+    </div>
+
+    <script>
+        async function loadAdminData() {
+            const token = localStorage.getItem('primeedu_token');
+            if(!token) {
+                document.getElementById('unauthorized-view').style.display = 'block';
+                return;
+            }
+
+            try {
+                const res = await fetch(window.API_BASE_URL + '/api/admin/users', {
+                    headers: { 'Authorization': 'Bearer ' + token }
+                });
+                
+                if (res.status === 403 || res.status === 401) {
+                    document.getElementById('unauthorized-view').style.display = 'block';
+                    return;
+                }
+                
+                const data = await res.json();
+                if (data.status === 'success') {
+                    document.getElementById('dashboard-view').style.display = 'block';
+                    
+                    const users = data.users;
+                    let totalBalls = 0;
+                    let maxStreak = 0;
+                    
+                    const tbody = document.getElementById('user-table-body');
+                    let html = '';
+                    
+                    users.forEach(u => {
+                        totalBalls += u.balls;
+                        if (u.streak > maxStreak) maxStreak = u.streak;
+                        
+                        let dateStr = "Unknown";
+                        if(u.creation_date) {
+                            const d = new Date(u.creation_date);
+                            dateStr = d.toLocaleDateString();
+                        }
+                        
+                        html += `
+                        <tr>
+                            <td style="font-weight: 600; color: white;">${u.name}</td>
+                            <td class="td-email">${u.email}</td>
+                            <td style="font-family: var(--font-heading); color: #ffd700;">${u.balls.toLocaleString()}</td>
+                            <td style="color: #ff3366;">${u.streak} Days</td>
+                            <td>${dateStr}</td>
+                        </tr>
+                        `;
+                    });
+                    
+                    tbody.innerHTML = html;
+                    document.getElementById('stat-users').innerText = users.length;
+                    document.getElementById('stat-balls').innerText = totalBalls.toLocaleString();
+                    document.getElementById('stat-streaks').innerText = maxStreak;
+                }
+            } catch (e) {
+                alert("Error connecting to server to load admin data.");
+            }
+        }
+        
+        loadAdminData();
+    </script>
+</body>
+</html>

@@ -291,116 +291,23 @@
                     <h1><i class="fas fa-trophy" style="color:#ffd700;"></i> Royal Leaderboard</h1>
                     <p class="text-secondary">Champions of Consistency — forged through daily discipline</p>
                 </div>
+                <div class="header-right">
+                    <button class="neon-btn" onclick="shareLeaderboard()" style="padding: 0.6rem 1.2rem; font-size: 0.85rem;">
+                        <i class="fas fa-share-alt"></i> Share Rank
+                    </button>
+                </div>
             </header>
 
             <div class="lb-page-wrap">
                 <!-- PODIUM TOP 3 -->
-                <div class="lb-podium">
-                    <!-- Rank 2 (left) -->
-                    <div class="podium-card rank-2">
-                        <div class="podium-rank-badge">2</div>
-                        <img src="https://i.pinimg.com/736x/d0/b5/3b/d0b53bc5ddd3b25c55ea471fa30c64d0.jpg" alt="Naruto" class="podium-avatar">
-                        <div class="podium-name">Sage Mode (Naruto)</div>
-                        <div class="podium-score">12,200</div>
-                        <div class="podium-sub">Dragon Balls · 95.2%</div>
-                    </div>
-
-                    <!-- Rank 1 (center, tallest) -->
-                    <div class="podium-card rank-1">
-                        <div class="crown-icon"><i class="fas fa-crown"></i></div>
-                        <div class="podium-rank-badge">1</div>
-                        <img src="https://i.pinimg.com/736x/f5/0f/52/f50f52e51a8b1f6e24a07e30a8d08157.jpg" alt="Minato" class="podium-avatar">
-                        <div class="podium-name">Yellow Flash (Minato)</div>
-                        <div class="podium-score">15,750</div>
-                        <div class="podium-sub">Dragon Balls · 99.8%</div>
-                    </div>
-
-                    <!-- Rank 3 (right) -->
-                    <div class="podium-card rank-3">
-                        <div class="podium-rank-badge">3</div>
-                        <img src="https://i.pinimg.com/736x/c4/11/c9/c411c9e40e6f4b3d6e2a1f0c5b8a7d2e.jpg" alt="Goku" class="podium-avatar">
-                        <div class="podium-name">Ultra Instinct (Goku)</div>
-                        <div class="podium-score">11,800</div>
-                        <div class="podium-sub">Dragon Balls · 92.7%</div>
-                    </div>
+                <div class="lb-podium" id="dynamic-podium">
+                    <!-- Dynamic Podium -->
                 </div>
 
                 <!-- WARRIOR LIST ranks 4-10 -->
                 <div class="lb-section-label"><i class="fas fa-fire" style="color:#ed8936;margin-right:0.5rem;"></i> Rankings 4–10</div>
-                <div class="warrior-list">
-                    <div class="warrior-row">
-                        <div class="warrior-rank-num" style="color:#a090c0;">4</div>
-                        <img src="https://i.pinimg.com/736x/97/4a/5b/974a5b6a4e8b3c2d1f0e9a8b7c6d5e4f.jpg" alt="Gojo" class="warrior-avatar">
-                        <div class="warrior-info">
-                            <div class="warrior-name">Infinity (Gojo)</div>
-                            <div class="warrior-discipline">Physics · 91.3%</div>
-                        </div>
-                        <div class="warrior-balls">10,450<small>Dragon Balls</small></div>
-                    </div>
-
-                    <div class="warrior-row">
-                        <div class="warrior-rank-num" style="color:#a090c0;">5</div>
-                        <img src="https://api.dicebear.com/8.x/pixel-art/svg?seed=kakashi&backgroundColor=1e293b" alt="Kakashi" class="warrior-avatar">
-                        <div class="warrior-info">
-                            <div class="warrior-name">Copy Cat (Kakashi)</div>
-                            <div class="warrior-discipline">Chemistry · 89.7%</div>
-                        </div>
-                        <div class="warrior-balls">9,180<small>Dragon Balls</small></div>
-                    </div>
-
-                    <div class="warrior-row">
-                        <div class="warrior-rank-num" style="color:#a090c0;">6</div>
-                        <img src="https://api.dicebear.com/8.x/pixel-art/svg?seed=warrior6&backgroundColor=12103a" alt="W6" class="warrior-avatar">
-                        <div class="warrior-info">
-                            <div class="warrior-name">Shadow Clone (Kage)</div>
-                            <div class="warrior-discipline">Mathematics · 87.4%</div>
-                        </div>
-                        <div class="warrior-balls">8,600<small>Dragon Balls</small></div>
-                    </div>
-
-                    <div class="warrior-row">
-                        <div class="warrior-rank-num" style="color:#a090c0;">7</div>
-                        <img src="https://api.dicebear.com/8.x/pixel-art/svg?seed=warrior7&backgroundColor=200d30" alt="W7" class="warrior-avatar">
-                        <div class="warrior-info">
-                            <div class="warrior-name">Sage of Six Paths</div>
-                            <div class="warrior-discipline">Biology · 85.1%</div>
-                        </div>
-                        <div class="warrior-balls">7,920<small>Dragon Balls</small></div>
-                    </div>
-
-                    <!-- YOU Row -->
-                    <div class="warrior-row is-user">
-                        <div class="warrior-rank-num" style="color:var(--neon-cyan);">8</div>
-                        <img src="" alt="You" id="user-lb-avatar" class="warrior-avatar" style="border-color:var(--neon-cyan);">
-                        <div class="warrior-info">
-                            <div class="warrior-name" style="color:var(--neon-cyan); display:flex; align-items:center; gap:0.5rem;">
-                                <span id="user-lb-name">The Legend Seetharam</span>
-                                <i class="fas fa-edit" style="cursor:pointer; font-size: 0.8rem; opacity:0.7;" onclick="editHandle()" title="Edit Handle"></i>
-                            </div>
-                            <div class="warrior-discipline">All Subjects · 88.4%</div>
-                        </div>
-                        <div class="warrior-balls" id="user-lb-beans" style="color:var(--neon-cyan);">3,450<small>Dragon Balls</small></div>
-                    </div>
-
-                    <div class="warrior-row">
-                        <div class="warrior-rank-num" style="color:#a090c0;">9</div>
-                        <img src="https://api.dicebear.com/8.x/pixel-art/svg?seed=warrior9&backgroundColor=0a1525" alt="W9" class="warrior-avatar">
-                        <div class="warrior-info">
-                            <div class="warrior-name">Rising Phoenix</div>
-                            <div class="warrior-discipline">Physics · 82.0%</div>
-                        </div>
-                        <div class="warrior-balls">3,120<small>Dragon Balls</small></div>
-                    </div>
-
-                    <div class="warrior-row">
-                        <div class="warrior-rank-num" style="color:#a090c0;">10</div>
-                        <img src="https://api.dicebear.com/8.x/pixel-art/svg?seed=warrior10&backgroundColor=071020" alt="W10" class="warrior-avatar">
-                        <div class="warrior-info">
-                            <div class="warrior-name">Storm Breaker</div>
-                            <div class="warrior-discipline">Chemistry · 79.6%</div>
-                        </div>
-                        <div class="warrior-balls">2,870<small>Dragon Balls</small></div>
-                    </div>
+                <div class="warrior-list" id="dynamic-list">
+                    <!-- Dynamic List -->
                 </div>
             </div>
         </main>
@@ -441,6 +348,83 @@
             } catch (e) {}
         }
         loadProfile();
+
+        async function loadLeaderboard() {
+            try {
+                const res = await fetch(window.API_BASE_URL + '/api/leaderboard');
+                const users = await res.json();
+                
+                const podiumDiv = document.getElementById('dynamic-podium');
+                const listDiv = document.getElementById('dynamic-list');
+                
+                const myName = localStorage.getItem('primeedu_leaderboard_name') || '';
+                
+                // Podium HTML Builder
+                function getPodiumCard(u, rank) {
+                    if (!u) return '';
+                    let char = CHARACTERS.find(c => c.id === u.avatar) || CHARACTERS[0];
+                    let crown = rank === 1 ? '<div class="crown-icon"><i class="fas fa-crown"></i></div>' : '';
+                    return `
+                    <div class="podium-card rank-${rank}">
+                        ${crown}
+                        <div class="podium-rank-badge">${rank}</div>
+                        <img src="${char.img}" alt="${char.name}" class="podium-avatar" onerror="this.src='${char.fallback}'">
+                        <div class="podium-name">${u.name}</div>
+                        <div class="podium-score">${(u.balls || 0).toLocaleString()}</div>
+                        <div class="podium-sub">Dragon Balls</div>
+                    </div>`;
+                }
+
+                // Render Podium (Order: 2, 1, 3)
+                let podiumHtml = '';
+                if (users[1]) podiumHtml += getPodiumCard(users[1], 2);
+                if (users[0]) podiumHtml += getPodiumCard(users[0], 1);
+                if (users[2]) podiumHtml += getPodiumCard(users[2], 3);
+                podiumDiv.innerHTML = podiumHtml;
+
+                // Render List
+                let listHtml = '';
+                for (let i = 3; i < users.length; i++) {
+                    let u = users[i];
+                    let char = CHARACTERS.find(c => c.id === u.avatar) || CHARACTERS[0];
+                    let isMe = (u.name === myName) ? 'is-user' : '';
+                    let nameDisplay = isMe ? `<span id="user-lb-name">${u.name}</span> <i class="fas fa-edit" style="cursor:pointer; font-size: 0.8rem; opacity:0.7;" onclick="editHandle()" title="Edit Handle"></i>` : u.name;
+                    
+                    listHtml += `
+                    <div class="warrior-row ${isMe}">
+                        <div class="warrior-rank-num" style="color:${isMe ? 'var(--neon-cyan)' : '#a090c0'};">${i + 1}</div>
+                        <img src="${char.img}" alt="${char.name}" class="warrior-avatar" style="${isMe ? 'border-color:var(--neon-cyan);' : ''}" onerror="this.src='${char.fallback}'">
+                        <div class="warrior-info">
+                            <div class="warrior-name" style="${isMe ? 'color:var(--neon-cyan); display:flex; align-items:center; gap:0.5rem;' : ''}">
+                                ${nameDisplay}
+                            </div>
+                            <div class="warrior-discipline">Streak: ${u.streak} Days</div>
+                        </div>
+                        <div class="warrior-balls" style="${isMe ? 'color:var(--neon-cyan);' : ''}">${(u.balls || 0).toLocaleString()}<small>Dragon Balls</small></div>
+                    </div>`;
+                }
+                listDiv.innerHTML = listHtml;
+                
+            } catch (e) {
+                console.error("Leaderboard load failed", e);
+            }
+        }
+        loadLeaderboard();
+
+        function shareLeaderboard() {
+            const text = "Check out my rank on the PrimeEDU Leaderboard! Only the most consistent warriors make it to the top. Can you beat me?";
+            if (navigator.share) {
+                navigator.share({
+                    title: 'PrimeEDU Leaderboard',
+                    text: text,
+                    url: window.location.href
+                });
+            } else {
+                navigator.clipboard.writeText(`${text} \n${window.location.href}`);
+                alert("Leaderboard link copied to clipboard! Share it with your friends.");
+            }
+        }
+
 
         window.editHandle = async () => {
             const current = document.getElementById('user-lb-name').innerText;
