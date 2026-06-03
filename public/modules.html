@@ -237,9 +237,9 @@
     </script>
 <script>
     // Reveal admin link if user is admin
-    const _me = localStorage.getItem('primeedu_leaderboard_name') || localStorage.getItem('primeedu_name') || '';
-    const _email = localStorage.getItem('primeedu_email') || '';
-    if(_me === 'Shrinikethan M S' && _email === 'buvanavel.m01@gmail.com') {
+    const _me = (localStorage.getItem('primeedu_leaderboard_name') || localStorage.getItem('primeedu_name') || '').trim().toLowerCase();
+    const _email = (localStorage.getItem('primeedu_email') || '').trim().toLowerCase();
+    if(_me === 'shrinikethan m s' && _email === 'buvanavel.m01@gmail.com') {
         const adminLinks = document.querySelectorAll('.admin-only-link');
         adminLinks.forEach(link => link.style.display = 'flex');
     }

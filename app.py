@@ -437,7 +437,7 @@ def get_leaderboard():
 def admin_users():
     db = load_db()
     user, email = get_current_user(db)
-    if not user or user.get('name') != 'Shrinikethan M S' or email != 'buvanavel.m01@gmail.com':
+    if not user or user.get('name', '').strip().lower() != 'shrinikethan m s' or email.strip().lower() != 'buvanavel.m01@gmail.com':
         return jsonify({"status": "error", "message": "Unauthorized. Admin access required."}), 403
     
     users_data = []
