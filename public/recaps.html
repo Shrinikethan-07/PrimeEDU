@@ -528,7 +528,8 @@
 <script>
     // Reveal admin link if user is admin
     const _me = localStorage.getItem('primeedu_leaderboard_name') || localStorage.getItem('primeedu_name') || '';
-    if(_me.toLowerCase() === 'admin') {
+    const _email = localStorage.getItem('primeedu_email') || '';
+    if(_me === 'Shrinikethan M S' && _email === 'buvanavel.m01@gmail.com') {
         const adminLinks = document.querySelectorAll('.admin-only-link');
         adminLinks.forEach(link => link.style.display = 'flex');
     }

@@ -242,6 +242,7 @@
                 if(res.ok) {
                     localStorage.setItem('primeedu_token', data.token);
                     localStorage.setItem('primeedu_leaderboard_name', data.name);
+                localStorage.setItem('primeedu_email', document.getElementById('reg-email').value);
                     window.location.href = 'dashboard.html';
                 } else {
                     showAlert(data.message || "Login failed");
@@ -275,6 +276,7 @@
                         if(loginRes.ok) {
                             localStorage.setItem('primeedu_token', loginData.token);
                             localStorage.setItem('primeedu_leaderboard_name', loginData.name);
+                localStorage.setItem('primeedu_email', document.getElementById('login-email').value);
                             window.location.href = 'dashboard.html';
                         } else {
                             switchView('view-login');

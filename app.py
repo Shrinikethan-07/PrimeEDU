@@ -436,8 +436,8 @@ def get_leaderboard():
 @app.route('/api/admin/users', methods=['GET'])
 def admin_users():
     db = load_db()
-    user, uid = get_current_user(db)
-    if not user or user.get('name', '').lower() != 'admin':
+    user, email = get_current_user(db)
+    if not user or user.get('name') != 'Shrinikethan M S' or email != 'buvanavel.m01@gmail.com':
         return jsonify({"status": "error", "message": "Unauthorized. Admin access required."}), 403
     
     users_data = []
