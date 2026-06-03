@@ -264,10 +264,28 @@
                 });
                 const data = await res.json();
                 if(res.ok) {
-                    showAlert("Registration successful. Please log in.");
-                    switchView('view-login');
-                    document.getElementById('login-phone').value = phone;
-                    hideLoad();
+                    // Auto-login upon successful registration
+                    try {
+                        const loginRes = await fetch(window.API_BASE_URL + '/api/auth/login', {
+                            method: 'POST',
+                            headers: {'Content-Type': 'application/json'},
+                            body: JSON.stringify({ phone, password: pass })
+                        });
+                        const loginData = await loginRes.json();
+                        if(loginRes.ok) {
+                            localStorage.setItem('primeedu_token', loginData.token);
+                            localStorage.setItem('primeedu_leaderboard_name', loginData.name);
+                            window.location.href = 'dashboard.html';
+                        } else {
+                            switchView('view-login');
+                            document.getElementById('login-phone').value = phone;
+                            hideLoad();
+                        }
+                    } catch(e) {
+                        switchView('view-login');
+                        document.getElementById('login-phone').value = phone;
+                        hideLoad();
+                    }
                 } else {
                     showAlert(data.message || "Registration failed");
                     hideLoad();
