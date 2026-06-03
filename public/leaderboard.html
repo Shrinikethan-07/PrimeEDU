@@ -497,7 +497,41 @@
                 setTimeout(() => intro.style.display = 'none', 500);
             }
         }, 1800);
+    
+        function shareLeaderboardRank() {
+            const userName = localStorage.getItem('primeedu_leaderboard_name') || 'Ascended Warrior';
+            const balls = document.getElementById('ball-count') ? document.getElementById('ball-count').innerText : 'some';
+            
+            // Find user's rank
+            let myRank = '?';
+            const rows = document.querySelectorAll('.warrior-row');
+            rows.forEach(row => {
+                const nameEl = row.querySelector('div[style*="font-weight: 700"]');
+                if (nameEl && nameEl.innerText === userName) {
+                    const rankEl = row.querySelector('div[style*="font-family: var(--font-heading)"]');
+                    if (rankEl) myRank = rankEl.innerText.replace('#','');
+                }
+            });
+            
+            const shareText = `🔥 I am currently Rank #${myRank} globally on PrimeEDU with ${balls} Dragon Balls!\n\nThe grind to mastery never stops. Join the arena.\n\n📚 PrimeEDU Warrior Journey: https://primeedu.web.app`;
+            
+            if (navigator.share) {
+                navigator.share({
+                    title: 'My PrimeEDU Rank',
+                    text: shareText
+                }).catch(err => console.log('Error sharing', err));
+            } else {
+                navigator.clipboard.writeText(shareText).then(() => {
+                    const btn = document.getElementById('share-rank-btn');
+                    btn.innerHTML = '<i class="fas fa-check"></i> COPIED!';
+                    setTimeout(() => {
+                        btn.innerHTML = '<i class="fas fa-share-alt"></i> SHARE RANK';
+                    }, 2000);
+                });
+            }
+        }
     </script>
+
 </body>
 
 </html>

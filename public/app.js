@@ -500,6 +500,16 @@ document.addEventListener('DOMContentLoaded', () => {
         count += amt;
         el.innerText = count.toLocaleString();
         localStorage.setItem('primeedu_balls', count);
+        
+        // Track daily balls
+        if (amt > 0) {
+            const today = new Date().toLocaleDateString();
+            const dailyStr = localStorage.getItem('primeedu_daily_balls');
+            let dailyObj = dailyStr ? JSON.parse(dailyStr) : { date: today, amount: 0 };
+            if (dailyObj.date !== today) dailyObj = { date: today, amount: 0 };
+            dailyObj.amount += amt;
+            localStorage.setItem('primeedu_daily_balls', JSON.stringify(dailyObj));
+        }
     }
 
     // Initialize ball count from storage
@@ -775,4 +785,114 @@ document.addEventListener('DOMContentLoaded', () => {
     };
 
     console.log('PrimeEDU v4 Refinement Complete');
+});
+
+
+// ==========================================
+// DAILY RECAP SYSTEM
+// ==========================================
+
+window.saveRecapTime = function() {
+    const timeVal = document.getElementById('daily-recap-time').value;
+    if(timeVal) {
+        localStorage.setItem('primeedu_recap_time', timeVal);
+        const btn = event.target;
+        btn.innerHTML = '<i class="fas fa-check"></i> SAVED';
+        setTimeout(() => btn.innerHTML = 'SAVE', 2000);
+    }
+};
+
+function getTodayStr() {
+    return new Date().toLocaleDateString();
+}
+
+function calculateDailyFocus() {
+    try {
+        const sessionsStr = localStorage.getItem('primeedu_sessions');
+        if(!sessionsStr) return 0;
+        const sessions = JSON.parse(sessionsStr);
+        const todayStr = getTodayStr();
+        return sessions.filter(s => s.date === todayStr).reduce((acc, curr) => acc + (parseInt(curr.duration) || 0), 0);
+    } catch(e) { return 0; }
+}
+
+function calculateDailyJournals() {
+    try {
+        const journalsStr = localStorage.getItem('primeedu_journal_entries');
+        if(!journalsStr) return 0;
+        const journals = JSON.parse(journalsStr);
+        const todayStr = getTodayStr();
+        return journals.filter(j => new Date(j.timestamp).toLocaleDateString() === todayStr).length;
+    } catch(e) { return 0; }
+}
+
+function calculateDailyTasks() {
+    try {
+        const tasksStr = localStorage.getItem('primeedu_tasks');
+        if(!tasksStr) return 0;
+        const tasks = JSON.parse(tasksStr);
+        const todayStr = getTodayStr();
+        // Since tasks don't have completion dates saved, we just approximate by looking at completed tasks
+        return tasks.filter(t => t.completed).length;
+    } catch(e) { return 0; }
+}
+
+function checkDailyRecap() {
+    const recapTime = localStorage.getItem('primeedu_recap_time') || '22:00';
+    const lastRecapDate = localStorage.getItem('primeedu_last_recap_date');
+    const todayStr = getTodayStr();
+    
+    // Check if we already showed it today
+    if (lastRecapDate === todayStr) return;
+    
+    const now = new Date();
+    const [recapHour, recapMin] = recapTime.split(':').map(Number);
+    const recapDate = new Date();
+    recapDate.setHours(recapHour, recapMin, 0, 0);
+    
+    // If current time is past recap time
+    if (now >= recapDate) {
+        // Trigger recap
+        const modal = document.getElementById('daily-recap-modal');
+        if(modal) {
+            document.getElementById('daily-recap-date').innerText = new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' });
+            
+            // Get Balls
+            const dailyBallsStr = localStorage.getItem('primeedu_daily_balls');
+            let balls = 0;
+            if(dailyBallsStr) {
+                const bObj = JSON.parse(dailyBallsStr);
+                if(bObj.date === todayStr) balls = bObj.amount;
+            }
+            document.getElementById('recap-balls').innerText = balls;
+            
+            // Get Focus
+            const focusMins = calculateDailyFocus();
+            document.getElementById('recap-focus').innerText = focusMins + 'm';
+            
+            // Get Tasks
+            const tasks = calculateDailyTasks();
+            document.getElementById('recap-tasks').innerText = tasks;
+            
+            // Get Journals
+            const journals = calculateDailyJournals();
+            document.getElementById('recap-journal').innerText = journals;
+            
+            modal.style.display = 'flex';
+            localStorage.setItem('primeedu_last_recap_date', todayStr);
+        }
+    }
+}
+
+// Initialize Daily Recap
+document.addEventListener('DOMContentLoaded', () => {
+    const recapInput = document.getElementById('daily-recap-time');
+    if(recapInput) {
+        recapInput.value = localStorage.getItem('primeedu_recap_time') || '22:00';
+    }
+    
+    // Check every minute
+    setInterval(checkDailyRecap, 60000);
+    // Check immediately on load
+    setTimeout(checkDailyRecap, 2000);
 });
