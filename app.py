@@ -8,7 +8,7 @@ import secrets
 import hashlib
 import random
 from apscheduler.schedulers.background import BackgroundScheduler
-from backend.agents.core import FocusForgeAgent, DisciplineAgent, JournalEntry
+from backend.agents.core import FocusForgeAgent, DisciplineAgent, JournalEntry, VisualizerAgent
 
 app = Flask(__name__, static_folder='.', template_folder='.')
 CORS(app)
@@ -65,23 +65,25 @@ def get_current_user(db):
 # --- Gamification Engine ---
 def check_streak_and_login(user):
     last_login = user.get('last_login')
+    now = datetime.now()
     if last_login:
         last_date = datetime.fromisoformat(last_login)
-        now = datetime.now()
+        # Use calendar date comparison, not timedelta
+        days_diff = (now.date() - last_date.date()).days
         
-        # Calculate difference in calendar days, not 24-hour periods
-        diff_days = (now.date() - last_date.date()).days
-        
-        # Streak logic
-        if diff_days == 1:
+        # Streak logic based on calendar days
+        if days_diff == 1:
+            # Exactly the next calendar day — increment streak
             user['streak'] = user.get('streak', 0) + 1
-            if user['streak'] == 7: user['balls'] += 20
-            elif user['streak'] == 30: user['balls'] += 100
-            elif user['streak'] == 365: user['balls'] += 1000
-        elif diff_days > 1:
-            user['streak'] = 0 # reset
+            if user['streak'] == 7: user['balls'] = user.get('balls', 0) + 20
+            elif user['streak'] == 30: user['balls'] = user.get('balls', 0) + 100
+            elif user['streak'] == 365: user['balls'] = user.get('balls', 0) + 1000
+        elif days_diff > 1:
+            # Missed a day — reset streak
+            user['streak'] = 0
+        # If days_diff == 0 (same calendar day), streak stays unchanged
             
-    user['last_login'] = datetime.now().isoformat()
+    user['last_login'] = now.isoformat()
     return user
 
 # --- Cron Job / Scheduler ---
@@ -97,7 +99,7 @@ scheduler.start()
 
 journal_agent = FocusForgeAgent(api_key="LOCAL_DEV")
 discipline_agent = DisciplineAgent()
-
+visual_agent = VisualizerAgent()
 
 @app.route('/')
 def index():
@@ -112,7 +114,7 @@ def static_files(path):
 def register():
     db = load_db()
     data = request.json
-    email = data.get('email', '').strip().lower()
+    email = (data.get('email') or '').strip().lower()
     password = data.get('password')
     name = data.get('name', 'Warrior')
     
@@ -142,7 +144,7 @@ def register():
 def login():
     db = load_db()
     data = request.json
-    email = data.get('email', '').strip().lower()
+    email = (data.get('email') or '').strip().lower()
     password = data.get('password')
     
     user = db['user_profiles'].get(email)
@@ -159,7 +161,7 @@ def login():
 @app.route('/api/auth/otp/request', methods=['POST'])
 def request_otp():
     db = load_db()
-    email = request.json.get('email')
+    email = (request.json.get('email') or '').strip().lower()
     if email not in db['user_profiles']:
         return jsonify({"status": "error", "message": "Email not found"}), 404
         
@@ -167,14 +169,14 @@ def request_otp():
     db['user_profiles'][email]['reset_otp'] = otp
     save_db(db)
     
-    print(f"\n{'='*40}\n[EMAIL OTP SIMULATOR] OTP for {email}: {otp}\n{'='*40}\n")
+    print(f"\n{'='*40}\n[OTP SIMULATOR] OTP for {email}: {otp}\n{'='*40}\n")
     return jsonify({"status": "success", "message": "OTP sent to email"})
 
 @app.route('/api/auth/otp/verify', methods=['POST'])
 def verify_otp():
     db = load_db()
     data = request.json
-    email = data.get('email')
+    email = (data.get('email') or '').strip().lower()
     otp = data.get('otp')
     new_password = data.get('new_password')
     
@@ -415,47 +417,8 @@ def get_dynamic_recap():
         
     sessions = [s for s in db.get('sessions', []) if s.get('user_id') == uid]
     tasks = [t for t in db.get('tasks', []) if t.get('user_id') == uid]
-    visuals = {}
+    visuals = visual_agent.get_recap_visuals(sessions, tasks)
     return jsonify(visuals)
-
-
-@app.route('/api/leaderboard', methods=['GET'])
-def get_leaderboard():
-    db = load_db()
-    users = list(db.get('user_profiles', {}).values())
-    users.sort(key=lambda x: x.get('balls', 0), reverse=True)
-    
-    leaderboard = []
-    for u in users[:10]:
-        leaderboard.append({
-            "name": u.get("leaderboard_name", u.get("name", "Warrior")),
-            "avatar": u.get("avatar", "itachi"),
-            "balls": u.get("balls", 0),
-            "streak": u.get("streak", 0)
-        })
-    return jsonify(leaderboard)
-
-@app.route('/api/admin/users', methods=['GET'])
-def admin_users():
-    db = load_db()
-    user, email = get_current_user(db)
-    if not user or user.get('name', '').strip().lower() != 'shrinikethan m s' or email.strip().lower() != 'buvanavel.m01@gmail.com':
-        return jsonify({"status": "error", "message": "Unauthorized. Admin access required."}), 403
-    
-    users_data = []
-    for email, profile in db.get('user_profiles', {}).items():
-        users_data.append({
-            "email": email,
-            "name": profile.get("name", "Unknown"),
-            "balls": profile.get("balls", 0),
-            "streak": profile.get("streak", 0),
-            "creation_date": profile.get("creation_date", ""),
-            "last_login": profile.get("last_login", "")
-        })
-    
-    # Sort by creation date descending
-    users_data.sort(key=lambda x: x.get('creation_date', ''), reverse=True)
-    return jsonify({"status": "success", "users": users_data})
 
 if __name__ == '__main__':
     print("PrimeEDU Local Server Starting...")

@@ -1,0 +1,308 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PrimeEDU | Exam Warrior v4</title>
+    <meta name="description" content="PrimeEDU - Your premium JEE exam preparation dashboard with syllabus tracking, focus timer, and daily missions.">
+    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@700;800&family=Poppins:wght@400;500;600&family=Inter:wght@400;600&display=swap" rel="stylesheet">
+
+<script>
+  window.API_BASE_URL = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' ? '' : 'https://primeedu.onrender.com';
+</script>
+</head>
+
+<body>
+    <!-- Anime Slash Overlay -->
+    <div class="slash-overlay" id="slash-overlay" style="display: none;">
+        <div class="slash-scene">
+            <div class="slash-character" id="slash-char-img"></div>
+            <div class="slash-target">
+                <div class="slash-hurdle-text">HURDLE</div>
+            </div>
+            <div class="slash-effect"></div>
+        </div>
+    </div>
+
+    <!-- Avatar Selection Modal -->
+    <div class="modal-overlay" id="char-modal" style="display: none;">
+        <div class="modal-content avatar-modal-content">
+            <div class="avatar-modal-header">
+                <h2><i class="fas fa-user-ninja"></i> CHOOSE YOUR WARRIOR</h2>
+                <p style="color:var(--text-secondary);font-size:0.8rem;margin-top:0.5rem;">Your avatar represents your spirit on the battlefield</p>
+            </div>
+            <div class="char-grid" id="char-grid"></div>
+            <button class="neon-btn" style="margin-top: 2rem; width: 100%;"
+                onclick="document.getElementById('char-modal').style.display='none'">
+                <i class="fas fa-check"></i> CONFIRM WARRIOR
+            </button>
+        </div>
+    </div>
+
+    <div class="app-container">
+        <nav class="sidebar">
+            <div class="logo">
+                <i class="fas fa-bolt"></i>
+                <span>PrimeEDU</span>
+            </div>
+                        <ul class="nav-links">
+                <li class="nav-item"><a href="dashboard.html" class="nav-link active"><i class="fas fa-th-large"></i><span>Dashboard</span></a></li>
+                <li class="nav-item"><a href="timer.html" class="nav-link"><i class="fas fa-stopwatch"></i><span>Study Timer</span></a></li>
+                <li class="nav-item"><a href="journal.html" class="nav-link"><i class="fas fa-scroll"></i><span>Journal</span></a></li>
+                <li class="nav-item"><a href="modules.html" class="nav-link"><i class="fas fa-book-open"></i><span>Library</span></a></li>
+                <li class="nav-item"><a href="recaps.html" class="nav-link"><i class="fas fa-magic"></i><span>Recaps</span></a></li>
+                <li class="nav-item"><a href="leaderboard.html" class="nav-link"><i class="fas fa-trophy"></i><span>Leaderboard</span></a></li>
+            <li class="nav-item admin-only-link" style="display: none;">
+                    <a href="admin.html" class="nav-link" style="color: #ff3366;">
+                        <i class="fas fa-user-shield"></i><span>Admin</span>
+                    </a>
+                </li>
+            </ul>
+            <div class="sidebar-bottom">
+                <button class="neon-btn" style="width:100%; font-size:0.8rem; padding:0.5rem; margin-bottom:1rem; border-color:rgba(255,255,255,0.2); color:white;" onclick="document.getElementById('settings-modal').style.display='flex'">
+                    <i class="fas fa-cog"></i> SETTINGS
+                </button>
+                <div class="avatar-preview" onclick="openCharacterSelect()" style="cursor:pointer;" title="Click to change avatar">
+                    <img src="" alt="avatar" class="avatar-circle">
+                    <div class="avatar-change-hint"><i class="fas fa-pen"></i></div>
+                </div>
+                <button class="neon-btn" style="width:100%; font-size:0.7rem; padding:0.4rem;" onclick="openCharacterSelect()">
+                    <i class="fas fa-user-ninja"></i> Change Avatar
+                </button>
+            </div>
+        </nav>
+
+        <main class="main-content">
+            <header>
+                <div class="header-left">
+                    <div style="display:flex; align-items:center; gap:1rem;">
+                        <div class="header-avatar-wrap" onclick="openCharacterSelect()" style="cursor:pointer;" title="Change avatar">
+                            <img src="" alt="avatar" id="header-avatar" class="avatar-circle" style="width:52px;height:52px;">
+                            <div class="avatar-hover-ring"></div>
+                        </div>
+                        <div>
+                            <h1 id="user-greeting"></h1>
+                            <div class="quote-slider-box" id="quote-slider">
+                                <p class="quote-text" id="active-quote">"Consistency is the art of showing up."</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="user-stats">
+                    <div class="stat-card">
+                        <i class="fas fa-fire" style="color: #ed8936;"></i>
+                        <span class="stat-value">12</span>
+                        <span class="stat-label">Day Streak</span>
+                    </div>
+                    <div class="stat-card">
+                        <div class="dragon-ball-icon">
+                            <div class="star-container">
+                                <span class="star star-1">★</span>
+                                <span class="star star-2">★</span>
+                                <span class="star star-3">★</span>
+                                <span class="star star-4">★</span>
+                            </div>
+                        </div>
+                        <span class="stat-value" id="ball-count">750</span>
+                        <span class="stat-label">Dragon Balls</span>
+                    </div>
+                </div>
+            </header>
+
+            <div class="dashboard-grid">
+                <!-- MAJOR SIDE (67%) -->
+                <div class="major-side">
+                    <div class="card dream-hub-card" style="padding: 2rem; height: 100%; display: flex; flex-direction: column;">
+                        <div class="section-title" style="font-size: 1.5rem; text-align: center;"><i class="fas fa-meteor"></i> FORGED DESTINY MATRIX</div>
+                        <p class="text-secondary" style="margin-bottom: 1rem; font-size: 1rem; text-align: center;">Forge your ultimate destiny. Up to 4 non-overlapping targets.</p>
+                        
+                        <div id="destiny-creation-area" style="background: rgba(0,0,0,0.2); padding: 1rem; border-radius: 12px; margin-bottom: 1rem;">
+                            <input type="text" id="dream-input" placeholder="Name your destiny..." style="width:100%; background:rgba(255,255,255,0.05); border:1px solid var(--glass-border); padding:0.8rem; color:white; border-radius:8px; font-size:1.1rem; margin-bottom:1rem; outline:none;">
+                            <label style="color:var(--synth-pink); font-size:0.8rem; margin-bottom:0.5rem; display:block;">Absolute Target Time</label>
+                            <input type="datetime-local" id="dream-deadline" style="width:100%; background:rgba(255,255,255,0.05); border:1px solid var(--glass-border); padding:0.8rem; color:white; border-radius:8px; font-size:1rem; outline:none; margin-bottom: 1rem;">
+                            <button class="neon-btn" id="forge-btn" style="width:100%; padding: 1rem; font-size: 1.1rem;" onclick="saveDream(this)">FORGE DESTINY</button>
+                        </div>
+
+                        <div id="active-destinies" style="flex: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 1rem;">
+                            <!-- Dynamically populated vision boards -->
+                        </div>
+                    </div>
+                </div>
+
+                <!-- MINOR SIDE (33%) — 3 stacked sections -->
+                <div class="minor-side">
+
+                    <!-- SECTION 1: DAILY MISSIONS -->
+                    <div class="minor-section">
+                        <div class="section-title" style="font-size: 0.9rem;"><i class="fas fa-list-check"></i> DAILY MISSIONS</div>
+                        <div class="task-input-box" style="margin-bottom: 1rem; display: flex; gap: 0.5rem;">
+                            <input type="text" id="task-input" placeholder="New mission..."
+                                style="flex:1; background:rgba(255,255,255,0.05); border:1px solid var(--glass-border); padding:0.4rem 0.75rem; color:white; border-radius:10px; font-family:var(--font-body); font-size:0.8rem; outline:none;"
+                                onkeydown="if(event.key==='Enter') addManualTask()">
+                            <button class="neon-btn" style="padding: 0.4rem 0.8rem; font-size: 0.7rem;" onclick="addManualTask()">ADD</button>
+                        </div>
+                        <div id="minor-tasks-list" style="max-height:180px; overflow-y:auto;"></div>
+                    </div>
+
+                    <!-- SECTION 2: SYLLABUS TRACKER -->
+                    <div class="minor-section syllabus-minor-section">
+                        <div class="section-title" style="font-size: 0.9rem;"><i class="fas fa-book"></i> SYLLABUS TRACKER</div>
+                        <div id="jee-syllabus-accordion" class="jee-accordion"></div>
+                    </div>
+
+                    <!-- SECTION 3: NEURAL FOCUS -->
+                    <div class="minor-section">
+                        <div class="section-title" style="font-size: 0.9rem;"><i class="fas fa-bolt"></i> NEURAL FOCUS</div>
+                        <div id="destiny-timer-icon-container" style="text-align: center; margin-bottom: 0.5rem; display: none;">
+                            <img id="destiny-timer-icon" src="assets/swords_shield.png" style="width: 40px; height: 40px; opacity: 0.8; filter: drop-shadow(0 0 8px rgba(0,243,255,0.5));" alt="Active Destiny">
+                        </div>
+                        <div class="focus-circle-container">
+                            <div class="focus-now-circle" id="focus-toggle" onclick="startFocusClick()">
+                                <i class="fas fa-brain" style="font-size: 2rem; margin-bottom: 0.5rem;"></i>
+                                <span style="font-size: 0.7rem; letter-spacing:2px;">FOCUS NOW</span>
+                            </div>
+                        </div>
+                        <div id="focus-timer-overlay" style="text-align: center; margin-top: 1rem; color: var(--neon-cyan); display: none;">
+                            <h2 id="minor-timer-display">00:00</h2>
+                            <p style="font-size: 0.6rem; color: var(--neon-pink);">CANCEL = -50 BALLS</p>
+                        </div>
+                    </div>
+
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- Flashcard Modal -->
+    <div class="modal-overlay" id="flashcard-modal" style="display: none;">
+        <div class="modal-content" style="max-width: 500px;">
+            <h3 id="fc-topic-title" style="color: var(--neon-cyan); margin-bottom: 1.5rem;">Topic Flashcard</h3>
+            <div class="flashcard-scene">
+                <div class="flashcard" id="flashcard-obj" onclick="this.classList.toggle('flipped')">
+                    <div class="flashcard-front">
+                        <p id="fc-question">Click to flip...</p>
+                        <span style="font-size: 0.7rem; color: #444; margin-top: 2rem;">REVEAL ANSWER</span>
+                    </div>
+                    <div class="flashcard-back">
+                        <p id="fc-answer">Answer here.</p>
+                        <span style="font-size: 0.7rem; color: #444; margin-top: 2rem;">BACK TO QUESTION</span>
+                    </div>
+                </div>
+            </div>
+            <div class="leitner-actions">
+                <button class="neon-btn" style="border-color: #ff4d4d; color: #ff4d4d;" onclick="handleLeitner('hard')">HARD</button>
+                <button class="neon-btn" style="border-color: #ffcc00; color: #ffcc00;" onclick="handleLeitner('med')">MEDIUM</button>
+                <button class="neon-btn" style="border-color: #4ade80; color: #4ade80;" onclick="handleLeitner('easy')">EASY</button>
+            </div>
+            <button class="neon-btn" style="margin-top: 2rem; width: 100%; border-color: var(--text-secondary); color: var(--text-secondary);"
+                onclick="document.getElementById('flashcard-modal').style.display='none'">CLOSE</button>
+        </div>
+    </div>
+
+    <!-- Settings Modal -->
+    <div class="modal-overlay" id="settings-modal" style="display: none; z-index: 9998;">
+        <div class="modal-content" style="max-width: 450px;">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 2rem; border-bottom: 1px solid rgba(0,243,255,0.15); padding-bottom: 1rem;">
+                <h3 style="color: var(--neon-cyan);"><i class="fas fa-cog"></i> SYSTEM SETTINGS</h3>
+                <i class="fas fa-times" style="color:var(--text-secondary); cursor:pointer;" onclick="document.getElementById('settings-modal').style.display='none'"></i>
+            </div>
+            
+            <div class="input-group" style="margin-bottom: 1.5rem;">
+                <label style="color:var(--synth-pink); font-size:0.8rem; margin-bottom:0.5rem; display:block;">Rename Warrior Handle</label>
+                <div style="display:flex; gap:0.5rem;">
+                    <input type="text" id="settings-rename-input" placeholder="New handle..." style="flex:1; background:rgba(255,255,255,0.05); border:1px solid var(--glass-border); padding:0.8rem; color:white; border-radius:8px; font-size:1rem; outline:none;">
+                    <button class="neon-btn" style="padding: 0 1.5rem;" onclick="handleSettingsRename()">SAVE</button>
+                </div>
+            </div>
+            <div class="input-group" style="margin-bottom: 1.5rem;">
+                <label style="color:var(--synth-pink); font-size:0.8rem; margin-bottom:0.5rem; display:block;">Daily Recap Time</label>
+                <div style="display:flex; gap:0.5rem; align-items:center;">
+                    <input type="time" id="daily-recap-time" style="flex:1; background:rgba(255,255,255,0.05); border:1px solid var(--glass-border); padding:0.8rem; color:white; border-radius:8px; font-size:1rem; outline:none; font-family:var(--font-body);">
+                    <button class="neon-btn" style="padding: 0 1.5rem;" onclick="saveRecapTime()">SAVE</button>
+                </div>
+                <p style="font-size:0.7rem; color:var(--text-secondary); margin-top:0.4rem;">You will receive your daily debriefing at this time.</p>
+            </div>
+
+            <div style="margin-top: 2rem; display:flex; flex-direction:column; gap: 1rem;">
+                <button class="neon-btn" style="width: 100%; border-color: rgba(255,255,255,0.2); color: white;" onclick="handleLogout()">
+                    <i class="fas fa-sign-out-alt"></i> LOG OUT (THIS DEVICE)
+                </button>
+                
+                <button class="neon-btn" style="width: 100%; border-color: var(--neon-pink); color: var(--neon-pink);" onclick="handleLogoutAll()">
+                    <i class="fas fa-shield-alt"></i> LOG OUT ALL OTHER DEVICES
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Global Confirmation Modal -->
+    <div class="modal-overlay" id="confirm-modal" style="display: none; z-index: 9999;">
+        <div class="modal-content" style="max-width: 400px; text-align: center; border: 1px solid var(--neon-pink); box-shadow: 0 0 30px rgba(255,42,133,0.3);">
+            <i class="fas fa-exclamation-triangle" style="font-size: 3rem; color: var(--neon-pink); margin-bottom: 1rem;"></i>
+            <h3 style="color: white; margin-bottom: 0.5rem; font-family: var(--font-heading);">Better think twice</h3>
+            <p id="confirm-msg" style="color: var(--text-secondary); font-size: 0.9rem; margin-bottom: 1.5rem;"></p>
+            <div style="display: flex; gap: 1rem;">
+                <button class="neon-btn" style="flex: 1; border-color: rgba(255,255,255,0.2); color: white;" onclick="closeConfirmModal()">CANCEL</button>
+                <button class="neon-btn" style="flex: 1; border-color: var(--neon-pink); color: var(--neon-pink);" id="confirm-yes-btn">PROCEED</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="data-syllabus.js"></script>
+    <script src="app.js"></script>
+
+    <!-- Daily Recap Modal -->
+    <div class="modal-overlay" id="daily-recap-modal" style="display: none; z-index: 10000;">
+        <div class="modal-content" style="max-width: 500px; text-align: center; border: 1px solid var(--neon-cyan); box-shadow: 0 0 40px rgba(0,243,255,0.2); background: rgba(10,5,25,0.95); overflow-y: auto; max-height: 90vh;">
+            <div style="margin-bottom: 1.5rem;">
+                <i class="fas fa-chart-line" style="font-size: 3rem; color: var(--neon-cyan); margin-bottom: 1rem; text-shadow: 0 0 15px rgba(0,243,255,0.5);"></i>
+                <h2 style="color: white; font-family: var(--font-heading); font-size: 1.8rem; text-transform: uppercase; letter-spacing: 2px;">Daily Debrief</h2>
+                <p style="color: var(--text-secondary); font-size: 0.9rem;" id="daily-recap-date">Loading date...</p>
+            </div>
+            
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 1.5rem;">
+                <div style="background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); border-radius: 12px; padding: 1rem;">
+                    <i class="fas fa-fire" style="font-size: 1.5rem; color: #ed8936; margin-bottom: 0.5rem;"></i>
+                    <h3 style="color: white; font-size: 1.5rem;" id="recap-balls">0</h3>
+                    <p style="color: var(--text-secondary); font-size: 0.7rem; text-transform: uppercase;">Balls Earned</p>
+                </div>
+                <div style="background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); border-radius: 12px; padding: 1rem;">
+                    <i class="fas fa-stopwatch" style="font-size: 1.5rem; color: var(--synth-purple); margin-bottom: 0.5rem;"></i>
+                    <h3 style="color: white; font-size: 1.5rem;" id="recap-focus">0m</h3>
+                    <p style="color: var(--text-secondary); font-size: 0.7rem; text-transform: uppercase;">Focus Time</p>
+                </div>
+                <div style="background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); border-radius: 12px; padding: 1rem;">
+                    <i class="fas fa-list-check" style="font-size: 1.5rem; color: var(--neon-pink); margin-bottom: 0.5rem;"></i>
+                    <h3 style="color: white; font-size: 1.5rem;" id="recap-tasks">0</h3>
+                    <p style="color: var(--text-secondary); font-size: 0.7rem; text-transform: uppercase;">Missions Cleared</p>
+                </div>
+                <div style="background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); border-radius: 12px; padding: 1rem;">
+                    <i class="fas fa-scroll" style="font-size: 1.5rem; color: #4ade80; margin-bottom: 0.5rem;"></i>
+                    <h3 style="color: white; font-size: 1.5rem;" id="recap-journal">0</h3>
+                    <p style="color: var(--text-secondary); font-size: 0.7rem; text-transform: uppercase;">Journal Entries</p>
+                </div>
+            </div>
+            
+            <button class="neon-btn" style="width: 100%; border-color: var(--neon-cyan); color: var(--neon-cyan);" onclick="document.getElementById('daily-recap-modal').style.display='none'">
+                <i class="fas fa-check-double"></i> ACKNOWLEDGE
+            </button>
+        </div>
+    </div>
+
+<script>
+    // Reveal admin link if user is admin
+    const _me = (localStorage.getItem('primeedu_leaderboard_name') || localStorage.getItem('primeedu_name') || '').trim().toLowerCase();
+    const _email = (localStorage.getItem('primeedu_email') || '').trim().toLowerCase();
+    if(_email === 'buvanavel.m01@gmail.com') {
+        const adminLinks = document.querySelectorAll('.admin-only-link');
+        adminLinks.forEach(link => link.style.display = 'flex');
+    }
+</script>
+</body>
+
+</html>

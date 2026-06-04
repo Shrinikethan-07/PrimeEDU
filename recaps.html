@@ -205,6 +205,9 @@
             margin: 0.5rem 0;
         }
     </style>
+<script>
+    window.API_BASE_URL = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' ? '' : 'https://primeedu.onrender.com';
+</script>
 </head>
 
 <body>
@@ -215,12 +218,17 @@
                 <span>PrimeEDU</span>
             </div>
                         <ul class="nav-links">
-                <li class="nav-item"><a href="index.html" class="nav-link"><i class="fas fa-th-large"></i><span>Dashboard</span></a></li>
+                <li class="nav-item"><a href="dashboard.html" class="nav-link"><i class="fas fa-th-large"></i><span>Dashboard</span></a></li>
                 <li class="nav-item"><a href="timer.html" class="nav-link"><i class="fas fa-stopwatch"></i><span>Study Timer</span></a></li>
                 <li class="nav-item"><a href="journal.html" class="nav-link"><i class="fas fa-scroll"></i><span>Journal</span></a></li>
                 <li class="nav-item"><a href="modules.html" class="nav-link"><i class="fas fa-book-open"></i><span>Library</span></a></li>
                 <li class="nav-item"><a href="recaps.html" class="nav-link active"><i class="fas fa-magic"></i><span>Recaps</span></a></li>
                 <li class="nav-item"><a href="leaderboard.html" class="nav-link"><i class="fas fa-trophy"></i><span>Leaderboard</span></a></li>
+            <li class="nav-item admin-only-link" style="display: none;">
+                    <a href="admin.html" class="nav-link" style="color: #ff3366;">
+                        <i class="fas fa-user-shield"></i><span>Admin</span>
+                    </a>
+                </li>
             </ul>
             <div class="sidebar-bottom">
                 <div class="avatar-preview"><img src="" alt="avatar" class="avatar-circle"></div>
@@ -342,7 +350,7 @@
                     <h2 style="margin-bottom:0.4rem;">${data.title}</h2>
                     <div style="display:flex;align-items:center;gap:0.5rem;">
                         <img src="${char.img}" alt="Avatar" style="width:22px;height:22px;border-radius:50%;object-fit:cover;border:1.5px solid var(--neon-cyan);" onerror="this.src='${char.fallback}'">
-                        <span style="font-size:0.7rem;font-weight:600;color:var(--text-secondary);">Seetharam</span>
+                        <span style="font-size:0.7rem;font-weight:600;color:var(--text-secondary);">${localStorage.getItem('primeedu_leaderboard_name') || 'Warrior'}</span>
                     </div>
                 </div>
 
@@ -413,64 +421,119 @@
 
         // ═══ INIT RECAPS ═══
         async function initRecaps() {
-            let accountAgeDays = 0;
+            let accountAgeDays = 1;
             try {
-                const pRes = await fetch(window.API_BASE_URL + '/api/user/profile');
+                // We add token to headers just in case it's needed by the backend
+                const token = localStorage.getItem('primeedu_token');
+                const pRes = await fetch(window.API_BASE_URL + '/api/user/profile', {
+                    headers: { 'Authorization': 'Bearer ' + token }
+                });
                 const profile = await pRes.json();
-                accountAgeDays = profile.account_age_days || 0;
+                accountAgeDays = profile.account_age_days || 1;
             } catch(e) {}
 
-            function renderLocked(gridId, requiredDays) {
+            function applyLockOverlay(gridId, requiredDays, periodName) {
                 const grid = document.getElementById(gridId);
-                grid.innerHTML = `<div style="grid-column: 1 / -1; padding: 3rem; background: rgba(0,0,0,0.3); border-radius: 12px; text-align: center; border: 1px dashed rgba(255,255,255,0.1);">
-                    <i class="fas fa-lock" style="font-size: 2rem; color: #64748b; margin-bottom: 1rem;"></i>
-                    <h3 style="color: #cbd5e1; font-family: var(--font-heading);">LOCKED UNTIL DAY ${requiredDays}</h3>
-                    <p style="color: #64748b; font-size: 0.9rem; margin-top: 0.5rem;">Keep grinding. You are on day ${accountAgeDays}.</p>
-                </div>`;
+                grid.style.position = 'relative';
+                
+                // If the user hasn't reached the required days, we completely hide the cards and show a premium lock card
+                grid.innerHTML = ''; // Clear empty space or fake cards
+                grid.style.gridTemplateColumns = '1fr'; // Make it take full width
+                
+                const daysLeft = requiredDays - accountAgeDays;
+                const lockCard = document.createElement('div');
+                lockCard.style.cssText = `
+                    background: linear-gradient(135deg, #121212 0%, #1f1f1f 100%);
+                    border: 1px solid #333;
+                    border-radius: 20px;
+                    padding: 3rem 2rem;
+                    text-align: center;
+                    box-shadow: inset 0 0 40px rgba(0,0,0,0.5), 0 10px 30px rgba(0,0,0,0.6);
+                    display: flex;
+                    flex-direction: column;
+                    align-items: center;
+                    justify-content: center;
+                    position: relative;
+                    overflow: hidden;
+                `;
+                
+                lockCard.innerHTML = `
+                    <div style="position: absolute; top: 0; left: 0; right: 0; height: 3px; background: linear-gradient(90deg, transparent, #555, transparent);"></div>
+                    <i class="fas fa-lock" style="font-size: 3.5rem; color: #666; margin-bottom: 1.5rem; text-shadow: 0 4px 10px rgba(0,0,0,0.5);"></i>
+                    <h3 style="color: #eee; font-family: var(--font-heading); font-size: 1.4rem; letter-spacing: 2px; text-transform: uppercase;">${periodName} Locked</h3>
+                    <p style="color: #999; font-size: 0.95rem; margin-top: 0.5rem;">You are currently on <strong>Day ${accountAgeDays}</strong>.</p>
+                    <div style="margin-top: 1.5rem; background: rgba(0,0,0,0.4); border: 1px solid #222; padding: 0.8rem 1.5rem; border-radius: 12px;">
+                        <span style="color: #ccc; font-size: 0.9rem;">Wait <strong style="color: white; font-size: 1.1rem;">${daysLeft}</strong> more days to unlock.</span>
+                    </div>
+                `;
+                
+                grid.appendChild(lockCard);
             }
 
+            let dynamicData = {};
             try {
                 const response = await fetch(window.API_BASE_URL + '/api/recap/dynamic');
-                const dynamicData = await response.json();
-
-                if(accountAgeDays >= 7) {
-                    const weeklyData = [
-                        { title: "Weekly Grit", content: dynamicData.reason, type: 'chart', image: dynamicData.image },
-                        { title: "Dragon Balls", statValue: dynamicData.highlight_stat, statLabel: dynamicData.label, type: 'stat' }
-                    ];
-                    const weeklyGrid = document.getElementById('weekly-grid');
-                    weeklyData.forEach((d, i) => weeklyGrid.appendChild(createPoster(d, i)));
-                } else renderLocked('weekly-grid', 7);
-
-                if(accountAgeDays >= 30) {
-                    const monthlyData = [
-                        { title: "Identity", html: `<div style="font-size:0.85rem;color:var(--neon-purple);font-family:var(--font-heading);border:1px solid var(--neon-purple);padding:0.4rem 0.8rem;border-radius:8px;margin-bottom:0.75rem;">THE ALCHEMIST</div><p style="font-size:0.8rem;">Surgical Precision.</p><div style="background-image:url('https://i.pinimg.com/736x/97/4a/5b/974a5b6a4e8b3c2d1f0e9a8b7c6d5e4f.jpg');height:90px;background-size:cover;background-position:center;border-radius:12px;width:100%;"></div>` },
-                        { title: "Consistency", content: "28 Day Streak. Unstoppable.", type: 'chart', image: 'consistency_v2.png' },
-                        { title: "Knowledge", content: "3 Chapters Decoded.", type: 'chart', image: 'focus_bars.png' },
-                        { title: "Focus Master", statValue: "154", statLabel: "HOURS", type: 'stat' }
-                    ];
-                    monthlyData.forEach((d, i) => document.getElementById('monthly-grid').appendChild(createPoster(d, i)));
-                } else renderLocked('monthly-grid', 30);
-
-                if(accountAgeDays >= 365) {
-                    const yearlyData = [
-                        { title: "Legacy", content: "Master of Deep Work.", type: 'chart', image: 'consistency_graph.png' },
-                        { title: "Chronos", statValue: "8,400", statLabel: "MINUTES", type: 'stat' },
-                        { title: "Growth Mindset", content: "Peak Form.", type: 'chart', image: 'focus_bars.png' },
-                        { title: "The Scroll", statValue: "154", statLabel: "ENTRIES", type: 'stat' },
-                        { title: "Final Form", html: `<div style="color:#ff00ea;font-family:var(--font-heading);border:1px solid #ff00ea;padding:0.4rem 0.8rem;border-radius:8px;font-size:0.8rem;margin-bottom:0.75rem;">ASCENDED WARRIOR</div><div style="background-image:url('https://i.pinimg.com/736x/4e/40/87/4e4087e01177d1c3ea5e7143e7284f9e.jpg');height:90px;background-size:cover;background-position:center;border-radius:12px;width:100%;"></div>` },
-                        { title: "Prime Rating", statValue: "9.8", statLabel: "TIER S+", type: 'stat' }
-                    ];
-                    yearlyData.forEach((d, i) => document.getElementById('yearly-grid').appendChild(createPoster(d, i)));
-                } else renderLocked('yearly-grid', 365);
-
+                if (response.ok) {
+                    dynamicData = await response.json();
+                }
             } catch (e) {
-                console.error("Failed to load recaps", e);
+                console.error("Failed to load dynamic data, using fallbacks", e);
+            }
+
+            // Weekly Data
+            const weeklyGrid = document.getElementById('weekly-grid');
+            if(accountAgeDays < 7) {
+                applyLockOverlay('weekly-grid', 7, 'Weekly Insights');
+            } else {
+                const weeklyData = [
+                    { title: "Weekly Grit", content: dynamicData.reason || 'You stayed disciplined and forged your mind daily.', type: 'chart', image: dynamicData.image || 'consistency_v2.png' },
+                    { title: "Dragon Balls", statValue: dynamicData.highlight_stat || '150', statLabel: dynamicData.label || 'EARNED', type: 'stat' }
+                ];
+                weeklyData.forEach((d, i) => weeklyGrid.appendChild(createPoster(d, i)));
+            }
+
+            // Monthly Data
+            const monthlyGrid = document.getElementById('monthly-grid');
+            if(accountAgeDays < 30) {
+                applyLockOverlay('monthly-grid', 30, 'Monthly Mastery');
+            } else {
+                const monthlyData = [
+                    { title: "Identity", html: `<div style="font-size:0.85rem;color:var(--neon-purple);font-family:var(--font-heading);border:1px solid var(--neon-purple);padding:0.4rem 0.8rem;border-radius:8px;margin-bottom:0.75rem;">THE ALCHEMIST</div><p style="font-size:0.8rem;">Surgical Precision.</p><div style="background-image:url('https://i.pinimg.com/736x/97/4a/5b/974a5b6a4e8b3c2d1f0e9a8b7c6d5e4f.jpg');height:90px;background-size:cover;background-position:center;border-radius:12px;width:100%;"></div>` },
+                    { title: "Consistency", content: "28 Day Streak. Unstoppable.", type: 'chart', image: 'consistency_v2.png' },
+                    { title: "Knowledge", content: "3 Chapters Decoded.", type: 'chart', image: 'focus_bars.png' },
+                    { title: "Focus Master", statValue: "154", statLabel: "HOURS", type: 'stat' }
+                ];
+                monthlyData.forEach((d, i) => monthlyGrid.appendChild(createPoster(d, i)));
+            }
+
+            // Yearly Data
+            const yearlyGrid = document.getElementById('yearly-grid');
+            if(accountAgeDays < 365) {
+                applyLockOverlay('yearly-grid', 365, 'Yearly Legacy');
+            } else {
+                const yearlyData = [
+                    { title: "Legacy", content: "Master of Deep Work.", type: 'chart', image: 'consistency_graph.png' },
+                    { title: "Chronos", statValue: "8,400", statLabel: "MINUTES", type: 'stat' },
+                    { title: "Growth Mindset", content: "Peak Form.", type: 'chart', image: 'focus_bars.png' },
+                    { title: "The Scroll", statValue: "154", statLabel: "ENTRIES", type: 'stat' },
+                    { title: "Final Form", html: `<div style="color:#ff00ea;font-family:var(--font-heading);border:1px solid #ff00ea;padding:0.4rem 0.8rem;border-radius:8px;font-size:0.8rem;margin-bottom:0.75rem;">ASCENDED WARRIOR</div><div style="background-image:url('https://i.pinimg.com/736x/4e/40/87/4e4087e01177d1c3ea5e7143e7284f9e.jpg');height:90px;background-size:cover;background-position:center;border-radius:12px;width:100%;"></div>` },
+                    { title: "Prime Rating", statValue: "9.8", statLabel: "TIER S+", type: 'stat' }
+                ];
+                yearlyData.forEach((d, i) => yearlyGrid.appendChild(createPoster(d, i)));
             }
         }
 
         initRecaps();
     </script>
+<script>
+    // Reveal admin link if user is admin
+    const _me = (localStorage.getItem('primeedu_leaderboard_name') || localStorage.getItem('primeedu_name') || '').trim().toLowerCase();
+    const _email = (localStorage.getItem('primeedu_email') || '').trim().toLowerCase();
+    if(_email === 'buvanavel.m01@gmail.com') {
+        const adminLinks = document.querySelectorAll('.admin-only-link');
+        adminLinks.forEach(link => link.style.display = 'flex');
+    }
+</script>
 </body>
 
 </html>
