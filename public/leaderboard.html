@@ -350,7 +350,7 @@
             try {
                 const res = await fetch(window.API_BASE_URL + '/api/user/profile');
                 const data = await res.json();
-                document.getElementById('user-lb-name').innerText = data.leaderboard_name || data.name || 'Seetharam';
+                document.getElementById('user-lb-name').innerText = data.leaderboard_name || data.name || 'Warrior';
                 const balls = (data.balls || 0).toLocaleString();
                 document.getElementById('user-lb-beans').innerHTML = `${balls}<small>Dragon Balls</small>`;
             } catch (e) {}

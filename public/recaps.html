@@ -350,7 +350,7 @@
                     <h2 style="margin-bottom:0.4rem;">${data.title}</h2>
                     <div style="display:flex;align-items:center;gap:0.5rem;">
                         <img src="${char.img}" alt="Avatar" style="width:22px;height:22px;border-radius:50%;object-fit:cover;border:1.5px solid var(--neon-cyan);" onerror="this.src='${char.fallback}'">
-                        <span style="font-size:0.7rem;font-weight:600;color:var(--text-secondary);">Seetharam</span>
+                        <span style="font-size:0.7rem;font-weight:600;color:var(--text-secondary);">${localStorage.getItem('primeedu_leaderboard_name') || 'Warrior'}</span>
                     </div>
                 </div>
 

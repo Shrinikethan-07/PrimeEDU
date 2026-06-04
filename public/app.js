@@ -206,6 +206,13 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }, 500);
 
+    // ─── Instant name load from localStorage (prevents flicker on tab switch) ───
+    const storedName = localStorage.getItem('primeedu_leaderboard_name');
+    const greetingEl = document.getElementById('user-greeting');
+    if (greetingEl && storedName) {
+        greetingEl.innerText = `Ascended Warrior ${storedName}`;
+    }
+
     initAvatar(); // load from localStorage immediately, sync from backend in background
 
     // ═══════════════ FORGED DESTINY MATRIX ═══════════════
