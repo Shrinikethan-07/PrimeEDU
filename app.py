@@ -68,15 +68,17 @@ def check_streak_and_login(user):
     if last_login:
         last_date = datetime.fromisoformat(last_login)
         now = datetime.now()
-        diff = now - last_date
+        
+        # Calculate difference in calendar days, not 24-hour periods
+        diff_days = (now.date() - last_date.date()).days
         
         # Streak logic
-        if diff.days == 1:
-            user['streak'] += 1
+        if diff_days == 1:
+            user['streak'] = user.get('streak', 0) + 1
             if user['streak'] == 7: user['balls'] += 20
             elif user['streak'] == 30: user['balls'] += 100
             elif user['streak'] == 365: user['balls'] += 1000
-        elif diff.days > 1:
+        elif diff_days > 1:
             user['streak'] = 0 # reset
             
     user['last_login'] = datetime.now().isoformat()
