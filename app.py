@@ -112,7 +112,7 @@ def static_files(path):
 def register():
     db = load_db()
     data = request.json
-    email = data.get('email')
+    email = data.get('email', '').strip().lower()
     password = data.get('password')
     name = data.get('name', 'Warrior')
     
@@ -142,7 +142,7 @@ def register():
 def login():
     db = load_db()
     data = request.json
-    email = data.get('email')
+    email = data.get('email', '').strip().lower()
     password = data.get('password')
     
     user = db['user_profiles'].get(email)
