@@ -252,6 +252,27 @@
             80% { transform: scale(1.1); opacity: 1; }
             100% { transform: scale(1); opacity: 1; filter: drop-shadow(0 0 20px #3b82f6); }
         }
+        
+        /* Sort Pills Style */
+        .sort-pill {
+            font-size: 0.8rem !important;
+            padding: 0.5rem 1rem !important;
+            border-color: rgba(255,255,255,0.15) !important;
+            color: var(--text-secondary) !important;
+            background: rgba(255,255,255,0.02) !important;
+            box-shadow: none !important;
+            transform: none !important;
+        }
+        .sort-pill.active {
+            border-color: var(--neon-cyan) !important;
+            color: var(--neon-cyan) !important;
+            box-shadow: 0 0 15px rgba(0, 243, 255, 0.25) !important;
+            background: rgba(0, 243, 255, 0.05) !important;
+        }
+        .sort-pill:hover {
+            border-color: var(--neon-cyan) !important;
+            color: white !important;
+        }
     </style>
 <script>
     window.API_BASE_URL = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' ? '' : 'https://primeedu.onrender.com';
@@ -259,6 +280,31 @@
 </head>
 
 <body>
+    <!-- Reusable Custom Input Modal -->
+    <div class="custom-modal-overlay" id="custom-input-modal">
+        <div class="custom-modal-card cyan-theme">
+            <div class="custom-modal-icon"><i class="fas fa-edit"></i></div>
+            <div class="custom-modal-title" id="custom-input-title">Edit Handle</div>
+            <div class="custom-modal-desc" id="custom-input-desc">Please enter your new handle:</div>
+            <input type="text" class="custom-modal-input" id="custom-input-field">
+            <div class="custom-modal-btn-row">
+                <button class="custom-modal-btn custom-modal-btn-secondary" id="custom-input-cancel">Cancel</button>
+                <button class="custom-modal-btn custom-modal-btn-primary" id="custom-input-submit">Save</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Reusable Custom Alert Modal -->
+    <div class="custom-modal-overlay" id="custom-alert-modal">
+        <div class="custom-modal-card">
+            <div class="custom-modal-icon"><i class="fas fa-info-circle"></i></div>
+            <div class="custom-modal-title" id="custom-alert-title">Leaderboard Notice</div>
+            <div class="custom-modal-desc" id="custom-alert-msg">Notification details.</div>
+            <div class="custom-modal-btn-row">
+                <button class="custom-modal-btn custom-modal-btn-primary" style="max-width: 150px;" id="custom-alert-close">Acknowledge</button>
+            </div>
+        </div>
+    </div>
     <!-- Leaderboard Intro Animation -->
     <div id="lb-intro" style="position: fixed; inset: 0; z-index: 10000; background: #0f172a; display: flex; align-items: center; justify-content: center; transition: opacity 0.5s ease 1s;">
         <div style="position: relative; width: 400px; height: 400px; display: flex; align-items: center; justify-content: center;">
@@ -279,7 +325,8 @@
                 <li class="nav-item"><a href="modules.html" class="nav-link"><i class="fas fa-book-open"></i><span>Library</span></a></li>
                 <li class="nav-item"><a href="recaps.html" class="nav-link"><i class="fas fa-magic"></i><span>Recaps</span></a></li>
                 <li class="nav-item"><a href="leaderboard.html" class="nav-link active"><i class="fas fa-trophy"></i><span>Leaderboard</span></a></li>
-            <li class="nav-item admin-only-link" style="display: none;">
+                <li class="nav-item"><a href="teams.html" class="nav-link"><i class="fas fa-shield-halved"></i><span>Clan Arena</span></a></li>
+                <li class="nav-item admin-only-link" style="display: none;">
                     <a href="admin.html" class="nav-link" style="color: #ff3366;">
                         <i class="fas fa-user-shield"></i><span>Admin</span>
                     </a>
@@ -307,6 +354,22 @@
             </header>
 
             <div class="lb-page-wrap">
+                <!-- SORT BAR -->
+                <div id="lb-sort-bar" style="display: flex; gap: 0.75rem; margin-bottom: 2rem; justify-content: center; flex-wrap: wrap;">
+                    <button class="neon-btn sort-pill active" data-sort="balls" onclick="changeSort('balls')">
+                        <i class="fas fa-gem"></i> Dragon Balls
+                    </button>
+                    <button class="neon-btn sort-pill" data-sort="focus_duration" onclick="changeSort('focus_duration')">
+                        <i class="fas fa-clock"></i> Focus Duration
+                    </button>
+                    <button class="neon-btn sort-pill" data-sort="sessions" onclick="changeSort('sessions')">
+                        <i class="fas fa-list-check"></i> Sessions
+                    </button>
+                    <button class="neon-btn sort-pill" data-sort="streak" onclick="changeSort('streak')">
+                        <i class="fas fa-fire"></i> Day Streak
+                    </button>
+                </div>
+
                 <!-- PODIUM TOP 3 -->
                 <div class="lb-podium" id="dynamic-podium">
                     <!-- Dynamic Podium -->
@@ -357,9 +420,103 @@
         }
         loadProfile();
 
+        // Custom Alert modal helpers
+        function customAlert(title, message) {
+            return new Promise((resolve) => {
+                const modal = document.getElementById('custom-alert-modal');
+                document.getElementById('custom-alert-title').innerText = title;
+                document.getElementById('custom-alert-msg').innerText = message;
+                modal.classList.add('active');
+                
+                const closeBtn = document.getElementById('custom-alert-close');
+                const handler = () => {
+                    modal.classList.remove('active');
+                    closeBtn.removeEventListener('click', handler);
+                    resolve();
+                };
+                closeBtn.addEventListener('click', handler);
+            });
+        }
+
+        function customPrompt(title, desc, placeholder = '') {
+            return new Promise((resolve) => {
+                const modal = document.getElementById('custom-input-modal');
+                document.getElementById('custom-input-title').innerText = title;
+                document.getElementById('custom-input-desc').innerText = desc;
+                const inputField = document.getElementById('custom-input-field');
+                inputField.placeholder = placeholder;
+                inputField.value = placeholder;
+                modal.classList.add('active');
+                
+                const submitBtn = document.getElementById('custom-input-submit');
+                const cancelBtn = document.getElementById('custom-input-cancel');
+                
+                const cleanup = () => {
+                    modal.classList.remove('active');
+                    submitBtn.removeEventListener('click', submitHandler);
+                    cancelBtn.removeEventListener('click', cancelHandler);
+                };
+                
+                const submitHandler = () => {
+                    const val = inputField.value;
+                    cleanup();
+                    resolve(val);
+                };
+                const cancelHandler = () => {
+                    cleanup();
+                    resolve(null);
+                };
+                
+                submitBtn.addEventListener('click', submitHandler);
+                cancelBtn.addEventListener('click', cancelHandler);
+            });
+        }
+
+        window.alert = function(msg) {
+            customAlert("System Alert", msg);
+        };
+
+        let currentSort = 'balls';
+
+        function getMetricText(u) {
+            if (currentSort === 'focus_duration') {
+                return `${(u.focus_duration_minutes || 0).toLocaleString()} min`;
+            } else if (currentSort === 'sessions') {
+                return `${(u.sessions_count || 0)} sessions`;
+            } else if (currentSort === 'streak') {
+                return `${(u.streak || 0)} days`;
+            } else {
+                return `${(u.balls || 0).toLocaleString()} Balls`;
+            }
+        }
+
+        function getMetricLabel() {
+            if (currentSort === 'focus_duration') {
+                return 'Focus Duration';
+            } else if (currentSort === 'sessions') {
+                return 'Completed Sessions';
+            } else if (currentSort === 'streak') {
+                return 'Day Streak';
+            } else {
+                return 'Dragon Balls';
+            }
+        }
+
+        async function changeSort(sortBy) {
+            currentSort = sortBy;
+            document.querySelectorAll('.sort-pill').forEach(btn => {
+                if (btn.getAttribute('data-sort') === sortBy) {
+                    btn.classList.add('active');
+                } else {
+                    btn.classList.remove('active');
+                }
+            });
+            await loadLeaderboard();
+        }
+
         async function loadLeaderboard() {
             try {
-                const res = await fetch(window.API_BASE_URL + '/api/leaderboard');
+                const res = await fetch(window.API_BASE_URL + '/api/leaderboard?sort_by=' + currentSort);
                 const users = await res.json();
                 
                 const podiumDiv = document.getElementById('dynamic-podium');
@@ -378,8 +535,8 @@
                         <div class="podium-rank-badge">${rank}</div>
                         <img src="${char.img}" alt="${char.name}" class="podium-avatar" onerror="this.src='${char.fallback}'">
                         <div class="podium-name">${u.name}</div>
-                        <div class="podium-score">${(u.balls || 0).toLocaleString()}</div>
-                        <div class="podium-sub">Dragon Balls</div>
+                        <div class="podium-score">${getMetricText(u)}</div>
+                        <div class="podium-sub">${getMetricLabel()}</div>
                     </div>`;
                 }
 
@@ -408,7 +565,7 @@
                             </div>
                             <div class="warrior-discipline">Streak: ${u.streak} Days</div>
                         </div>
-                        <div class="warrior-balls" style="${isMe ? 'color:var(--neon-cyan);' : ''}">${(u.balls || 0).toLocaleString()}<small>Dragon Balls</small></div>
+                        <div class="warrior-balls" style="${isMe ? 'color:var(--neon-cyan);' : ''}">${getMetricText(u)}<small>${getMetricLabel()}</small></div>
                     </div>`;
                 }
                 listDiv.innerHTML = listHtml;
@@ -429,14 +586,13 @@
                 });
             } else {
                 navigator.clipboard.writeText(`${text} \n${window.location.href}`);
-                alert("Leaderboard link copied to clipboard! Share it with your friends.");
+                customAlert("Share Leaderboard", "Leaderboard link copied to clipboard! Share it with your friends.");
             }
         }
 
-
         window.editHandle = async () => {
             const current = document.getElementById('user-lb-name').innerText;
-            const newHandle = prompt("Enter your new warrior handle:", current);
+            const newHandle = await customPrompt("Edit Handle", "Enter your new warrior handle:", current);
             if (newHandle && newHandle.trim() !== "" && newHandle !== current) {
                 try {
                     const res = await fetch(window.API_BASE_URL + '/api/user/profile', {
@@ -447,9 +603,10 @@
                     if(res.ok) {
                         document.getElementById('user-lb-name').innerText = newHandle.trim();
                         localStorage.setItem('primeedu_leaderboard_name', newHandle.trim());
+                        loadLeaderboard();
                     }
                 } catch(e) {
-                    alert("Failed to update handle.");
+                    customAlert("Error", "Failed to update handle.");
                 }
             }
         };

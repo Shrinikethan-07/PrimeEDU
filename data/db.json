@@ -1,5 +1,46 @@
 {
-    "user_profiles": {},
+    "user_profiles": {
+        "buvanavel.m01@gmail.com": {
+            "name": "Admin Leader",
+            "leaderboard_name": "Admin Leader",
+            "email": "buvanavel.m01@gmail.com",
+            "password_hash": "e4abae53cc1cebe5fe89ea93882c699a5e71ab0bbf42a83b7d833975b61c4a41",
+            "active_tokens": [
+                "f21605bd202491b72368657c128b4474d8d17386161d34219a09acc1109e336e"
+            ],
+            "balls": 50,
+            "streak": 1,
+            "last_login": "2026-06-05T11:28:38.986729",
+            "massive_goals": [],
+            "avatar": "itachi",
+            "creation_date": "2026-06-05T11:28:38.675932",
+            "clan_id": null,
+            "is_clan_leader": false,
+            "banned_clans": [],
+            "account_age_days": 0
+        },
+        "warrior2@test.com": {
+            "name": "Warrior Two",
+            "leaderboard_name": "Warrior Two",
+            "email": "warrior2@test.com",
+            "password_hash": "9b8769a4a742959a2d0298c36fb70623f2dfacda8436237df08d8dfd5b37374c",
+            "active_tokens": [
+                "445d21f74b12f54b610b88d348b52bb7c3a5ba4b84067e1fbcd3e6404c1606a8"
+            ],
+            "balls": 0,
+            "streak": 1,
+            "last_login": "2026-06-05T11:28:38.954936",
+            "massive_goals": [],
+            "avatar": "itachi",
+            "creation_date": "2026-06-05T11:28:38.827641",
+            "clan_id": null,
+            "is_clan_leader": false,
+            "banned_clans": [
+                "clan_1780639118"
+            ],
+            "account_age_days": 0
+        }
+    },
     "sessions": [
         {
             "id": 1779629155315,
@@ -41,5 +82,6 @@
             "completed": false
         }
     ],
-    "custom_syllabus": {}
+    "custom_syllabus": {},
+    "clans": {}
 }

@@ -113,6 +113,9 @@
             color: #fff;
         }
     </style>
+<script>
+    window.API_BASE_URL = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' ? '' : 'https://primeedu.onrender.com';
+</script>
 </head>
 
 <body>
@@ -172,12 +175,18 @@
                 <span>PrimeEDU</span>
             </div>
                         <ul class="nav-links">
-                <li class="nav-item"><a href="index.html" class="nav-link"><i class="fas fa-th-large"></i><span>Dashboard</span></a></li>
+                <li class="nav-item"><a href="dashboard.html" class="nav-link"><i class="fas fa-th-large"></i><span>Dashboard</span></a></li>
                 <li class="nav-item"><a href="timer.html" class="nav-link active"><i class="fas fa-stopwatch"></i><span>Study Timer</span></a></li>
                 <li class="nav-item"><a href="journal.html" class="nav-link"><i class="fas fa-scroll"></i><span>Journal</span></a></li>
                 <li class="nav-item"><a href="modules.html" class="nav-link"><i class="fas fa-book-open"></i><span>Library</span></a></li>
                 <li class="nav-item"><a href="recaps.html" class="nav-link"><i class="fas fa-magic"></i><span>Recaps</span></a></li>
                 <li class="nav-item"><a href="leaderboard.html" class="nav-link"><i class="fas fa-trophy"></i><span>Leaderboard</span></a></li>
+                <li class="nav-item"><a href="teams.html" class="nav-link"><i class="fas fa-shield-halved"></i><span>Clan Arena</span></a></li>
+                <li class="nav-item admin-only-link" style="display: none;">
+                    <a href="admin.html" class="nav-link" style="color: #ff3366;">
+                        <i class="fas fa-user-shield"></i><span>Admin</span>
+                    </a>
+                </li>
             </ul>
             <div class="sidebar-bottom">
                 <div class="avatar-preview"><img src="" alt="avatar" class="avatar-circle"></div>
@@ -584,6 +593,15 @@
         renderSessions();
 
     </script>
+<script>
+    // Reveal admin link if user is admin
+    const _me = (localStorage.getItem('primeedu_leaderboard_name') || localStorage.getItem('primeedu_name') || '').trim().toLowerCase();
+    const _email = (localStorage.getItem('primeedu_email') || '').trim().toLowerCase();
+    if(_email === 'buvanavel.m01@gmail.com') {
+        const adminLinks = document.querySelectorAll('.admin-only-link');
+        adminLinks.forEach(link => link.style.display = 'flex');
+    }
+</script>
 </body>
 
 </html>

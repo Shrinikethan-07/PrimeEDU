@@ -31,6 +31,75 @@ document.addEventListener('DOMContentLoaded', () => {
         return response;
     };
 
+    // Custom Alert Modal Function
+    window.customAlert = function(title, message) {
+        return new Promise((resolve) => {
+            const modal = document.getElementById('custom-alert-modal');
+            if (!modal) {
+                alert(message);
+                resolve();
+                return;
+            }
+            document.getElementById('custom-alert-title').innerText = title;
+            document.getElementById('custom-alert-msg').innerText = message;
+            modal.classList.add('active');
+            
+            const closeBtn = document.getElementById('custom-alert-close');
+            const handler = () => {
+                modal.classList.remove('active');
+                closeBtn.removeEventListener('click', handler);
+                resolve();
+            };
+            closeBtn.addEventListener('click', handler);
+        });
+    };
+
+    // Custom Input Modal Function
+    window.customPrompt = function(title, desc, placeholder = '') {
+        return new Promise((resolve) => {
+            const modal = document.getElementById('custom-input-modal');
+            if (!modal) {
+                const res = prompt(desc, placeholder);
+                resolve(res);
+                return;
+            }
+            document.getElementById('custom-input-title').innerText = title;
+            document.getElementById('custom-input-desc').innerText = desc;
+            const inputField = document.getElementById('custom-input-field');
+            inputField.placeholder = placeholder;
+            inputField.value = placeholder;
+            modal.classList.add('active');
+            
+            const submitBtn = document.getElementById('custom-input-submit');
+            const cancelBtn = document.getElementById('custom-input-cancel');
+            
+            const cleanUp = () => {
+                modal.classList.remove('active');
+                submitBtn.removeEventListener('click', submitHandler);
+                cancelBtn.removeEventListener('click', cancelHandler);
+            };
+            
+            const submitHandler = () => {
+                const val = inputField.value;
+                cleanUp();
+                resolve(val);
+            };
+            
+            const cancelHandler = () => {
+                cleanUp();
+                resolve(null);
+            };
+            
+            submitBtn.addEventListener('click', submitHandler);
+            cancelBtn.addEventListener('click', cancelHandler);
+        });
+    };
+
+    // Override default alert
+    window.alert = function(msg) {
+        window.customAlert("System Alert", msg);
+    };
+
     let progressData = safeParse('primeedu_progress_v3', {});
 
 
@@ -274,6 +343,7 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     };
 
+    let destinyInterval = null;
     async function loadDestinies() {
         const container = document.getElementById('active-destinies');
         if (!container) return;
@@ -287,18 +357,31 @@ document.addEventListener('DOMContentLoaded', () => {
                 document.getElementById('user-greeting').innerText = `Ascended Warrior ${user.leaderboard_name}`;
             }
             
+            // Hide the fullscreen loading screen
+            const loadingScreen = document.getElementById('loading-screen');
+            if (loadingScreen) {
+                setTimeout(() => {
+                    loadingScreen.style.opacity = '0';
+                    loadingScreen.style.visibility = 'hidden';
+                }, 1500);
+            }
+            
             const goals = user.massive_goals || [];
             if (goals.length === 0) {
                 container.innerHTML = '<p style="color:#64748b; font-size:0.9rem; text-align:center; padding: 2rem;">No destinies forged yet.</p>';
+                if (destinyInterval) { clearInterval(destinyInterval); destinyInterval = null; }
                 return;
             }
+            
+            if (destinyInterval) { clearInterval(destinyInterval); }
             
             container.innerHTML = goals.map((g, i) => {
                 const date = new Date(g.deadline);
                 return `
-                <div style="background: rgba(139, 92, 246, 0.1); border: 1px solid var(--synth-purple); border-radius: 12px; padding: 1rem; position: relative;">
-                    <h3 style="color: white; font-size: 1.1rem; margin-bottom: 0.5rem;">${g.title}</h3>
-                    <p style="color: var(--synth-pink); font-size: 0.8rem; margin-bottom: 0.5rem;"><i class="fas fa-clock"></i> Target: ${date.toLocaleString()}</p>
+                <div id="destiny-card-${i}" style="background: rgba(139, 92, 246, 0.1); border: 1px solid var(--synth-purple); border-radius: 12px; padding: 1rem; position: relative; transition: all 0.3s ease;">
+                    <h3 style="color: white; font-size: 1.1rem; margin-bottom: 0.25rem;">${g.title}</h3>
+                    <p style="color: var(--synth-pink); font-size: 0.8rem; margin-bottom: 0.25rem;"><i class="fas fa-clock"></i> Target: ${date.toLocaleString()}</p>
+                    <p id="countdown-text-${i}" style="color: var(--neon-cyan); font-size: 0.85rem; font-weight: bold; margin-bottom: 0.5rem;"></p>
                     <div style="width: 100%; height: 120px; background: url('assets/vision_board.png') center/cover no-repeat; border-radius: 8px; margin-bottom: 0.5rem; border: 1px solid rgba(255,255,255,0.15); box-shadow: 0 4px 15px rgba(0,0,0,0.5);">
                     </div>
                     <button class="neon-btn" style="padding: 0.3rem 0.6rem; font-size: 0.7rem; border-color: #ff2a85; color: #ff2a85; width: 100%;" onclick="cancelDestiny(${i})">
@@ -307,7 +390,64 @@ document.addEventListener('DOMContentLoaded', () => {
                 </div>
                 `;
             }).join('');
-        } catch(e) {}
+            
+            const updateCountdowns = () => {
+                goals.forEach((g, i) => {
+                    const el = document.getElementById(`countdown-text-${i}`);
+                    const card = document.getElementById(`destiny-card-${i}`);
+                    if (!el || !card) return;
+                    
+                    const targetTime = new Date(g.deadline).getTime();
+                    const now = Date.now();
+                    const diff = targetTime - now;
+                    
+                    if (diff <= 0) {
+                        el.innerHTML = `<span style="color: #ff0055; font-weight: 800; letter-spacing: 1px;">EXPIRED</span>`;
+                        card.style.borderColor = '#ff0055';
+                        card.style.boxShadow = '0 0 15px rgba(255, 0, 85, 0.2)';
+                        
+                        if (!card.dataset.expired) {
+                            card.dataset.expired = 'true';
+                            setTimeout(async () => {
+                                try {
+                                    const cancelRes = await fetch(window.API_BASE_URL + '/api/user/destiny/cancel', {
+                                        method: 'POST',
+                                        headers: { 'Content-Type': 'application/json' },
+                                        body: JSON.stringify({ goal_index: i })
+                                    });
+                                    if (cancelRes.ok) {
+                                        loadDestinies();
+                                    }
+                                } catch (err) {
+                                    console.error(err);
+                                }
+                            }, 3000);
+                        }
+                    } else {
+                        const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+                        const hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+                        const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+                        const seconds = Math.floor((diff % (1000 * 60)) / 1000);
+                        
+                        if (days > 0) {
+                            el.innerText = `Time Left: ${days}d ${hours}h ${minutes}m`;
+                        } else {
+                            el.innerText = `Time Left: ${hours}h ${minutes}m ${seconds}s`;
+                        }
+                    }
+                });
+            };
+            
+            updateCountdowns();
+            destinyInterval = setInterval(updateCountdowns, 1000);
+            
+        } catch(e) {
+            const loadingScreen = document.getElementById('loading-screen');
+            if (loadingScreen) {
+                loadingScreen.style.opacity = '0';
+                loadingScreen.style.visibility = 'hidden';
+            }
+        }
     }
     loadDestinies();
 
@@ -504,9 +644,44 @@ document.addEventListener('DOMContentLoaded', () => {
         const el = document.getElementById('ball-count');
         if (!el) return;
         let count = parseInt(el.innerText.replace(/,/g, '')) || 0;
-        count += amt;
+        count = Math.max(0, count + amt);
         el.innerText = count.toLocaleString();
         localStorage.setItem('primeedu_balls', count);
+        
+        // Trigger neon pulse flash animations
+        if (amt > 0) {
+            el.classList.remove('db-flash-positive', 'db-flash-negative');
+            void el.offsetWidth;
+            el.classList.add('db-flash-positive');
+            if (window.playSwordSound) window.playSwordSound();
+            setTimeout(() => el.classList.remove('db-flash-positive'), 600);
+        } else if (amt < 0) {
+            el.classList.remove('db-flash-positive', 'db-flash-negative');
+            void el.offsetWidth;
+            el.classList.add('db-flash-negative');
+            if (window.playSwordSound) window.playSwordSound();
+            setTimeout(() => el.classList.remove('db-flash-negative'), 600);
+        }
+
+        // Sync to backend DB
+        if (amt !== 0) {
+            fetch(window.API_BASE_URL + '/api/balls/update', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': 'Bearer ' + localStorage.getItem('primeedu_token')
+                },
+                body: JSON.stringify({ delta: amt })
+            })
+            .then(res => res.json())
+            .then(data => {
+                if (data.status === 'success' && data.balls !== undefined) {
+                    el.innerText = data.balls.toLocaleString();
+                    localStorage.setItem('primeedu_balls', data.balls);
+                }
+            })
+            .catch(err => console.error("Error syncing balls:", err));
+        }
         
         // Track daily balls
         if (amt > 0) {
@@ -528,7 +703,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // ═══════════════ NEURAL FOCUS TIMER (V4 - PERSISTENT) ═══════════════
     let focusInterval = null;
 
-    window.startFocusClick = () => {
+    window.startFocusClick = async () => {
         const circle = document.getElementById('focus-toggle');
         
         if (focusInterval) {
@@ -540,7 +715,7 @@ document.addEventListener('DOMContentLoaded', () => {
             return;
         }
 
-        const mins = prompt("Minutes of pure focus?", "25");
+        const mins = await customPrompt("Neural Focus Timer", "Minutes of pure focus?", "25");
         if (!mins || isNaN(mins)) return;
 
         const focusSeconds = parseInt(mins) * 60;
@@ -676,6 +851,7 @@ document.addEventListener('DOMContentLoaded', () => {
         void overlay.offsetWidth;
 
         overlay.classList.add('slash-active');
+        if (window.playSwordSound) window.playSwordSound();
 
         setTimeout(() => {
             overlay.style.display = 'none';

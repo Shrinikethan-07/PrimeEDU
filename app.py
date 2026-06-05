@@ -33,12 +33,16 @@ def init_db():
             "journal": [],
             "custom_syllabus": {
                 "physics": [], "chemistry": [], "biology": [], "mathematics": []
-            }
+            },
+            "clans": {}
         }
         save_db(_DB_CACHE)
     else:
         with open(DB_PATH, 'r') as f:
             _DB_CACHE = json.load(f)
+        if "clans" not in _DB_CACHE:
+            _DB_CACHE["clans"] = {}
+            save_db(_DB_CACHE)
 
 def load_db():
     return _DB_CACHE
@@ -59,6 +63,11 @@ def get_current_user(db):
     
     for uid, profile in db.get('user_profiles', {}).items():
         if token in profile.get('active_tokens', []):
+            if 'clan_id' not in profile: profile['clan_id'] = None
+            if 'is_clan_leader' not in profile: profile['is_clan_leader'] = False
+            if 'banned_clans' not in profile: profile['banned_clans'] = []
+            if 'balls' not in profile: profile['balls'] = 0
+            if 'streak' not in profile: profile['streak'] = 0
             return profile, uid
     return None, None
 
@@ -67,7 +76,10 @@ def check_streak_and_login(user):
     last_login = user.get('last_login')
     now = datetime.now()
     if last_login:
-        last_date = datetime.fromisoformat(last_login)
+        try:
+            last_date = datetime.fromisoformat(last_login)
+        except Exception:
+            last_date = now - timedelta(days=2)
         # Use calendar date comparison, not timedelta
         days_diff = (now.date() - last_date.date()).days
         
@@ -79,9 +91,14 @@ def check_streak_and_login(user):
             elif user['streak'] == 30: user['balls'] = user.get('balls', 0) + 100
             elif user['streak'] == 365: user['balls'] = user.get('balls', 0) + 1000
         elif days_diff > 1:
-            # Missed a day — reset streak
-            user['streak'] = 0
-        # If days_diff == 0 (same calendar day), streak stays unchanged
+            # Missed a day — reset streak to 1 today
+            user['streak'] = 1
+        elif days_diff == 0:
+            if user.get('streak', 0) == 0:
+                user['streak'] = 1
+        # If days_diff == 0, streak stays unchanged
+    else:
+        user['streak'] = 1
             
     user['last_login'] = now.isoformat()
     return user
@@ -135,7 +152,10 @@ def register():
         "last_login": datetime.now().isoformat(),
         "massive_goals": [],
         "avatar": "itachi",
-        "creation_date": datetime.now().isoformat()
+        "creation_date": datetime.now().isoformat(),
+        "clan_id": None,
+        "is_clan_leader": False,
+        "banned_clans": []
     }
     save_db(db)
     return jsonify({"status": "success"})
@@ -419,6 +439,430 @@ def get_dynamic_recap():
     tasks = [t for t in db.get('tasks', []) if t.get('user_id') == uid]
     visuals = visual_agent.get_recap_visuals(sessions, tasks)
     return jsonify(visuals)
+
+# --- BALLS UPDATE ENDPOINT ---
+@app.route('/api/balls/update', methods=['POST'])
+def update_balls():
+    db = load_db()
+    user, uid = get_current_user(db)
+    if not user:
+        return jsonify({"status": "error", "message": "Unauthorized"}), 401
+    delta = request.json.get('delta', 0) if request.json else 0
+    user['balls'] = max(0, user.get('balls', 0) + delta)
+    save_db(db)
+    return jsonify({"status": "success", "balls": user['balls']})
+
+# --- LEADERBOARD ENDPOINT ---
+@app.route('/api/leaderboard', methods=['GET'])
+def get_leaderboard():
+    db = load_db()
+    sort_by = request.args.get('sort_by', 'balls')
+    
+    users_list = []
+    for uid, profile in db.get('user_profiles', {}).items():
+        user_sessions = [s for s in db.get('sessions', []) if s.get('user_id') == uid and s.get('status') == 'completed']
+        sessions_count = len(user_sessions)
+        focus_duration_minutes = 0
+        for s in user_sessions:
+            try:
+                start = datetime.fromisoformat(s['start_time'])
+                end = datetime.fromisoformat(s['end_time'])
+                diff = (end - start).total_seconds() / 60.0
+                focus_duration_minutes += max(0.0, diff)
+            except Exception:
+                pass
+        focus_duration_minutes = round(focus_duration_minutes, 1)
+        
+        users_list.append({
+            "name": profile.get("leaderboard_name") or profile.get("name") or "Warrior",
+            "email": profile.get("email") or uid,
+            "balls": profile.get("balls", 0),
+            "streak": profile.get("streak", 0),
+            "avatar": profile.get("avatar", "itachi"),
+            "sessions_count": sessions_count,
+            "focus_duration_minutes": focus_duration_minutes
+        })
+        
+    if sort_by == 'streak':
+        users_list.sort(key=lambda x: x['streak'], reverse=True)
+    elif sort_by == 'sessions':
+        users_list.sort(key=lambda x: x['sessions_count'], reverse=True)
+    elif sort_by == 'focus_duration':
+        users_list.sort(key=lambda x: x['focus_duration_minutes'], reverse=True)
+    else: # default 'balls'
+        users_list.sort(key=lambda x: x['balls'], reverse=True)
+        
+    return jsonify(users_list)
+
+# --- ADMIN ENDPOINT ---
+@app.route('/api/admin/users', methods=['GET'])
+def admin_users():
+    db = load_db()
+    user, uid = get_current_user(db)
+    if not user or uid.lower() != 'buvanavel.m01@gmail.com':
+        return jsonify({"status": "error", "message": "Unauthorized. Admin access required."}), 403
+    
+    users_data = []
+    for email, profile in db.get('user_profiles', {}).items():
+        users_data.append({
+            "email": email,
+            "name": profile.get("name", "Unknown"),
+            "creation_date": profile.get("creation_date", ""),
+            "last_login": profile.get("last_login", "")
+        })
+    
+    users_data.sort(key=lambda x: x.get('creation_date', ''), reverse=True)
+    return jsonify({"status": "success", "users": users_data})
+
+# --- CLAN ENDPOINTS ---
+@app.route('/api/clan/create', methods=['POST'])
+def create_clan():
+    db = load_db()
+    user, uid = get_current_user(db)
+    if not user:
+        return jsonify({"status": "error", "message": "Unauthorized"}), 401
+        
+    if user.get('clan_id'):
+        return jsonify({"status": "error", "message": "Already in a clan"}), 400
+        
+    name = request.json.get('name', '').strip() if request.json else ''
+    if not name:
+        return jsonify({"status": "error", "message": "Clan name required"}), 400
+        
+    import string
+    chars = string.ascii_uppercase + string.digits
+    invite_code = ''.join(random.choice(chars) for _ in range(6))
+    while any(c.get('invite_code') == invite_code for c in db.get('clans', {}).values()):
+        invite_code = ''.join(random.choice(chars) for _ in range(6))
+        
+    clan_id = "clan_" + str(int(datetime.now().timestamp()))
+    
+    db['clans'][clan_id] = {
+        "id": clan_id,
+        "name": name,
+        "leader_email": uid,
+        "invite_code": invite_code,
+        "members": [uid],
+        "max_members": 20,
+        "terms": "",
+        "created_at": datetime.now().isoformat(),
+        "challenges": []
+    }
+    
+    user['clan_id'] = clan_id
+    user['is_clan_leader'] = True
+    save_db(db)
+    
+    return jsonify({"status": "success", "clan": db['clans'][clan_id]})
+
+@app.route('/api/clan/join', methods=['POST'])
+def join_clan():
+    db = load_db()
+    user, uid = get_current_user(db)
+    if not user:
+        return jsonify({"status": "error", "message": "Unauthorized"}), 401
+        
+    if user.get('clan_id'):
+        return jsonify({"status": "error", "message": "Already in a clan"}), 400
+        
+    code = (request.json.get('invite_code', '') if request.json else '').strip().upper()
+    clan = None
+    clan_id = None
+    for cid, c in db.get('clans', {}).items():
+        if c.get('invite_code', '').upper() == code:
+            clan = c
+            clan_id = cid
+            break
+            
+    if not clan:
+        return jsonify({"status": "error", "message": "Invalid invite code"}), 400
+        
+    if clan_id in user.get('banned_clans', []):
+        return jsonify({"status": "error", "message": "You are banned from this clan"}), 403
+        
+    if len(clan.get('members', [])) >= clan.get('max_members', 20):
+        return jsonify({"status": "error", "message": "Clan is full"}), 400
+        
+    if uid not in clan['members']:
+        clan['members'].append(uid)
+        
+    user['clan_id'] = clan_id
+    user['is_clan_leader'] = False
+    save_db(db)
+    
+    return jsonify({"status": "success", "clan_id": clan_id})
+
+@app.route('/api/clan/info', methods=['GET'])
+def get_clan_info():
+    db = load_db()
+    user, uid = get_current_user(db)
+    if not user:
+        return jsonify({"status": "error", "message": "Unauthorized"}), 401
+        
+    clan_id = user.get('clan_id')
+    if not clan_id:
+        return jsonify({"status": "no_clan"})
+        
+    clan = db.get('clans', {}).get(clan_id)
+    if not clan:
+        user['clan_id'] = None
+        user['is_clan_leader'] = False
+        save_db(db)
+        return jsonify({"status": "no_clan"})
+        
+    is_leader = (clan.get('leader_email') == uid)
+    
+    member_details = []
+    for member_email in clan.get('members', []):
+        m_profile = db.get('user_profiles', {}).get(member_email, {})
+        member_details.append({
+            "name": m_profile.get("name", "Warrior"),
+            "email": member_email,
+            "balls": m_profile.get("balls", 0),
+            "streak": m_profile.get("streak", 0),
+            "avatar": m_profile.get("avatar", "itachi")
+        })
+        
+    response_data = {
+        "status": "success",
+        "id": clan_id,
+        "name": clan.get("name"),
+        "leader_email": clan.get("leader_email"),
+        "members": member_details,
+        "max_members": clan.get("max_members", 20),
+        "terms": clan.get("terms", ""),
+        "created_at": clan.get("created_at"),
+        "challenges": clan.get("challenges", []),
+        "is_leader": is_leader
+    }
+    
+    if is_leader:
+        response_data["invite_code"] = clan.get("invite_code")
+        
+    return jsonify(response_data)
+
+@app.route('/api/clan/leave', methods=['POST'])
+def leave_clan():
+    db = load_db()
+    user, uid = get_current_user(db)
+    if not user:
+        return jsonify({"status": "error", "message": "Unauthorized"}), 401
+        
+    clan_id = user.get('clan_id')
+    if not clan_id:
+        return jsonify({"status": "error", "message": "Not in a clan"}), 400
+        
+    clan = db.get('clans', {}).get(clan_id)
+    if not clan:
+        user['clan_id'] = None
+        user['is_clan_leader'] = False
+        save_db(db)
+        return jsonify({"status": "success"})
+        
+    if clan.get('leader_email') == uid:
+        # Disband clan
+        for m_email in clan.get('members', []):
+            m_profile = db.get('user_profiles', {}).get(m_email)
+            if m_profile:
+                m_profile['clan_id'] = None
+                m_profile['is_clan_leader'] = False
+        db.get('clans', {}).pop(clan_id, None)
+    else:
+        # Just leave
+        if uid in clan.get('members', []):
+            clan['members'].remove(uid)
+        user['clan_id'] = None
+        user['is_clan_leader'] = False
+        
+    save_db(db)
+    return jsonify({"status": "success"})
+
+@app.route('/api/clan/dismiss', methods=['POST'])
+def dismiss_member():
+    db = load_db()
+    user, uid = get_current_user(db)
+    if not user:
+        return jsonify({"status": "error", "message": "Unauthorized"}), 401
+        
+    clan_id = user.get('clan_id')
+    if not clan_id:
+        return jsonify({"status": "error", "message": "Not in a clan"}), 400
+        
+    clan = db.get('clans', {}).get(clan_id)
+    if not clan or clan.get('leader_email') != uid:
+        return jsonify({"status": "error", "message": "Unauthorized. Clan leader only."}), 403
+        
+    member_email = (request.json.get('member_email', '') if request.json else '').strip().lower()
+    if not member_email:
+        return jsonify({"status": "error", "message": "Member email required"}), 400
+        
+    if member_email == uid:
+        return jsonify({"status": "error", "message": "Cannot dismiss yourself"}), 400
+        
+    if member_email in clan.get('members', []):
+        clan['members'].remove(member_email)
+        
+    m_profile = db.get('user_profiles', {}).get(member_email)
+    if m_profile:
+        m_profile['clan_id'] = None
+        m_profile['is_clan_leader'] = False
+        banned = m_profile.get('banned_clans', [])
+        if clan_id not in banned:
+            banned.append(clan_id)
+        m_profile['banned_clans'] = banned
+        
+    save_db(db)
+    return jsonify({"status": "success"})
+
+@app.route('/api/clan/terms', methods=['POST'])
+def update_terms():
+    db = load_db()
+    user, uid = get_current_user(db)
+    if not user:
+        return jsonify({"status": "error", "message": "Unauthorized"}), 401
+        
+    clan_id = user.get('clan_id')
+    if not clan_id:
+        return jsonify({"status": "error", "message": "Not in a clan"}), 400
+        
+    clan = db.get('clans', {}).get(clan_id)
+    if not clan or clan.get('leader_email') != uid:
+        return jsonify({"status": "error", "message": "Unauthorized. Clan leader only."}), 403
+        
+    terms = request.json.get('terms', '') if request.json else ''
+    clan['terms'] = terms
+    save_db(db)
+    return jsonify({"status": "success"})
+
+@app.route('/api/clan/delete', methods=['DELETE', 'POST'])
+def delete_clan():
+    db = load_db()
+    user, uid = get_current_user(db)
+    if not user:
+        return jsonify({"status": "error", "message": "Unauthorized"}), 401
+        
+    clan_id = user.get('clan_id')
+    if not clan_id:
+        return jsonify({"status": "error", "message": "Not in a clan"}), 400
+        
+    clan = db.get('clans', {}).get(clan_id)
+    if not clan or clan.get('leader_email') != uid:
+        return jsonify({"status": "error", "message": "Unauthorized. Clan leader only."}), 403
+        
+    for m_email in clan.get('members', []):
+        m_profile = db.get('user_profiles', {}).get(m_email)
+        if m_profile:
+            m_profile['clan_id'] = None
+            m_profile['is_clan_leader'] = False
+            
+    db.get('clans', {}).pop(clan_id, None)
+    save_db(db)
+    return jsonify({"status": "success"})
+
+@app.route('/api/clan/challenge', methods=['POST'])
+def create_challenge():
+    db = load_db()
+    user, uid = get_current_user(db)
+    if not user:
+        return jsonify({"status": "error", "message": "Unauthorized"}), 401
+        
+    clan_id = user.get('clan_id')
+    if not clan_id:
+        return jsonify({"status": "error", "message": "Not in a clan"}), 400
+        
+    clan = db.get('clans', {}).get(clan_id)
+    if not clan:
+        return jsonify({"status": "error", "message": "Clan not found"}), 404
+        
+    data = request.json or {}
+    title = data.get('title', 'Quick Focus Challenge').strip()
+    try:
+        duration = int(data.get('duration_minutes', 0))
+    except ValueError:
+        duration = 0
+        
+    challenge_id = "ch_" + str(int(datetime.now().timestamp()))
+    
+    challenge = {
+        "id": challenge_id,
+        "title": title,
+        "duration_minutes": duration,
+        "creator_email": uid,
+        "creator_name": user.get('name', 'Warrior'),
+        "created_at": datetime.now().isoformat(),
+        "expires_at": (datetime.now() + timedelta(minutes=7)).isoformat(),
+        "accepted_by": None,
+        "status": "open"
+    }
+    
+    if 'challenges' not in clan:
+        clan['challenges'] = []
+    clan['challenges'].append(challenge)
+    save_db(db)
+    
+    return jsonify({"status": "success", "challenge": challenge})
+
+@app.route('/api/clan/challenge/accept', methods=['POST'])
+def accept_challenge():
+    db = load_db()
+    user, uid = get_current_user(db)
+    if not user:
+        return jsonify({"status": "error", "message": "Unauthorized"}), 401
+        
+    clan_id = user.get('clan_id')
+    if not clan_id:
+        return jsonify({"status": "error", "message": "Not in a clan"}), 400
+        
+    clan = db.get('clans', {}).get(clan_id)
+    if not clan:
+        return jsonify({"status": "error", "message": "Clan not found"}), 404
+        
+    challenge_id = (request.json.get('challenge_id', '') if request.json else '').strip()
+    
+    challenge = None
+    for ch in clan.get('challenges', []):
+        if ch.get('id') == challenge_id:
+            challenge = ch
+            break
+            
+    if not challenge:
+        return jsonify({"status": "error", "message": "Challenge not found"}), 404
+        
+    if challenge.get('status') != 'open' or challenge.get('accepted_by'):
+        return jsonify({"status": "error", "message": "Challenge already accepted or closed"}), 400
+        
+    try:
+        expires = datetime.fromisoformat(challenge.get('expires_at'))
+        if datetime.now() > expires:
+            return jsonify({"status": "error", "message": "Challenge has expired"}), 400
+    except Exception:
+        pass
+        
+    if challenge.get('creator_email') == uid:
+        return jsonify({"status": "error", "message": "Cannot accept your own challenge"}), 400
+        
+    challenge['accepted_by'] = uid
+    challenge['status'] = 'active'
+    save_db(db)
+    
+    return jsonify({"status": "success", "challenge": challenge})
+
+@app.route('/api/clan/challenges', methods=['GET'])
+def list_challenges():
+    db = load_db()
+    user, uid = get_current_user(db)
+    if not user:
+        return jsonify({"status": "error", "message": "Unauthorized"}), 401
+        
+    clan_id = user.get('clan_id')
+    if not clan_id:
+        return jsonify({"status": "error", "message": "Not in a clan"}), 400
+        
+    clan = db.get('clans', {}).get(clan_id)
+    if not clan:
+        return jsonify({"status": "error", "message": "Clan not found"}), 404
+        
+    return jsonify(clan.get('challenges', []))
 
 if __name__ == '__main__':
     print("PrimeEDU Local Server Starting...")

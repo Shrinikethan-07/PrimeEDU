@@ -112,9 +112,15 @@
     </div>
 
     <div class="login-card">
-        <div class="loader" id="loader">
-            <div class="spinner"></div>
-            <p style="color: white; margin-top: 1rem; font-size: 0.8rem; letter-spacing: 1px;" id="loader-msg">AUTHENTICATING...</p>
+        <div class="loader" id="loader" style="display: none; position: absolute; inset: 0; background: var(--glass-bg); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); z-index: 100; flex-direction: column; align-items: center; justify-content: center; border-radius: 24px;">
+            <div class="logo-wrap" style="animation: pulseSlow 2s ease-in-out infinite; margin-bottom: 1.5rem;">
+                <i class="fas fa-bolt" style="font-size: 3rem; color: var(--synth-pink); filter: drop-shadow(0 0 15px var(--synth-pink));"></i>
+                <h1 style="font-family: 'Montserrat', sans-serif; font-size: 2.2rem; font-weight: 800; color: white;">PrimeEDU</h1>
+            </div>
+            <div class="loading-bar-wrapper" style="width: 200px; height: 4px; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); border-radius: 10px; overflow: hidden; margin-bottom: 1rem;">
+                <div id="login-loader-bar" style="width: 0%; height: 100%; background: linear-gradient(90deg, var(--synth-purple), var(--synth-pink)); border-radius: 10px; box-shadow: 0 0 8px var(--synth-pink); transition: width 0.3s ease;"></div>
+            </div>
+            <p style="color: var(--text-main); font-size: 0.75rem; letter-spacing: 2px; text-transform: uppercase; opacity: 0.8;" id="loader-msg">Authenticating...</p>
         </div>
 
         <div class="logo-wrap">
@@ -207,8 +213,8 @@
             const sub = document.getElementById('subtitle-txt');
             if(viewId === 'view-login') sub.innerText = "Log in to synchronize your progress and access the neural interface.";
             if(viewId === 'view-register') sub.innerText = "Forge a new path. Your journey to mastery begins here.";
-            if(viewId === 'view-otp-req') sub.innerText = "Enter your phone number to receive a recovery OTP.";
-            if(viewId === 'view-otp-verify') sub.innerText = "Enter the OTP sent to your device to reset your password.";
+            if(viewId === 'view-otp-req') sub.innerText = "Enter your email address to receive a recovery OTP.";
+            if(viewId === 'view-otp-verify') sub.innerText = "Enter the OTP sent to your email to reset your password.";
         }
         
         // Initial setup
@@ -216,10 +222,23 @@
 
         function showLoad(msg) {
             document.getElementById('loader-msg').innerText = msg;
-            document.getElementById('loader').style.display = 'flex';
+            const loader = document.getElementById('loader');
+            loader.style.display = 'flex';
+            const bar = document.getElementById('login-loader-bar');
+            bar.style.width = '0%';
+            setTimeout(() => {
+                bar.style.width = '40%';
+            }, 50);
+            setTimeout(() => {
+                bar.style.width = '85%';
+            }, 500);
         }
         function hideLoad() {
-            document.getElementById('loader').style.display = 'none';
+            const bar = document.getElementById('login-loader-bar');
+            if (bar) bar.style.width = '100%';
+            setTimeout(() => {
+                document.getElementById('loader').style.display = 'none';
+            }, 200);
         }
         
         function showAlert(msg) {

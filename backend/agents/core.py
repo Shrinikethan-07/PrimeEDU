@@ -93,3 +93,30 @@ class DisciplineAgent:
     def award_points(self, task_complexity: int, consistency_streak: int) -> int:
         """Awards points based on task completion and streaks."""
         return 50 + (task_complexity * 10) + (consistency_streak * 5)
+
+class VisualizerAgent:
+    """
+    Synthesizes session logs and task completions into dynamic recap visualizations.
+    """
+    def __init__(self):
+        pass
+
+    def get_recap_visuals(self, sessions, tasks) -> dict:
+        completed_sessions = [s for s in sessions if s.get('status') == 'completed']
+        total_focus_minutes = 0
+        for s in completed_sessions:
+            try:
+                start = datetime.fromisoformat(s['start_time'])
+                end = datetime.fromisoformat(s['end_time'])
+                total_focus_minutes += (end - start).total_seconds() / 60.0
+            except Exception:
+                pass
+        
+        balls_earned = len(completed_sessions) * 45
+        
+        return {
+            "reason": f"You completed {len(completed_sessions)} focus sessions, logging {int(total_focus_minutes)} minutes of deep work. Excellent dedication to your goals.",
+            "image": "consistency_v2.png",
+            "highlight_stat": str(balls_earned),
+            "label": "EARNED"
+        }

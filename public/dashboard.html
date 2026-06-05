@@ -18,6 +18,18 @@
 </head>
 
 <body>
+    <!-- Fullscreen loading screen -->
+    <div class="loading-screen-container" id="loading-screen">
+        <div class="loading-screen-logo">
+            <i class="fas fa-bolt"></i>
+            <h1>PrimeEDU</h1>
+        </div>
+        <div class="loading-bar-wrapper">
+            <div class="loading-bar-fill"></div>
+        </div>
+        <div class="loading-screen-text">Synchronizing Warrior Stats...</div>
+    </div>
+
     <!-- Anime Slash Overlay -->
     <div class="slash-overlay" id="slash-overlay" style="display: none;">
         <div class="slash-scene">
@@ -57,7 +69,8 @@
                 <li class="nav-item"><a href="modules.html" class="nav-link"><i class="fas fa-book-open"></i><span>Library</span></a></li>
                 <li class="nav-item"><a href="recaps.html" class="nav-link"><i class="fas fa-magic"></i><span>Recaps</span></a></li>
                 <li class="nav-item"><a href="leaderboard.html" class="nav-link"><i class="fas fa-trophy"></i><span>Leaderboard</span></a></li>
-            <li class="nav-item admin-only-link" style="display: none;">
+                <li class="nav-item"><a href="teams.html" class="nav-link"><i class="fas fa-shield-halved"></i><span>Clan Arena</span></a></li>
+                <li class="nav-item admin-only-link" style="display: none;">
                     <a href="admin.html" class="nav-link" style="color: #ff3366;">
                         <i class="fas fa-user-shield"></i><span>Admin</span>
                     </a>
@@ -96,9 +109,10 @@
                 <div class="user-stats">
                     <div class="stat-card">
                         <i class="fas fa-fire" style="color: #ed8936;"></i>
-                        <span class="stat-value">12</span>
+                        <span class="stat-value">0</span>
                         <span class="stat-label">Day Streak</span>
                     </div>
+
                     <div class="stat-card">
                         <div class="dragon-ball-icon">
                             <div class="star-container">
@@ -108,7 +122,7 @@
                                 <span class="star star-4">★</span>
                             </div>
                         </div>
-                        <span class="stat-value" id="ball-count">750</span>
+                        <span class="stat-value" id="ball-count">0</span>
                         <span class="stat-label">Dragon Balls</span>
                     </div>
                 </div>

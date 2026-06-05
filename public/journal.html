@@ -111,11 +111,11 @@
             opacity: 0;
         }
 
-        .entry-card:hover .entry-delete-btn, .entry-card:hover .entry-edit-btn {
+        .entry-card:hover .entry-delete-btn {
             opacity: 1;
         }
 
-        .entry-delete-btn:hover, .entry-edit-btn:hover {
+        .entry-delete-btn:hover {
             background: rgba(255, 0, 85, 0.35);
             transform: scale(1.1);
         }
@@ -267,12 +267,21 @@
             100% { transform: translate(-30px, 30px) rotate(0deg); opacity: 0; }
         }
     </style>
-<script>
-    window.API_BASE_URL = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' ? '' : 'https://primeedu.onrender.com';
-</script>
 </head>
 
 <body>
+    <!-- Reusable Custom Confirm Modal -->
+    <div class="custom-modal-overlay" id="custom-confirm-modal">
+        <div class="custom-modal-card">
+            <div class="custom-modal-icon"><i class="fas fa-exclamation-triangle" style="color: var(--neon-pink);"></i></div>
+            <div class="custom-modal-title" id="custom-confirm-title">Confirm Deletion</div>
+            <div class="custom-modal-desc" id="custom-confirm-msg">Delete this journal entry? This cannot be undone.</div>
+            <div class="custom-modal-btn-row">
+                <button class="custom-modal-btn custom-modal-btn-secondary" id="custom-confirm-cancel">Cancel</button>
+                <button class="custom-modal-btn custom-modal-btn-primary" id="custom-confirm-proceed">Proceed</button>
+            </div>
+        </div>
+    </div>
     <!-- Journal Intro Animation -->
     <div id="journal-intro" style="position: fixed; inset: 0; z-index: 10000; background: #0f172a; display: flex; align-items: center; justify-content: center; transition: opacity 0.5s ease 1s;">
         <div style="position: relative; width: 300px; height: 300px; display: flex; align-items: center; justify-content: center;">
@@ -294,7 +303,8 @@
                 <li class="nav-item"><a href="modules.html" class="nav-link"><i class="fas fa-book-open"></i><span>Library</span></a></li>
                 <li class="nav-item"><a href="recaps.html" class="nav-link"><i class="fas fa-magic"></i><span>Recaps</span></a></li>
                 <li class="nav-item"><a href="leaderboard.html" class="nav-link"><i class="fas fa-trophy"></i><span>Leaderboard</span></a></li>
-            <li class="nav-item admin-only-link" style="display: none;">
+                <li class="nav-item"><a href="teams.html" class="nav-link"><i class="fas fa-shield-halved"></i><span>Clan Arena</span></a></li>
+                <li class="nav-item admin-only-link" style="display: none;">
                     <a href="admin.html" class="nav-link" style="color: #ff3366;">
                         <i class="fas fa-user-shield"></i><span>Admin</span>
                     </a>
@@ -410,19 +420,9 @@
                 return [];
             }
         }
-        
         function saveEntries(entries) {
             localStorage.setItem(STORAGE_KEY, JSON.stringify(entries));
-            // Sync to backend
-            try {
-                fetch(window.API_BASE_URL + '/api/journal/sync', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + localStorage.getItem('primeedu_token') },
-                    body: JSON.stringify({ entries: entries })
-                });
-            } catch(e) {}
         }
-
 
         function renderPastEntries() {
             const list = document.getElementById('past-entries-list');
@@ -439,7 +439,7 @@
                         ${new Date(e.timestamp).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
                     </div>
                     <div class="entry-preview">${(e.content || '').substring(0, 60)}${e.content && e.content.length > 60 ? '...' : ''}</div>
-                    <button class="entry-edit-btn" onclick="loadEntry(${i}); event.stopPropagation();" title="Edit entry" style="position:absolute; top:0.75rem; right:2.25rem; width:22px; height:22px; background:rgba(0, 243, 255, 0.15); border:1px solid rgba(0, 243, 255, 0.3); border-radius:6px; color:var(--neon-cyan); font-size:0.65rem; cursor:pointer; display:flex; align-items:center; justify-content:center; transition:all 0.2s; opacity:0;"><i class="fas fa-pencil-alt"></i></button><button class="entry-delete-btn" onclick="deleteEntry(event, ${i})" title="Delete entry">
+                    <button class="entry-delete-btn" onclick="deleteEntry(event, ${i})" title="Delete entry">
                         <i class="fas fa-trash-alt"></i>
                     </button>
                 </div>
@@ -455,28 +455,37 @@
             document.getElementById('journal-editor').value = entry.content || '';
             const words = (entry.content || '').trim().split(/\s+/).filter(w => w.length > 0).length;
             document.getElementById('word-count').textContent = `${words} words`;
-            document.getElementById('save-entry').innerHTML = '<i class="fas fa-save"></i> Update Entry';
             renderPastEntries();
         }
 
-        function deleteEntry(event, idx) {
-            event.stopPropagation();
-            
-            showConfirmModal('Delete this journal entry? This cannot be undone.', () => {
-                const entries = loadEntries();
-                entries.splice(idx, 1);
-                saveEntries(entries);
-                if (currentEditIndex === idx) {
-                    currentEditIndex = null;
-                    clearEditor();
-                } else if (currentEditIndex > idx) {
-                    currentEditIndex--;
-                }
-                renderPastEntries();
-                showToast('Entry deleted.', 'var(--neon-pink)');
+        function customConfirm(title, msg) {
+            return new Promise((resolve) => {
+                const modal = document.getElementById('custom-confirm-modal');
+                document.getElementById('custom-confirm-title').innerText = title;
+                document.getElementById('custom-confirm-msg').innerText = msg;
+                modal.classList.add('active');
+                
+                const cancelBtn = document.getElementById('custom-confirm-cancel');
+                const proceedBtn = document.getElementById('custom-confirm-proceed');
+                
+                const cleanup = () => {
+                    modal.classList.remove('active');
+                    cancelBtn.removeEventListener('click', cancelHandler);
+                    proceedBtn.removeEventListener('click', proceedHandler);
+                };
+                
+                const cancelHandler = () => { cleanup(); resolve(false); };
+                const proceedHandler = () => { cleanup(); resolve(true); };
+                
+                cancelBtn.addEventListener('click', cancelHandler);
+                proceedBtn.addEventListener('click', proceedHandler);
             });
-            return;
+        }
 
+        async function deleteEntry(event, idx) {
+            event.stopPropagation();
+            const confirm = await customConfirm('Delete Entry', 'Delete this journal entry? This cannot be undone.');
+            if (!confirm) return;
             const entries = loadEntries();
             entries.splice(idx, 1);
             saveEntries(entries);
@@ -496,7 +505,6 @@
             document.getElementById('journal-title').value = '';
             document.getElementById('journal-editor').value = '';
             document.getElementById('word-count').textContent = '0 words';
-            document.getElementById('save-entry').innerHTML = '<i class="fas fa-save"></i> Save Entry';
             document.getElementById('recap-area').style.display = 'none';
             renderPastEntries();
         };
@@ -535,7 +543,7 @@
 
             // Backend sync (non-blocking)
             try {
-                await fetch(window.API_BASE_URL + '/api/journal', {
+                await fetch(window.API_BASE_URL + '/api/journal/save', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ content, title })
@@ -604,36 +612,6 @@
         }, 1200);
     </script>
 
-    <!-- Global Confirmation Modal -->
-    <div class="modal-overlay" id="confirm-modal" style="display: none; position: fixed; inset: 0; background: rgba(15, 23, 42, 0.85); backdrop-filter: blur(10px); z-index: 9999; flex-direction: column; align-items: center; justify-content: center;">
-        <div class="modal-content" style="max-width: 400px; text-align: center; border: 1px solid var(--neon-pink); box-shadow: 0 0 30px rgba(255,42,133,0.3); background: rgba(15, 23, 42, 0.9); padding: 2.5rem; border-radius: 24px;">
-            <i class="fas fa-exclamation-triangle" style="font-size: 3rem; color: var(--neon-pink); margin-bottom: 1rem;"></i>
-            <h3 style="color: white; margin-bottom: 0.5rem; font-family: var(--font-heading);">Better think twice</h3>
-            <p id="confirm-msg" style="color: var(--text-secondary); font-size: 0.9rem; margin-bottom: 1.5rem;"></p>
-            <div style="display: flex; gap: 1rem; justify-content: center;">
-                <button class="neon-btn" style="flex: 1; border-color: rgba(255,255,255,0.2); color: white;" onclick="closeConfirmModal()">CANCEL</button>
-                <button class="neon-btn" style="flex: 1; border-color: var(--neon-pink); color: var(--neon-pink);" id="confirm-yes-btn">PROCEED</button>
-            </div>
-        </div>
-    </div>
-    
-    <script>
-        let confirmAction = null;
-        function showConfirmModal(msg, action) {
-            document.getElementById('confirm-msg').textContent = msg;
-            confirmAction = action;
-            document.getElementById('confirm-modal').style.display = 'flex';
-        }
-        function closeConfirmModal() {
-            document.getElementById('confirm-modal').style.display = 'none';
-            confirmAction = null;
-        }
-        document.getElementById('confirm-yes-btn').addEventListener('click', () => {
-            if(confirmAction) confirmAction();
-            closeConfirmModal();
-        });
-    </script>
-
 <script>
     // Reveal admin link if user is admin
     const _me = (localStorage.getItem('primeedu_leaderboard_name') || localStorage.getItem('primeedu_name') || '').trim().toLowerCase();
@@ -643,6 +621,7 @@
         adminLinks.forEach(link => link.style.display = 'flex');
     }
 </script>
+
 </body>
 
 </html>
