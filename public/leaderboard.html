@@ -385,6 +385,25 @@
     </div>
 
     <script>
+        // AUTH INTERCEPTOR
+        const originalFetch = window.fetch;
+        window.fetch = async (...args) => {
+            let [resource, config] = args;
+            config = config || {};
+            config.headers = config.headers || {};
+            
+            const token = localStorage.getItem('primeedu_token');
+            if (token) {
+                config.headers['Authorization'] = `Bearer ${token}`;
+            }
+            
+            const response = await originalFetch(resource, config);
+            if (response.status === 401 && !window.location.pathname.endsWith('index.html')) {
+                window.location.href = 'index.html';
+            }
+            return response;
+        };
+
         const CHARACTERS = [
             { id: 'itachi', img: 'assets/avatars/itachi.webp', fallback: 'https://i.pinimg.com/736x/f5/0f/52/f50f52e51a8b1f6e24a07e30a8d08157.jpg' },
             { id: 'goku', img: 'assets/avatars/goku.webp', fallback: 'https://i.pinimg.com/736x/c4/11/c9/c411c9e40e6f4b3d6e2a1f0c5b8a7d2e.jpg' },
@@ -413,9 +432,15 @@
             try {
                 const res = await fetch(window.API_BASE_URL + '/api/user/profile');
                 const data = await res.json();
-                document.getElementById('user-lb-name').innerText = data.leaderboard_name || data.name || 'Warrior';
-                const balls = (data.balls || 0).toLocaleString();
-                document.getElementById('user-lb-beans').innerHTML = `${balls}<small>Dragon Balls</small>`;
+                const nameEl = document.getElementById('user-lb-name');
+                if (nameEl) {
+                    nameEl.innerText = data.leaderboard_name || data.name || 'Warrior';
+                }
+                const beansEl = document.getElementById('user-lb-beans');
+                if (beansEl) {
+                    const balls = (data.balls || 0).toLocaleString();
+                    beansEl.innerHTML = `${balls}<small>Dragon Balls</small>`;
+                }
             } catch (e) {}
         }
         loadProfile();
@@ -690,6 +715,6 @@
         adminLinks.forEach(link => link.style.display = 'flex');
     }
 </script>
+<script src="notifications.js"></script>
 </body>
-
 </html>

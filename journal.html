@@ -374,6 +374,27 @@
     </div>
 
     <script>
+        window.API_BASE_URL = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' ? '' : 'https://primeedu.onrender.com';
+
+        // AUTH INTERCEPTOR
+        const originalFetch = window.fetch;
+        window.fetch = async (...args) => {
+            let [resource, config] = args;
+            config = config || {};
+            config.headers = config.headers || {};
+            
+            const token = localStorage.getItem('primeedu_token');
+            if (token) {
+                config.headers['Authorization'] = `Bearer ${token}`;
+            }
+            
+            const response = await originalFetch(resource, config);
+            if (response.status === 401 && !window.location.pathname.endsWith('index.html')) {
+                window.location.href = 'index.html';
+            }
+            return response;
+        };
+
         // ═══ DATE STAMP ═══
         const now = new Date();
         document.getElementById('journal-date').textContent =
@@ -621,7 +642,6 @@
         adminLinks.forEach(link => link.style.display = 'flex');
     }
 </script>
-
+<script src="notifications.js"></script>
 </body>
-
 </html>

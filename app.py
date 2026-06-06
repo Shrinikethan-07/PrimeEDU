@@ -8,6 +8,7 @@ import asyncio
 import secrets
 import hashlib
 import random
+import threading
 from apscheduler.schedulers.background import BackgroundScheduler
 from backend.agents.core import FocusForgeAgent, DisciplineAgent, JournalEntry, VisualizerAgent
 
@@ -16,12 +17,28 @@ CORS(app)
 
 DB_PATH = 'data/db.json'
 _DB_CACHE = None
+db_lock = threading.RLock()
 
 def get_ist_now():
     return datetime.now(timezone(timedelta(hours=5, minutes=30)))
 
 def get_ist_iso():
     return get_ist_now().isoformat()
+
+def parse_ist_datetime(dt_str):
+    if not dt_str:
+        return None
+    try:
+        if isinstance(dt_str, str) and dt_str.endswith('Z'):
+            dt_str = dt_str[:-1] + '+00:00'
+        dt = datetime.fromisoformat(str(dt_str))
+        if dt.tzinfo is None:
+            dt = dt.replace(tzinfo=timezone(timedelta(hours=5, minutes=30)))
+        else:
+            dt = dt.astimezone(timezone(timedelta(hours=5, minutes=30)))
+        return dt
+    except Exception:
+        return None
 
 def hash_password(password):
     return hashlib.sha256(password.encode()).hexdigest()
@@ -36,12 +53,8 @@ def prune_old_data(db):
             try:
                 t_str = s.get('end_time') or s.get('start_time')
                 if t_str:
-                    t = datetime.fromisoformat(t_str)
-                    if t.tzinfo is None:
-                        t = t.replace(tzinfo=timezone(timedelta(hours=5, minutes=30)))
-                    else:
-                        t = t.astimezone(timezone(timedelta(hours=5, minutes=30)))
-                    if now_ist - t <= timedelta(days=2):
+                    t = parse_ist_datetime(t_str)
+                    if t and now_ist - t <= timedelta(days=2):
                         new_sessions.append(s)
                 else:
                     new_sessions.append(s)
@@ -56,12 +69,8 @@ def prune_old_data(db):
             try:
                 t_str = j.get('timestamp')
                 if t_str:
-                    t = datetime.fromisoformat(t_str)
-                    if t.tzinfo is None:
-                        t = t.replace(tzinfo=timezone(timedelta(hours=5, minutes=30)))
-                    else:
-                        t = t.astimezone(timezone(timedelta(hours=5, minutes=30)))
-                    if now_ist - t <= timedelta(days=7):
+                    t = parse_ist_datetime(t_str)
+                    if t and now_ist - t <= timedelta(days=7):
                         new_journals.append(j)
                 else:
                     new_journals.append(j)
@@ -147,64 +156,66 @@ def init_db():
 
 def load_db():
     global _DB_CACHE
-    if DATABASE_URL:
-        try:
-            conn = psycopg2.connect(DATABASE_URL)
-            cur = conn.cursor()
-            cur.execute("SELECT data FROM primeedu_db WHERE id = 1;")
-            row = cur.fetchone()
-            if row:
-                _DB_CACHE = row[0]
-                if "clans" not in _DB_CACHE:
-                    _DB_CACHE["clans"] = {}
-                
-                # Prune and save if changed
-                old_len_s = len(_DB_CACHE.get('sessions', []))
-                old_len_j = len(_DB_CACHE.get('journal', []))
-                prune_old_data(_DB_CACHE)
-                sanitized = sanitize_timestamps(_DB_CACHE)
-                if len(_DB_CACHE.get('sessions', [])) != old_len_s or len(_DB_CACHE.get('journal', [])) != old_len_j or sanitized:
-                    cur.execute("UPDATE primeedu_db SET data = %s WHERE id = 1;", (json.dumps(_DB_CACHE),))
-                    conn.commit()
-                
+    with db_lock:
+        if DATABASE_URL:
+            try:
+                conn = psycopg2.connect(DATABASE_URL)
+                cur = conn.cursor()
+                cur.execute("SELECT data FROM primeedu_db WHERE id = 1;")
+                row = cur.fetchone()
+                if row:
+                    _DB_CACHE = row[0]
+                    if "clans" not in _DB_CACHE:
+                        _DB_CACHE["clans"] = {}
+                    
+                    # Prune and save if changed
+                    old_len_s = len(_DB_CACHE.get('sessions', []))
+                    old_len_j = len(_DB_CACHE.get('journal', []))
+                    prune_old_data(_DB_CACHE)
+                    sanitized = sanitize_timestamps(_DB_CACHE)
+                    if len(_DB_CACHE.get('sessions', [])) != old_len_s or len(_DB_CACHE.get('journal', [])) != old_len_j or sanitized:
+                        cur.execute("UPDATE primeedu_db SET data = %s WHERE id = 1;", (json.dumps(_DB_CACHE),))
+                        conn.commit()
+                    
+                    cur.close()
+                    conn.close()
+                    return _DB_CACHE
                 cur.close()
                 conn.close()
-                return _DB_CACHE
-            cur.close()
-            conn.close()
-        except Exception as e:
-            print(f"[ERROR] Failed to load from PostgreSQL, falling back to local file: {e}")
+            except Exception as e:
+                print(f"[ERROR] Failed to load from PostgreSQL, falling back to local file: {e}")
+                
+        if _DB_CACHE is None:
+            init_db()
             
-    if _DB_CACHE is None:
-        init_db()
-        
-    old_len_s = len(_DB_CACHE.get('sessions', []))
-    old_len_j = len(_DB_CACHE.get('journal', []))
-    prune_old_data(_DB_CACHE)
-    sanitized = sanitize_timestamps(_DB_CACHE)
-    if len(_DB_CACHE.get('sessions', [])) != old_len_s or len(_DB_CACHE.get('journal', [])) != old_len_j or sanitized:
-        with open(DB_PATH, 'w') as f:
-            json.dump(_DB_CACHE, f, indent=4)
-            
-    return _DB_CACHE
+        old_len_s = len(_DB_CACHE.get('sessions', []))
+        old_len_j = len(_DB_CACHE.get('journal', []))
+        prune_old_data(_DB_CACHE)
+        sanitized = sanitize_timestamps(_DB_CACHE)
+        if len(_DB_CACHE.get('sessions', [])) != old_len_s or len(_DB_CACHE.get('journal', [])) != old_len_j or sanitized:
+            with open(DB_PATH, 'w') as f:
+                json.dump(_DB_CACHE, f, indent=4)
+                
+        return _DB_CACHE
 
 def save_db(data):
     global _DB_CACHE
-    _DB_CACHE = data
-    if DATABASE_URL:
-        try:
-            conn = psycopg2.connect(DATABASE_URL)
-            cur = conn.cursor()
-            cur.execute("UPDATE primeedu_db SET data = %s WHERE id = 1;", (json.dumps(data),))
-            conn.commit()
-            cur.close()
-            conn.close()
-            return
-        except Exception as e:
-            print(f"[ERROR] Failed to save to PostgreSQL: {e}")
-            
-    with open(DB_PATH, 'w') as f:
-        json.dump(data, f, indent=4)
+    with db_lock:
+        _DB_CACHE = data
+        if DATABASE_URL:
+            try:
+                conn = psycopg2.connect(DATABASE_URL)
+                cur = conn.cursor()
+                cur.execute("UPDATE primeedu_db SET data = %s WHERE id = 1;", (json.dumps(data),))
+                conn.commit()
+                cur.close()
+                conn.close()
+                return
+            except Exception as e:
+                print(f"[ERROR] Failed to save to PostgreSQL: {e}")
+                
+        with open(DB_PATH, 'w') as f:
+            json.dump(data, f, indent=4)
 
 init_db()
 init_postgres()
@@ -230,13 +241,8 @@ def check_streak_and_login(user):
     last_login = user.get('last_login')
     now = get_ist_now()
     if last_login:
-        try:
-            last_date = datetime.fromisoformat(last_login)
-            if last_date.tzinfo is None:
-                last_date = last_date.replace(tzinfo=timezone(timedelta(hours=5, minutes=30)))
-            else:
-                last_date = last_date.astimezone(timezone(timedelta(hours=5, minutes=30)))
-        except Exception:
+        last_date = parse_ist_datetime(last_login)
+        if last_date is None:
             last_date = now - timedelta(days=2)
         # Use calendar date comparison in IST
         days_diff = (now.date() - last_date.date()).days
@@ -268,7 +274,7 @@ def midnight_wipe():
     db['tasks'] = [] # wipe daily routines
     save_db(db)
 
-scheduler = BackgroundScheduler()
+scheduler = BackgroundScheduler(timezone=timezone(timedelta(hours=5, minutes=30)))
 scheduler.add_job(func=midnight_wipe, trigger="cron", hour=0, minute=0)
 scheduler.start()
 
@@ -304,7 +310,8 @@ def register_request_otp_route():
         
     db['pending_register_otps'][email] = {
         "otp": otp,
-        "timestamp": get_ist_iso()
+        "timestamp": get_ist_iso(),
+        "attempts": 0
     }
     save_db(db)
     
@@ -326,12 +333,36 @@ def register():
     if not email or not password or not otp:
         return jsonify({"status": "error", "message": "Email, password, and OTP required"}), 400
         
+    if not isinstance(password, str) or len(password.strip()) < 6:
+        return jsonify({"status": "error", "message": "Password must be at least 6 characters long"}), 400
+        
     if email in db.get('user_profiles', {}):
         return jsonify({"status": "error", "message": "Email already registered"}), 400
         
     # Check pending registration OTP
     pending = db.get('pending_register_otps', {}).get(email)
-    if not pending or pending.get('otp') != otp:
+    if not pending:
+        return jsonify({"status": "error", "message": "No active registration request found"}), 400
+        
+    # Check attempts
+    attempts = pending.get('attempts', 0)
+    if attempts >= 3:
+        db['pending_register_otps'].pop(email, None)
+        save_db(db)
+        return jsonify({"status": "error", "message": "Too many failed attempts. Please request a new OTP."}), 400
+        
+    # Check expiry (10 minutes)
+    timestamp_str = pending.get('timestamp')
+    if timestamp_str:
+        ts = parse_ist_datetime(timestamp_str)
+        if ts and (get_ist_now() - ts).total_seconds() > 600:
+            db['pending_register_otps'].pop(email, None)
+            save_db(db)
+            return jsonify({"status": "error", "message": "OTP has expired. Please request a new one."}), 400
+
+    if str(pending.get('otp')).strip() != str(otp).strip():
+        pending['attempts'] = attempts + 1
+        save_db(db)
         return jsonify({"status": "error", "message": "Invalid verification OTP"}), 400
         
     # Remove OTP from pending list
@@ -359,10 +390,13 @@ def register():
 @app.route('/api/auth/login', methods=['POST'])
 def login():
     db = load_db()
-    data = request.json
+    data = request.json or {}
     email = (data.get('email') or '').strip().lower()
     password = data.get('password')
     
+    if not email or not password or not isinstance(password, str):
+        return jsonify({"status": "error", "message": "Email and password are required"}), 400
+        
     user = db['user_profiles'].get(email)
     if user and user.get('password_hash') == hash_password(password):
         token = secrets.token_hex(32)
@@ -441,6 +475,8 @@ def request_otp():
         
     otp = str(random.randint(1000, 9999))
     db['user_profiles'][email]['reset_otp'] = otp
+    db['user_profiles'][email]['reset_otp_timestamp'] = get_ist_iso()
+    db['user_profiles'][email]['reset_otp_attempts'] = 0
     save_db(db)
     
     sent = send_otp_email(email, otp)
@@ -452,20 +488,53 @@ def request_otp():
 @app.route('/api/auth/otp/verify', methods=['POST'])
 def verify_otp():
     db = load_db()
-    data = request.json
+    data = request.json or {}
     email = (data.get('email') or '').strip().lower()
     otp = data.get('otp')
     new_password = data.get('new_password')
     
+    if not email or not otp or not new_password:
+        return jsonify({"status": "error", "message": "Email, OTP, and new password are required"}), 400
+        
+    if not isinstance(new_password, str) or len(new_password.strip()) < 6:
+        return jsonify({"status": "error", "message": "Password must be at least 6 characters long"}), 400
+
     user = db['user_profiles'].get(email)
-    if user and user.get('reset_otp') == otp:
+    if not user or user.get('reset_otp') is None:
+        return jsonify({"status": "error", "message": "No active password reset request found"}), 400
+        
+    # Check attempts
+    attempts = user.get('reset_otp_attempts', 0)
+    if attempts >= 3:
+        user['reset_otp'] = None
+        user['reset_otp_timestamp'] = None
+        user['reset_otp_attempts'] = 0
+        save_db(db)
+        return jsonify({"status": "error", "message": "Too many failed attempts. Please request a new OTP."}), 400
+        
+    # Check expiry (5 minutes)
+    timestamp_str = user.get('reset_otp_timestamp')
+    if timestamp_str:
+        ts = parse_ist_datetime(timestamp_str)
+        if ts and (get_ist_now() - ts).total_seconds() > 300:
+            user['reset_otp'] = None
+            user['reset_otp_timestamp'] = None
+            user['reset_otp_attempts'] = 0
+            save_db(db)
+            return jsonify({"status": "error", "message": "OTP has expired. Please request a new one."}), 400
+
+    if user.get('reset_otp') == str(otp).strip():
         user['password_hash'] = hash_password(new_password)
         user['reset_otp'] = None
+        user['reset_otp_timestamp'] = None
+        user['reset_otp_attempts'] = 0
         user['active_tokens'] = [] # Log out all devices on reset
         save_db(db)
         return jsonify({"status": "success", "message": "Password reset successful"})
-        
-    return jsonify({"status": "error", "message": "Invalid OTP"}), 400
+    else:
+        user['reset_otp_attempts'] = attempts + 1
+        save_db(db)
+        return jsonify({"status": "error", "message": "Invalid OTP"}), 400
 
 @app.route('/api/auth/logout_all', methods=['POST'])
 def logout_all():
@@ -539,11 +608,7 @@ def handle_profile():
     save_db(db)
     
     # Calculate account age for Recaps
-    created = datetime.fromisoformat(user.get('creation_date', get_ist_iso()))
-    if created.tzinfo is None:
-        created = created.replace(tzinfo=timezone(timedelta(hours=5, minutes=30)))
-    else:
-        created = created.astimezone(timezone(timedelta(hours=5, minutes=30)))
+    created = parse_ist_datetime(user.get('creation_date', get_ist_iso())) or get_ist_now()
     age_days = (get_ist_now() - created).days
     user['account_age_days'] = age_days
     
@@ -556,8 +621,12 @@ def cancel_destiny():
     if not user:
         return jsonify({"status": "error", "message": "Unauthorized"}), 401
         
-    data = request.json
-    goal_index = data.get('goal_index')
+    data = request.json or {}
+    try:
+        goal_index = int(data.get('goal_index'))
+    except (TypeError, ValueError):
+        return jsonify({"status": "error", "message": "Invalid goal_index"}), 400
+        
     goals = user.get('massive_goals', [])
     
     if 0 <= goal_index < len(goals):
@@ -565,13 +634,10 @@ def cancel_destiny():
         deadline_str = goal.get('deadline')
         is_early = True
         if deadline_str:
-            try:
-                deadline_utc = datetime.fromisoformat(deadline_str.replace('Z', '+00:00'))
-                now_utc = datetime.now(timezone.utc)
-                if now_utc >= deadline_utc:
+            deadline_ist = parse_ist_datetime(deadline_str)
+            if deadline_ist:
+                if get_ist_now() >= deadline_ist:
                     is_early = False
-            except Exception as e:
-                print(f"[ERROR] Failed to parse destiny deadline: {e}")
                 
         goals.pop(goal_index)
         user['massive_goals'] = goals
@@ -602,13 +668,8 @@ def enforce_journal_limit(db, uid):
     user_journals = [j for j in db.get('journal', []) if j.get('user_id') == uid]
     if len(user_journals) > 7:
         def get_timestamp(x):
-            try:
-                t = datetime.fromisoformat(x.get('timestamp', ''))
-                if t.tzinfo is None:
-                    t = t.replace(tzinfo=timezone(timedelta(hours=5, minutes=30)))
-                return t.timestamp()
-            except Exception:
-                return 0
+            t = parse_ist_datetime(x.get('timestamp', ''))
+            return t.timestamp() if t else 0
         user_journals.sort(key=get_timestamp)
         to_delete_count = len(user_journals) - 7
         to_delete_ids = [j.get('id') for j in user_journals[:to_delete_count]]
@@ -621,12 +682,29 @@ def sync_journal():
     if not user:
         return jsonify({'status': 'error', 'message': 'Unauthorized'}), 401
     
-    data = request.json
+    data = request.json or {}
     entries = data.get('entries', [])
     for e in entries:
         e['user_id'] = uid
+        if not e.get('timestamp'):
+            e['timestamp'] = get_ist_iso()
+        if not e.get('id'):
+            e['id'] = f"jn_{int(get_ist_now().timestamp())}_{random.randint(1000, 9999)}"
         
-    db['journal'] = [j for j in db['journal'] if j.get('user_id') != uid] + entries
+    # Remove same-day duplicates in incoming synced entries (enforce daily limit during sync)
+    seen_dates = set()
+    unique_entries = []
+    for e in entries:
+        t = parse_ist_datetime(e.get('timestamp'))
+        if t:
+            date_str = t.date().isoformat()
+            if date_str not in seen_dates:
+                seen_dates.add(date_str)
+                unique_entries.append(e)
+        else:
+            unique_entries.append(e)
+        
+    db['journal'] = [j for j in db['journal'] if j.get('user_id') != uid] + unique_entries
     enforce_journal_limit(db, uid)
     save_db(db)
     return jsonify({'status': 'success'})
@@ -638,8 +716,11 @@ def submit_journal():
     if not user:
         return jsonify({"status": "error", "message": "Unauthorized"}), 401
         
-    data = request.json
+    data = request.json or {}
     content = data.get('content')
+    if not content or not isinstance(content, str) or not content.strip():
+        return jsonify({"status": "error", "message": "Journal content cannot be empty"}), 400
+        
     title = data.get('title', f"Entry_{get_ist_now().strftime('%Y%m%d_%H%M%S')}")
     
     # Restrict to one journal entry per calendar day in IST
@@ -648,28 +729,22 @@ def submit_journal():
     
     user_journals = [j for j in db.get('journal', []) if j.get('user_id') == uid]
     for j in user_journals:
-        try:
-            j_time = datetime.fromisoformat(j.get('timestamp'))
-            if j_time.tzinfo is None:
-                j_time = j_time.replace(tzinfo=timezone(timedelta(hours=5, minutes=30)))
-            else:
-                j_time = j_time.astimezone(timezone(timedelta(hours=5, minutes=30)))
-            if j_ist_date := j_time.date():
-                if j_ist_date == ist_today:
-                    return jsonify({"status": "error", "message": "You can only write one journal entry per day."}), 400
-        except Exception:
-            pass
+        j_time = parse_ist_datetime(j.get('timestamp'))
+        if j_time and j_time.date() == ist_today:
+            return jsonify({"status": "error", "message": "You can only write one journal entry per day."}), 400
             
+    entry_id = f"jn_{int(ist_now.timestamp())}_{random.randint(1000, 9999)}"
+    
     entry_obj = JournalEntry(
         user_id=uid,
         content=content,
-        timestamp=get_ist_now(),
+        timestamp=ist_now,
         mood_score=7
     )
     
     db['journal'].append({
         "user_id": uid,
-        "id": int(get_ist_now().timestamp()),
+        "id": entry_id,
         "title": title,
         "content": content,
         "timestamp": get_ist_iso()
@@ -799,13 +874,11 @@ def get_leaderboard():
         sessions_count = len(user_sessions)
         focus_duration_minutes = 0
         for s in user_sessions:
-            try:
-                start = datetime.fromisoformat(s['start_time'])
-                end = datetime.fromisoformat(s['end_time'])
+            start = parse_ist_datetime(s.get('start_time'))
+            end = parse_ist_datetime(s.get('end_time'))
+            if start and end:
                 diff = (end - start).total_seconds() / 60.0
                 focus_duration_minutes += max(0.0, diff)
-            except Exception:
-                pass
         focus_duration_minutes = round(focus_duration_minutes, 1)
         
         users_list.append({
@@ -1029,12 +1102,8 @@ def get_clan_info():
         # 1. Handle open challenges expiring (no acceptors and join window passes)
         if status == 'open':
             try:
-                exp = datetime.fromisoformat(ch.get('expires_at', ''))
-                if exp.tzinfo is None:
-                    exp = exp.replace(tzinfo=timezone(timedelta(hours=5, minutes=30)))
-                else:
-                    exp = exp.astimezone(timezone(timedelta(hours=5, minutes=30)))
-                if now_ist > exp:
+                exp = parse_ist_datetime(ch.get('expires_at', ''))
+                if exp and now_ist > exp:
                     ch['status'] = 'expired'
                     db_updated = True
                     continue  # skip expired open challenges
@@ -1050,74 +1119,70 @@ def get_clan_info():
                 creator_email = ch.get('creator_email', '').strip().lower()
                 creator_start_str = ch.get('creator_accepted_at')
                 if creator_start_str and not ch.get('creator_rewarded', False):
-                    creator_start = datetime.fromisoformat(creator_start_str)
-                    if creator_start.tzinfo is None:
-                        creator_start = creator_start.replace(tzinfo=timezone(timedelta(hours=5, minutes=30)))
-                    else:
-                        creator_start = creator_start.astimezone(timezone(timedelta(hours=5, minutes=30)))
+                    creator_start = parse_ist_datetime(creator_start_str)
                     
-                    if now_ist >= (creator_start + duration):
+                    if creator_start and now_ist >= (creator_start + duration):
+                        session_id = f"sess_ch_{ch.get('id')}_{creator_email}"
+                        session_exists = any(s.get('id') == session_id for s in db.get('sessions', []))
+                        
                         ch['creator_rewarded'] = True
                         db_updated = True
                         
-                        # Create study session object for creator
-                        creator_session = {
-                            "id": f"sess_ch_{ch.get('id')}_{creator_email}",
-                            "user_id": creator_email,
-                            "subject": "Clan Duel",
-                            "mode": f"Duel: {ch.get('title')}",
-                            "start_time": creator_start.isoformat(),
-                            "end_time": (creator_start + duration).isoformat(),
-                            "status": "completed"
-                        }
-                        if 'sessions' not in db:
-                            db['sessions'] = []
-                        db['sessions'].append(creator_session)
-                        
-                        if creator_email in db.get('user_profiles', {}):
-                            db['user_profiles'][creator_email]['balls'] = db['user_profiles'][creator_email].get('balls', 0) + 50
+                        if not session_exists:
+                            # Create study session object for creator
+                            creator_session = {
+                                "id": session_id,
+                                "user_id": creator_email,
+                                "subject": "Clan Duel",
+                                "mode": f"Duel: {ch.get('title')}",
+                                "start_time": creator_start.isoformat(),
+                                "end_time": (creator_start + duration).isoformat(),
+                                "status": "completed"
+                            }
+                            if 'sessions' not in db:
+                                db['sessions'] = []
+                            db['sessions'].append(creator_session)
+                            
+                            if creator_email in db.get('user_profiles', {}):
+                                db['user_profiles'][creator_email]['balls'] = db['user_profiles'][creator_email].get('balls', 0) + 50
                             
                 # Check each accepted member's countdown completion
                 for m in ch.get('accepted_members', []):
                     m_email = m.get('email').strip().lower()
                     m_start_str = m.get('accepted_at')
                     if m_start_str and not m.get('rewarded', False):
-                        m_start = datetime.fromisoformat(m_start_str)
-                        if m_start.tzinfo is None:
-                            m_start = m_start.replace(tzinfo=timezone(timedelta(hours=5, minutes=30)))
-                        else:
-                            m_start = m_start.astimezone(timezone(timedelta(hours=5, minutes=30)))
+                        m_start = parse_ist_datetime(m_start_str)
                             
-                        if now_ist >= (m_start + duration):
+                        if m_start and now_ist >= (m_start + duration):
+                            session_id = f"sess_ch_{ch.get('id')}_{m_email}"
+                            session_exists = any(s.get('id') == session_id for s in db.get('sessions', []))
+                            
                             m['rewarded'] = True
                             db_updated = True
                             
-                            # Create study session object for competitor
-                            m_session = {
-                                "id": f"sess_ch_{ch.get('id')}_{m_email}",
-                                "user_id": m_email,
-                                "subject": "Clan Duel",
-                                "mode": f"Duel: {ch.get('title')}",
-                                "start_time": m_start.isoformat(),
-                                "end_time": (m_start + duration).isoformat(),
-                                "status": "completed"
-                            }
-                            if 'sessions' not in db:
-                                db['sessions'] = []
-                            db['sessions'].append(m_session)
-                            
-                            if m_email in db.get('user_profiles', {}):
-                                db['user_profiles'][m_email]['balls'] = db['user_profiles'][m_email].get('balls', 0) + 50
+                            if not session_exists:
+                                # Create study session object for competitor
+                                m_session = {
+                                    "id": session_id,
+                                    "user_id": m_email,
+                                    "subject": "Clan Duel",
+                                    "mode": f"Duel: {ch.get('title')}",
+                                    "start_time": m_start.isoformat(),
+                                    "end_time": (m_start + duration).isoformat(),
+                                    "status": "completed"
+                                }
+                                if 'sessions' not in db:
+                                    db['sessions'] = []
+                                db['sessions'].append(m_session)
+                                
+                                if m_email in db.get('user_profiles', {}):
+                                    db['user_profiles'][m_email]['balls'] = db['user_profiles'][m_email].get('balls', 0) + 50
                 
                 # Check if all participants have been rewarded AND the 5-minute joining window is over
                 expires_str = ch.get('expires_at')
-                expires = datetime.fromisoformat(expires_str)
-                if expires.tzinfo is None:
-                    expires = expires.replace(tzinfo=timezone(timedelta(hours=5, minutes=30)))
-                else:
-                    expires = expires.astimezone(timezone(timedelta(hours=5, minutes=30)))
+                expires = parse_ist_datetime(expires_str)
                 
-                joining_window_closed = now_ist > expires
+                joining_window_closed = expires and now_ist > expires
                 all_rewarded = ch.get('creator_rewarded', False) and all(m.get('rewarded', False) for m in ch.get('accepted_members', []))
                 
                 if all_rewarded and joining_window_closed:
@@ -1130,12 +1195,8 @@ def get_clan_info():
         # 3. Filter out completed challenges that completed more than 10 minutes ago
         elif status == 'completed':
             try:
-                comp_at = datetime.fromisoformat(ch.get('completed_at', ''))
-                if comp_at.tzinfo is None:
-                    comp_at = comp_at.replace(tzinfo=timezone(timedelta(hours=5, minutes=30)))
-                else:
-                    comp_at = comp_at.astimezone(timezone(timedelta(hours=5, minutes=30)))
-                if now_ist > comp_at + timedelta(minutes=10):
+                comp_at = parse_ist_datetime(ch.get('completed_at', ''))
+                if comp_at and now_ist > comp_at + timedelta(minutes=10):
                     db_updated = True
                     continue  # skip completed challenges older than 10m
             except Exception:
@@ -1313,8 +1374,11 @@ def create_challenge():
     title = data.get('title', 'Quick Focus Challenge').strip()
     try:
         duration = int(data.get('duration_minutes', 0))
-    except ValueError:
+    except (ValueError, TypeError):
         duration = 0
+        
+    if duration <= 0:
+        return jsonify({"status": "error", "message": "Challenge duration must be at least 1 minute"}), 400
         
     challenge_id = "ch_" + str(int(get_ist_now().timestamp()))
     
@@ -1366,17 +1430,9 @@ def accept_challenge():
     if challenge.get('status') not in ['open', 'active']:
         return jsonify({"status": "error", "message": "Challenge is closed or completed"}), 400
         
-    try:
-        expires = datetime.fromisoformat(challenge.get('expires_at'))
-        if expires.tzinfo is None:
-            expires = expires.replace(tzinfo=timezone(timedelta(hours=5, minutes=30)))
-        else:
-            expires = expires.astimezone(timezone(timedelta(hours=5, minutes=30)))
-            
-        if get_ist_now() > expires:
-            return jsonify({"status": "error", "message": "Challenge joining window has expired"}), 400
-    except Exception:
-        pass
+    expires = parse_ist_datetime(challenge.get('expires_at'))
+    if expires and get_ist_now() > expires:
+        return jsonify({"status": "error", "message": "Challenge joining window has expired"}), 400
         
     if challenge.get('creator_email', '').strip().lower() == uid.strip().lower():
         return jsonify({"status": "error", "message": "Cannot accept your own challenge"}), 400

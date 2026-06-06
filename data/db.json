@@ -142,6 +142,42 @@
             "clan_id": null,
             "is_clan_leader": false,
             "banned_clans": []
+        },
+        "victim@test.com": {
+            "name": "Victim",
+            "email": "victim@test.com",
+            "password_hash": "376edd33e4bcb7c5dfb06dd823bee963f606732eafbb894cbf92f1195e6f6f3e",
+            "reset_otp": null,
+            "active_tokens": []
+        },
+        "test_naive@test.com": {
+            "name": "Naive Test",
+            "email": "test_naive@test.com",
+            "password_hash": "mock",
+            "active_tokens": [
+                "token_naive"
+            ],
+            "balls": 5,
+            "massive_goals": [],
+            "clan_id": null,
+            "is_clan_leader": false,
+            "banned_clans": [],
+            "streak": 0
+        },
+        "test_str_index@test.com": {
+            "name": "Str Index Test",
+            "email": "test_str_index@test.com",
+            "password_hash": "mock",
+            "active_tokens": [
+                "token_str_index"
+            ],
+            "balls": 10,
+            "massive_goals": [
+                {
+                    "title": "Some Goal",
+                    "deadline": "2026-06-05T11:04:52.429884+00:00"
+                }
+            ]
         }
     },
     "sessions": [

@@ -1,5 +1,5 @@
 import os
-from datetime import datetime
+from datetime import datetime, timezone, timedelta
 from typing import List, Dict, Optional
 from pydantic import BaseModel
 
@@ -106,9 +106,24 @@ class VisualizerAgent:
         total_focus_minutes = 0
         for s in completed_sessions:
             try:
-                start = datetime.fromisoformat(s['start_time'])
-                end = datetime.fromisoformat(s['end_time'])
-                total_focus_minutes += (end - start).total_seconds() / 60.0
+                start_str = s.get('start_time')
+                end_str = s.get('end_time')
+                if start_str and end_str:
+                    if isinstance(start_str, str) and start_str.endswith('Z'):
+                        start_str = start_str[:-1] + '+00:00'
+                    if isinstance(end_str, str) and end_str.endswith('Z'):
+                        end_str = end_str[:-1] + '+00:00'
+                    start = datetime.fromisoformat(start_str)
+                    end = datetime.fromisoformat(end_str)
+                    if start.tzinfo is None:
+                        start = start.replace(tzinfo=timezone(timedelta(hours=5, minutes=30)))
+                    else:
+                        start = start.astimezone(timezone(timedelta(hours=5, minutes=30)))
+                    if end.tzinfo is None:
+                        end = end.replace(tzinfo=timezone(timedelta(hours=5, minutes=30)))
+                    else:
+                        end = end.astimezone(timezone(timedelta(hours=5, minutes=30)))
+                    total_focus_minutes += (end - start).total_seconds() / 60.0
             except Exception:
                 pass
         

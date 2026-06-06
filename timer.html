@@ -256,10 +256,30 @@
     </div>
 
     <script>
+        // AUTH INTERCEPTOR
+        const originalFetch = window.fetch;
+        window.fetch = async (...args) => {
+            let [resource, config] = args;
+            config = config || {};
+            config.headers = config.headers || {};
+            
+            const token = localStorage.getItem('primeedu_token');
+            if (token) {
+                config.headers['Authorization'] = `Bearer ${token}`;
+            }
+            
+            const response = await originalFetch(resource, config);
+            if (response.status === 401 && !window.location.pathname.endsWith('index.html')) {
+                window.location.href = 'index.html';
+            }
+            return response;
+        };
+
         let timer, seconds = 1500, isRunning = false, mode = 'pomodoro', currentSubject = 'Physics', currentSessionId = null;
         let pomodoroCount = 1;
         let targetEndTime = null;
         let stopwatchStartTime = null;
+        let isSaveModalOpen = false;
 
         const TIMER_STATE_KEY = 'primeedu_timer_state';
 
@@ -272,7 +292,8 @@
                 targetEndTime: targetEndTime,
                 seconds: seconds,
                 pomodoroCount: pomodoroCount,
-                stopwatchStartTime: (mode === 'stopwatch' && isRunning) ? stopwatchStartTime : null
+                stopwatchStartTime: (mode === 'stopwatch' && isRunning) ? stopwatchStartTime : null,
+                isSaveModalOpen: isSaveModalOpen
             };
             localStorage.setItem(TIMER_STATE_KEY, JSON.stringify(state));
         }
@@ -329,6 +350,7 @@
         }
 
         window.cancelSession = function() {
+            isSaveModalOpen = false;
             document.getElementById('save-modal').style.display = 'none';
             endSessionAPI(true);
             resetTimerValue();
@@ -394,6 +416,7 @@
         }
 
         window.confirmSaveSession = function() {
+            isSaveModalOpen = false;
             document.getElementById('save-modal').style.display = 'none';
             endSessionAPI(false);
             
@@ -438,7 +461,18 @@
         }
 
         function showSaveModal() {
+            isSaveModalOpen = true;
             document.getElementById('save-modal').style.display = 'flex';
+            saveTimerState();
+            
+            if (window.showPremiumNotification) {
+                window.showPremiumNotification(
+                    "Session Completed!", 
+                    `Excellent work! You finished your study focus on ${currentSubject || 'your subject'}.`, 
+                    "green"
+                );
+            }
+            
             const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
             const osc = audioCtx.createOscillator();
             const gain = audioCtx.createGain();
@@ -528,14 +562,20 @@
         });
 
         document.getElementById('timer-reset').onclick = () => {
-            clearInterval(timer);
-            isRunning = false;
-            resetTimerValue();
-            timerToggle.innerText = 'START SESSION';
-            saveTimerState();
+            if (currentSessionId) {
+                pauseTimer();
+                showSaveModal();
+            } else {
+                clearInterval(timer);
+                isRunning = false;
+                resetTimerValue();
+                timerToggle.innerText = 'START SESSION';
+                saveTimerState();
+            }
         };
 
         document.getElementById('btn-pomodoro').onclick = function () {
+            if (currentSessionId) return;
             mode = 'pomodoro';
             let val = parseInt(document.getElementById('custom-minutes').value) || 25;
             seconds = val * 60;
@@ -546,6 +586,7 @@
         };
 
         document.getElementById('btn-stopwatch').onclick = function () {
+            if (currentSessionId) return;
             mode = 'stopwatch';
             seconds = 0;
             updateDisplay();
@@ -560,6 +601,7 @@
         function setupSubjectTags() {
             document.querySelectorAll('.subject-tag:not(#add-subject-btn)').forEach(tag => {
                 tag.onclick = function () {
+                    if (currentSessionId) return;
                     document.querySelectorAll('.subject-tag').forEach(t => t.classList.remove('selected'));
                     this.classList.add('selected');
                     currentSubject = this.dataset.subject;
@@ -618,6 +660,7 @@
                 currentSubject = state.currentSubject || 'Physics';
                 currentSessionId = state.currentSessionId || null;
                 pomodoroCount = state.pomodoroCount || 1;
+                isSaveModalOpen = state.isSaveModalOpen || false;
                 
                 // Restore active subject selection UI
                 document.querySelectorAll('.subject-tag').forEach(t => {
@@ -673,9 +716,13 @@
                         }
                     }
                 } else {
-                    seconds = state.seconds || 1500;
-                    timerToggle.innerText = state.seconds ? 'RESUME' : 'START SESSION';
+                    seconds = (state.seconds !== undefined) ? state.seconds : 1500;
+                    timerToggle.innerText = (state.seconds && currentSessionId) ? 'RESUME' : 'START SESSION';
                     updateDisplay();
+                }
+
+                if (isSaveModalOpen) {
+                    showSaveModal();
                 }
             } catch(e) {
                 console.error("Error loading timer state:", e);
@@ -720,6 +767,7 @@
         adminLinks.forEach(link => link.style.display = 'flex');
     }
 </script>
+<script src="notifications.js"></script>
 </body>
 
 </html>

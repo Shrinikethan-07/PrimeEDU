@@ -17,7 +17,8 @@ sync_pairs = [
     ("teams.html", "teams.html"),
     ("timer.html", "timer.html"),
     ("login.html", "index.html"),  # login.html is root, index.html is public login
-    ("admin.html", "admin.html")   # admin.html is root and public/admin.html
+    ("admin.html", "admin.html"),   # admin.html is root and public/admin.html
+    ("notifications.js", "notifications.js")
 ]
 
 def sync_files():

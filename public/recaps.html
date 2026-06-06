@@ -263,6 +263,25 @@
     </div>
 
     <script>
+        // AUTH INTERCEPTOR
+        const originalFetch = window.fetch;
+        window.fetch = async (...args) => {
+            let [resource, config] = args;
+            config = config || {};
+            config.headers = config.headers || {};
+            
+            const token = localStorage.getItem('primeedu_token');
+            if (token) {
+                config.headers['Authorization'] = `Bearer ${token}`;
+            }
+            
+            const response = await originalFetch(resource, config);
+            if (response.status === 401 && !window.location.pathname.endsWith('index.html')) {
+                window.location.href = 'index.html';
+            }
+            return response;
+        };
+
         // Close all share dropdowns when clicking outside
         document.addEventListener('click', function(e) {
             if (!e.target.closest('.share-menu-wrap')) {
@@ -535,6 +554,6 @@
         adminLinks.forEach(link => link.style.display = 'flex');
     }
 </script>
+<script src="notifications.js"></script>
 </body>
-
 </html>

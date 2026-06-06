@@ -309,9 +309,6 @@
                         document.getElementById('reg-otp').required = true;
                         document.getElementById('reg-btn').innerText = 'VERIFY & FORGE IDENTITY';
                         
-                        document.getElementById('reg-name').disabled = true;
-                        document.getElementById('reg-email').disabled = true;
-                        document.getElementById('reg-pass').disabled = true;
                         showAlert(data.message || "Verification OTP sent! Please check your Google email inbox.");
                         hideLoad();
                     } else {
@@ -330,10 +327,6 @@
                     });
                     const data = await res.json();
                     if(res.ok) {
-                        // Re-enable temporarily to avoid disabling logins
-                        document.getElementById('reg-name').disabled = false;
-                        document.getElementById('reg-email').disabled = false;
-                        document.getElementById('reg-pass').disabled = false;
                         
                         // Auto-login upon successful registration
                         try {
@@ -411,6 +404,20 @@
                 }
             } catch(e) { showAlert("Error connecting to server."); hideLoad(); }
         }
+
+        function resetRegOtpState() {
+            if (!isOtpSent) return;
+            isOtpSent = false;
+            document.getElementById('reg-otp-group').style.display = 'none';
+            document.getElementById('reg-otp').required = false;
+            document.getElementById('reg-otp').value = '';
+            document.getElementById('reg-btn').innerText = 'SEND VERIFICATION OTP';
+        }
+
+        document.getElementById('reg-name').addEventListener('input', resetRegOtpState);
+        document.getElementById('reg-email').addEventListener('input', resetRegOtpState);
+        document.getElementById('reg-pass').addEventListener('input', resetRegOtpState);
     </script>
+    <script src="notifications.js"></script>
 </body>
 </html>
