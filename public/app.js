@@ -326,8 +326,9 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     };
 
-    window.cancelDestiny = (index) => {
-        showConfirm("Canceling a destiny early costs 5 Dragon Balls. Proceed?", async () => {
+    window.cancelDestiny = (index, isFree = false) => {
+        const msg = isFree ? "Dismiss this completed destiny?" : "Canceling a destiny early costs 5 Dragon Balls. Proceed?";
+        showConfirm(msg, async () => {
             try {
                 const res = await fetch(window.API_BASE_URL + '/api/user/destiny/cancel', {
                     method: 'POST',
@@ -377,15 +378,19 @@ document.addEventListener('DOMContentLoaded', () => {
             
             container.innerHTML = goals.map((g, i) => {
                 const date = new Date(g.deadline);
+                const isExpired = date.getTime() <= Date.now();
+                const btnLabel = isExpired ? '<i class="fas fa-check"></i> DISMISS (FREE)' : '<i class="fas fa-times"></i> CANCEL (COSTS 5 BALLS)';
+                const borderCol = isExpired ? '#ff0055' : 'var(--synth-purple)';
+                const shadowVal = isExpired ? '0 0 15px rgba(255, 0, 85, 0.2)' : 'none';
                 return `
-                <div id="destiny-card-${i}" style="background: rgba(139, 92, 246, 0.1); border: 1px solid var(--synth-purple); border-radius: 12px; padding: 1rem; position: relative; transition: all 0.3s ease;">
+                <div id="destiny-card-${i}" style="background: rgba(139, 92, 246, 0.1); border: 1px solid ${borderCol}; border-radius: 12px; padding: 1rem; position: relative; transition: all 0.3s ease; box-shadow: ${shadowVal};">
                     <h3 style="color: white; font-size: 1.1rem; margin-bottom: 0.25rem;">${g.title}</h3>
                     <p style="color: var(--synth-pink); font-size: 0.8rem; margin-bottom: 0.25rem;"><i class="fas fa-clock"></i> Target: ${date.toLocaleString()}</p>
                     <p id="countdown-text-${i}" style="color: var(--neon-cyan); font-size: 0.85rem; font-weight: bold; margin-bottom: 0.5rem;"></p>
                     <div style="width: 100%; height: 120px; background: url('assets/vision_board.png') center/cover no-repeat; border-radius: 8px; margin-bottom: 0.5rem; border: 1px solid rgba(255,255,255,0.15); box-shadow: 0 4px 15px rgba(0,0,0,0.5);">
                     </div>
-                    <button class="neon-btn" style="padding: 0.3rem 0.6rem; font-size: 0.7rem; border-color: #ff2a85; color: #ff2a85; width: 100%;" onclick="cancelDestiny(${i})">
-                        <i class="fas fa-times"></i> CANCEL (COSTS 5 BALLS)
+                    <button class="neon-btn" style="padding: 0.3rem 0.6rem; font-size: 0.7rem; border-color: #ff2a85; color: #ff2a85; width: 100%;" onclick="cancelDestiny(${i}, ${isExpired})">
+                        ${btnLabel}
                     </button>
                 </div>
                 `;
@@ -406,22 +411,11 @@ document.addEventListener('DOMContentLoaded', () => {
                         card.style.borderColor = '#ff0055';
                         card.style.boxShadow = '0 0 15px rgba(255, 0, 85, 0.2)';
                         
-                        if (!card.dataset.expired) {
-                            card.dataset.expired = 'true';
-                            setTimeout(async () => {
-                                try {
-                                    const cancelRes = await fetch(window.API_BASE_URL + '/api/user/destiny/cancel', {
-                                        method: 'POST',
-                                        headers: { 'Content-Type': 'application/json' },
-                                        body: JSON.stringify({ goal_index: i })
-                                    });
-                                    if (cancelRes.ok) {
-                                        loadDestinies();
-                                    }
-                                } catch (err) {
-                                    console.error(err);
-                                }
-                            }, 3000);
+                        const btn = card.querySelector('button');
+                        if (btn && !btn.dataset.expiredSet) {
+                            btn.dataset.expiredSet = 'true';
+                            btn.innerHTML = '<i class="fas fa-check"></i> DISMISS (FREE)';
+                            btn.setAttribute('onclick', `cancelDestiny(${i}, true)`);
                         }
                     } else {
                         const days = Math.floor(diff / (1000 * 60 * 60 * 24));

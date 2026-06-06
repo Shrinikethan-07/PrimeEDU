@@ -285,20 +285,58 @@ def static_files(path):
     return send_from_directory('.', path)
 
 # --- AUTH ENDPOINTS ---
+@app.route('/api/auth/register/request_otp', methods=['POST'])
+def register_request_otp_route():
+    db = load_db()
+    data = request.json or {}
+    email = (data.get('email') or '').strip().lower()
+    
+    if not email:
+        return jsonify({"status": "error", "message": "Email is required"}), 400
+        
+    if email in db.get('user_profiles', {}):
+        return jsonify({"status": "error", "message": "Email already registered"}), 400
+        
+    otp = str(random.randint(1000, 9999))
+    
+    if 'pending_register_otps' not in db:
+        db['pending_register_otps'] = {}
+        
+    db['pending_register_otps'][email] = {
+        "otp": otp,
+        "timestamp": get_ist_iso()
+    }
+    save_db(db)
+    
+    sent = send_otp_email(email, otp, is_registration=True)
+    if sent:
+        return jsonify({"status": "success", "message": "Verification OTP sent to your email."})
+    else:
+        return jsonify({"status": "success", "message": "Verification OTP sent (Console Fallback)." })
+
 @app.route('/api/auth/register', methods=['POST'])
 def register():
     db = load_db()
-    data = request.json
+    data = request.json or {}
     email = (data.get('email') or '').strip().lower()
     password = data.get('password')
     name = data.get('name', 'Warrior')
+    otp = data.get('otp')
     
-    if not email or not password:
-        return jsonify({"status": "error", "message": "Email and password required"}), 400
+    if not email or not password or not otp:
+        return jsonify({"status": "error", "message": "Email, password, and OTP required"}), 400
         
-    if email in db['user_profiles']:
+    if email in db.get('user_profiles', {}):
         return jsonify({"status": "error", "message": "Email already registered"}), 400
         
+    # Check pending registration OTP
+    pending = db.get('pending_register_otps', {}).get(email)
+    if not pending or pending.get('otp') != otp:
+        return jsonify({"status": "error", "message": "Invalid verification OTP"}), 400
+        
+    # Remove OTP from pending list
+    db['pending_register_otps'].pop(email, None)
+    
     db['user_profiles'][email] = {
         "name": name,
         "leaderboard_name": name,
@@ -331,12 +369,13 @@ def login():
         if 'active_tokens' not in user:
             user['active_tokens'] = []
         user['active_tokens'].append(token)
+        user = check_streak_and_login(user)
         save_db(db)
         return jsonify({"status": "success", "token": token, "name": user.get('name')})
         
     return jsonify({"status": "error", "message": "Invalid credentials"}), 401
 
-def send_otp_email(to_email, otp):
+def send_otp_email(to_email, otp, is_registration=False):
     import smtplib
     from email.mime.text import MIMEText
     from email.mime.multipart import MIMEMultipart
@@ -352,9 +391,23 @@ def send_otp_email(to_email, otp):
         msg = MIMEMultipart()
         msg['From'] = smtp_email
         msg['To'] = to_email
-        msg['Subject'] = "PrimeEDU - Warrior Password Reset OTP"
         
-        body = f"""Greetings Warrior!
+        if is_registration:
+            msg['Subject'] = "PrimeEDU - Warrior Registration Verification OTP"
+            body = f"""Greetings Warrior!
+
+Welcome to PrimeEDU. To complete your identity forging and verify your Google email address, please use the following OTP:
+
+Verification OTP: {otp}
+
+Enter this code in the registration form to finalize your registration.
+
+Stay focused on your journey!
+- PrimeEDU System
+"""
+        else:
+            msg['Subject'] = "PrimeEDU - Warrior Password Reset OTP"
+            body = f"""Greetings Warrior!
 
 You have requested a password reset for your PrimeEDU account.
 
@@ -508,9 +561,24 @@ def cancel_destiny():
     goals = user.get('massive_goals', [])
     
     if 0 <= goal_index < len(goals):
+        goal = goals[goal_index]
+        deadline_str = goal.get('deadline')
+        is_early = True
+        if deadline_str:
+            try:
+                deadline_utc = datetime.fromisoformat(deadline_str.replace('Z', '+00:00'))
+                now_utc = datetime.now(timezone.utc)
+                if now_utc >= deadline_utc:
+                    is_early = False
+            except Exception as e:
+                print(f"[ERROR] Failed to parse destiny deadline: {e}")
+                
         goals.pop(goal_index)
         user['massive_goals'] = goals
-        user['balls'] -= 5 # Cancellation penalty
+        
+        if is_early:
+            user['balls'] = max(0, user.get('balls', 0) - 5)
+            
         save_db(db)
         return jsonify({"status": "success", "balls": user['balls']})
     return jsonify({"status": "error", "message": "Goal not found"}), 404

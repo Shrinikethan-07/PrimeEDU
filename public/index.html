@@ -153,7 +153,7 @@
 
         <!-- REGISTER FORM -->
         <div class="form-view" id="view-register">
-            <form onsubmit="handleRegister(event)">
+            <form onsubmit="handleRegisterSubmit(event)">
                 <div class="input-group">
                     <label>Warrior Name</label>
                     <i class="fas fa-user input-icon"></i>
@@ -169,7 +169,15 @@
                     <i class="fas fa-lock input-icon"></i>
                     <input type="password" id="reg-pass" placeholder="Create a password" required>
                 </div>
-                <button type="submit" class="btn-enter">FORGE IDENTITY</button>
+                
+                <!-- Registration OTP (Hidden initially) -->
+                <div class="input-group" id="reg-otp-group" style="display: none;">
+                    <label>Verification OTP</label>
+                    <i class="fas fa-key input-icon"></i>
+                    <input type="text" id="reg-otp" placeholder="Enter 4-Digit OTP">
+                </div>
+                
+                <button type="submit" id="reg-btn" class="btn-enter">SEND VERIFICATION OTP</button>
             </form>
             <span class="switch-link" onclick="switchView('view-login')">Already a warrior? Log in.</span>
         </div>
@@ -207,12 +215,22 @@
     </div>
 
     <script>
+        let isOtpSent = false;
         function switchView(viewId) {
             document.querySelectorAll('.form-view').forEach(el => el.classList.remove('active'));
             document.getElementById(viewId).classList.add('active');
             const sub = document.getElementById('subtitle-txt');
             if(viewId === 'view-login') sub.innerText = "Log in to synchronize your progress and access the neural interface.";
-            if(viewId === 'view-register') sub.innerText = "Forge a new path. Your journey to mastery begins here.";
+            if(viewId === 'view-register') {
+                sub.innerText = "Forge a new path. Your journey to mastery begins here.";
+                isOtpSent = false;
+                document.getElementById('reg-otp-group').style.display = 'none';
+                document.getElementById('reg-otp').required = false;
+                document.getElementById('reg-btn').innerText = 'SEND VERIFICATION OTP';
+                document.getElementById('reg-name').disabled = false;
+                document.getElementById('reg-email').disabled = false;
+                document.getElementById('reg-pass').disabled = false;
+            }
             if(viewId === 'view-otp-req') sub.innerText = "Enter your email address to receive a recovery OTP.";
             if(viewId === 'view-otp-verify') sub.innerText = "Enter the OTP sent to your email to reset your password.";
         }
@@ -270,48 +288,82 @@
             } catch(e) { showAlert("Error connecting to server."); hideLoad(); }
         }
 
-        async function handleRegister(e) {
+        async function handleRegisterSubmit(e) {
             e.preventDefault();
             const name = document.getElementById('reg-name').value;
             const email = document.getElementById('reg-email').value;
             const pass = document.getElementById('reg-pass').value;
-            showLoad("FORGING IDENTITY...");
-            try {
-                const res = await fetch(window.API_BASE_URL + '/api/auth/register', {
-                    method: 'POST',
-                    headers: {'Content-Type': 'application/json'},
-                    body: JSON.stringify({ name, email, password: pass })
-                });
-                const data = await res.json();
-                if(res.ok) {
-                    // Auto-login upon successful registration
-                    try {
-                        const loginRes = await fetch(window.API_BASE_URL + '/api/auth/login', {
-                            method: 'POST',
-                            headers: {'Content-Type': 'application/json'},
-                            body: JSON.stringify({ email, password: pass })
-                        });
-                        const loginData = await loginRes.json();
-                        if(loginRes.ok) {
-                            localStorage.setItem('primeedu_token', loginData.token);
-                            localStorage.setItem('primeedu_leaderboard_name', loginData.name);
-                localStorage.setItem('primeedu_email', email);
-                            window.location.href = 'dashboard.html';
-                        } else {
+            
+            if (!isOtpSent) {
+                showLoad("DISPATCHING VERIFICATION OTP...");
+                try {
+                    const res = await fetch(window.API_BASE_URL + '/api/auth/register/request_otp', {
+                        method: 'POST',
+                        headers: {'Content-Type': 'application/json'},
+                        body: JSON.stringify({ email })
+                    });
+                    const data = await res.json();
+                    if(res.ok) {
+                        isOtpSent = true;
+                        document.getElementById('reg-otp-group').style.display = 'block';
+                        document.getElementById('reg-otp').required = true;
+                        document.getElementById('reg-btn').innerText = 'VERIFY & FORGE IDENTITY';
+                        
+                        document.getElementById('reg-name').disabled = true;
+                        document.getElementById('reg-email').disabled = true;
+                        document.getElementById('reg-pass').disabled = true;
+                        showAlert(data.message || "Verification OTP sent! Please check your Google email inbox.");
+                        hideLoad();
+                    } else {
+                        showAlert(data.message || "Failed to send verification OTP");
+                        hideLoad();
+                    }
+                } catch(e) { showAlert("Error connecting to server."); hideLoad(); }
+            } else {
+                const otp = document.getElementById('reg-otp').value;
+                showLoad("VERIFYING & REGISTERING...");
+                try {
+                    const res = await fetch(window.API_BASE_URL + '/api/auth/register', {
+                        method: 'POST',
+                        headers: {'Content-Type': 'application/json'},
+                        body: JSON.stringify({ name, email, password: pass, otp })
+                    });
+                    const data = await res.json();
+                    if(res.ok) {
+                        // Re-enable temporarily to avoid disabling logins
+                        document.getElementById('reg-name').disabled = false;
+                        document.getElementById('reg-email').disabled = false;
+                        document.getElementById('reg-pass').disabled = false;
+                        
+                        // Auto-login upon successful registration
+                        try {
+                            const loginRes = await fetch(window.API_BASE_URL + '/api/auth/login', {
+                                method: 'POST',
+                                headers: {'Content-Type': 'application/json'},
+                                body: JSON.stringify({ email, password: pass })
+                            });
+                            const loginData = await loginRes.json();
+                            if(loginRes.ok) {
+                                localStorage.setItem('primeedu_token', loginData.token);
+                                localStorage.setItem('primeedu_leaderboard_name', loginData.name);
+                                localStorage.setItem('primeedu_email', email);
+                                window.location.href = 'dashboard.html';
+                            } else {
+                                switchView('view-login');
+                                document.getElementById('login-email').value = email;
+                                hideLoad();
+                            }
+                        } catch(e) {
                             switchView('view-login');
                             document.getElementById('login-email').value = email;
                             hideLoad();
                         }
-                    } catch(e) {
-                        switchView('view-login');
-                        document.getElementById('login-email').value = email;
+                    } else {
+                        showAlert(data.message || "Registration failed");
                         hideLoad();
                     }
-                } else {
-                    showAlert(data.message || "Registration failed");
-                    hideLoad();
-                }
-            } catch(e) { showAlert("Error connecting to server."); hideLoad(); }
+                } catch(e) { showAlert("Error connecting to server."); hideLoad(); }
+            }
         }
 
         async function handleOtpReq(e) {

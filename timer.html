@@ -259,6 +259,23 @@
         let timer, seconds = 1500, isRunning = false, mode = 'pomodoro', currentSubject = 'Physics', currentSessionId = null;
         let pomodoroCount = 1;
         let targetEndTime = null;
+        let stopwatchStartTime = null;
+
+        const TIMER_STATE_KEY = 'primeedu_timer_state';
+
+        function saveTimerState() {
+            const state = {
+                isRunning: isRunning,
+                mode: mode,
+                currentSubject: currentSubject,
+                currentSessionId: currentSessionId,
+                targetEndTime: targetEndTime,
+                seconds: seconds,
+                pomodoroCount: pomodoroCount,
+                stopwatchStartTime: (mode === 'stopwatch' && isRunning) ? stopwatchStartTime : null
+            };
+            localStorage.setItem(TIMER_STATE_KEY, JSON.stringify(state));
+        }
 
         const timerDisplay = document.getElementById('main-timer');
         const timerToggle = document.getElementById('timer-toggle');
@@ -267,17 +284,22 @@
         const flipS = document.getElementById('flip-s');
 
         async function startSessionAPI() {
+            const token = localStorage.getItem('primeedu_token');
             let sessionModeName = mode === 'pomodoro' ? `Pomodoro ${pomodoroCount}` : `Custom duration ${Math.round(document.getElementById('custom-minutes').value || 25)}m`;
             if (mode === 'stopwatch') sessionModeName = 'Stopwatch';
             
             try {
                 const res = await fetch(window.API_BASE_URL + '/api/sessions/start', {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
+                    headers: { 
+                        'Content-Type': 'application/json',
+                        'Authorization': 'Bearer ' + token
+                    },
                     body: JSON.stringify({ subject: currentSubject, mode: sessionModeName })
                 });
                 const data = await res.json();
                 currentSessionId = data.session.id;
+                saveTimerState();
             } catch (e) { console.error('API Error:', e); }
         }
 
@@ -289,16 +311,21 @@
 
         async function endSessionAPI(early = false) {
             if (!currentSessionId) return;
+            const token = localStorage.getItem('primeedu_token');
             try {
                 const res = await fetch(window.API_BASE_URL + '/api/sessions/end', {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
+                    headers: { 
+                        'Content-Type': 'application/json',
+                        'Authorization': 'Bearer ' + token
+                    },
                     body: JSON.stringify({ session_id: currentSessionId, early_exit: early })
                 });
                 const data = await res.json();
                 if (data.balls_earned && !early) showCustomAlert('Level Up!', `Session Saved! You earned ${data.balls_earned} Dragon Balls.`);
             } catch (e) { console.error('API Error:', e); }
             currentSessionId = null;
+            saveTimerState();
         }
 
         window.cancelSession = function() {
@@ -445,12 +472,16 @@
             
             isRunning = true;
             timerToggle.innerText = 'PAUSE';
-            if(!currentSessionId) startSessionAPI();
             
             if (mode === 'pomodoro' || mode === 'custom') {
                 targetEndTime = Date.now() + (seconds * 1000);
+            } else if (mode === 'stopwatch') {
+                stopwatchStartTime = Date.now() - (seconds * 1000);
             }
-
+            
+            if(!currentSessionId) startSessionAPI();
+            saveTimerState();
+            
             timer = setInterval(() => {
                 if (mode === 'pomodoro' || mode === 'custom') {
                     seconds = Math.max(0, Math.round((targetEndTime - Date.now()) / 1000));
@@ -458,10 +489,11 @@
                         clearInterval(timer);
                         isRunning = false;
                         timerToggle.innerText = 'START SESSION';
+                        saveTimerState();
                         showSaveModal();
                     }
                 } else {
-                    seconds++;
+                    seconds = Math.floor((Date.now() - stopwatchStartTime) / 1000);
                 }
                 updateDisplay();
             }, 1000);
@@ -474,6 +506,7 @@
             if (mode === 'pomodoro' || mode === 'custom') {
                 seconds = Math.max(0, Math.round((targetEndTime - Date.now()) / 1000));
             }
+            saveTimerState();
         }
 
         timerToggle.onclick = () => {
@@ -491,6 +524,7 @@
             seconds = val * 60;
             updateDisplay();
             document.querySelectorAll('.mode-btn').forEach(b => b.classList.remove('active'));
+            saveTimerState();
         });
 
         document.getElementById('timer-reset').onclick = () => {
@@ -498,6 +532,7 @@
             isRunning = false;
             resetTimerValue();
             timerToggle.innerText = 'START SESSION';
+            saveTimerState();
         };
 
         document.getElementById('btn-pomodoro').onclick = function () {
@@ -507,6 +542,7 @@
             updateDisplay();
             document.querySelectorAll('.mode-btn').forEach(b => b.classList.remove('active'));
             this.classList.add('active');
+            saveTimerState();
         };
 
         document.getElementById('btn-stopwatch').onclick = function () {
@@ -515,6 +551,7 @@
             updateDisplay();
             document.querySelectorAll('.mode-btn').forEach(b => b.classList.remove('active'));
             this.classList.add('active');
+            saveTimerState();
         };
 
         window.openFlipClock = () => document.getElementById('flip-overlay').classList.add('active');
@@ -526,6 +563,7 @@
                     document.querySelectorAll('.subject-tag').forEach(t => t.classList.remove('selected'));
                     this.classList.add('selected');
                     currentSubject = this.dataset.subject;
+                    saveTimerState();
                 };
             });
         }
@@ -549,6 +587,7 @@
                 btn.parentNode.insertBefore(newTag, btn);
                 currentSubject = custom.trim();
                 setupSubjectTags();
+                saveTimerState();
                 input.value = '';
             }
             closeSubjectModal();
@@ -570,10 +609,88 @@
         ];
         const DEFAULT_AVATAR = 'assets/avatars/itachi.webp';
 
+        function loadTimerState() {
+            const saved = localStorage.getItem(TIMER_STATE_KEY);
+            if (!saved) return;
+            try {
+                const state = JSON.parse(saved);
+                mode = state.mode || 'pomodoro';
+                currentSubject = state.currentSubject || 'Physics';
+                currentSessionId = state.currentSessionId || null;
+                pomodoroCount = state.pomodoroCount || 1;
+                
+                // Restore active subject selection UI
+                document.querySelectorAll('.subject-tag').forEach(t => {
+                    if (t.dataset.subject === currentSubject) {
+                        t.classList.add('selected');
+                    } else {
+                        t.classList.remove('selected');
+                    }
+                });
+                
+                // Restore active mode selection UI
+                document.querySelectorAll('.mode-btn').forEach(b => b.classList.remove('active'));
+                if (mode === 'pomodoro') {
+                    document.getElementById('btn-pomodoro').classList.add('active');
+                } else if (mode === 'stopwatch') {
+                    document.getElementById('btn-stopwatch').classList.add('active');
+                }
+                
+                if (state.isRunning) {
+                    isRunning = true;
+                    timerToggle.innerText = 'PAUSE';
+                    if (mode === 'stopwatch') {
+                        stopwatchStartTime = state.stopwatchStartTime || (Date.now() - state.seconds * 1000);
+                        seconds = Math.floor((Date.now() - stopwatchStartTime) / 1000);
+                        
+                        timer = setInterval(() => {
+                            seconds = Math.floor((Date.now() - stopwatchStartTime) / 1000);
+                            updateDisplay();
+                        }, 1000);
+                    } else {
+                        targetEndTime = state.targetEndTime;
+                        const remaining = Math.max(0, Math.round((targetEndTime - Date.now()) / 1000));
+                        if (remaining <= 0) {
+                            seconds = 0;
+                            isRunning = false;
+                            timerToggle.innerText = 'START SESSION';
+                            updateDisplay();
+                            saveTimerState();
+                            showSaveModal();
+                        } else {
+                            seconds = remaining;
+                            timer = setInterval(() => {
+                                seconds = Math.max(0, Math.round((targetEndTime - Date.now()) / 1000));
+                                if (seconds <= 0) {
+                                    clearInterval(timer);
+                                    isRunning = false;
+                                    timerToggle.innerText = 'START SESSION';
+                                    saveTimerState();
+                                    showSaveModal();
+                                }
+                                updateDisplay();
+                            }, 1000);
+                        }
+                    }
+                } else {
+                    seconds = state.seconds || 1500;
+                    timerToggle.innerText = state.seconds ? 'RESUME' : 'START SESSION';
+                    updateDisplay();
+                }
+            } catch(e) {
+                console.error("Error loading timer state:", e);
+            }
+        }
+
         async function syncAvatar() {
             let id = localStorage.getItem('primeedu_avatar') || 'itachi';
+            const token = localStorage.getItem('primeedu_token');
             try {
-                const res = await fetch(window.API_BASE_URL + '/api/user/avatar');
+                const res = await fetch(window.API_BASE_URL + '/api/user/avatar', {
+                    headers: {
+                        'Authorization': 'Bearer ' + token
+                    }
+                });
                 if (res.ok) {
                     const data = await res.json();
                     if (data.avatar) {
@@ -591,6 +708,7 @@
         }
         syncAvatar();
         renderSessions();
+        loadTimerState();
 
     </script>
 <script>
