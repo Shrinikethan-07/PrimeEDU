@@ -70,6 +70,7 @@
                         <tr>
                             <th>WARRIOR NAME</th>
                             <th>GOOGLE EMAIL ID</th>
+                            <th>REGISTERED AT</th>
                             <th>LAST LOGIN</th>
                         </tr>
                     </thead>
@@ -86,7 +87,12 @@
         function formatIST(dateStr) {
             if (!dateStr) return "Never";
             try {
-                const d = new Date(dateStr);
+                let cleanStr = dateStr;
+                // If it is an ISO datetime without offset/timezone info, append +05:30
+                if (dateStr && !dateStr.includes('+') && !dateStr.endsWith('Z') && dateStr.includes('T')) {
+                    cleanStr = dateStr + '+05:30';
+                }
+                const d = new Date(cleanStr);
                 const options = {
                     timeZone: 'Asia/Kolkata',
                     day: '2-digit',
@@ -134,6 +140,7 @@
                         <tr>
                             <td style="font-weight: 600; color: white;">${u.name}</td>
                             <td class="td-email">${u.email}</td>
+                            <td>${formatIST(u.creation_date)}</td>
                             <td>${formatIST(u.last_login)}</td>
                         </tr>
                         `;

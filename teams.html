@@ -108,6 +108,17 @@
         <div class="loading-screen-text">Synchronizing Clan Data...</div>
     </div>
 
+    <!-- Anime Slash Overlay -->
+    <div class="slash-overlay" id="slash-overlay" style="display: none;">
+        <div class="slash-scene">
+            <div class="slash-character" id="slash-char-img"></div>
+            <div class="slash-target">
+                <div class="slash-hurdle-text">DUEL</div>
+            </div>
+            <div class="slash-effect"></div>
+        </div>
+    </div>
+
     <!-- Reusable Custom Input Modal -->
     <div class="custom-modal-overlay" id="custom-input-modal">
         <div class="custom-modal-card cyan-theme">
@@ -312,6 +323,77 @@
         };
 
         // CUSTOM MODALS IMPLEMENTATION
+        let audioCtx = null;
+        function getAudioContext() {
+            if (!audioCtx) {
+                audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            }
+            return audioCtx;
+        }
+
+        function playSwordSound() {
+            try {
+                const ctx = getAudioContext();
+                if (ctx.state === 'suspended') ctx.resume();
+                
+                const osc = ctx.createOscillator();
+                const gain = ctx.createGain();
+                osc.connect(gain);
+                gain.connect(ctx.destination);
+                
+                osc.type = 'sawtooth';
+                osc.frequency.setValueAtTime(3500, ctx.currentTime);
+                osc.frequency.exponentialRampToValueAtTime(300, ctx.currentTime + 0.15);
+                
+                gain.gain.setValueAtTime(0, ctx.currentTime);
+                gain.gain.linearRampToValueAtTime(0.6, ctx.currentTime + 0.02);
+                gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.2);
+                
+                osc.start(ctx.currentTime);
+                osc.stop(ctx.currentTime + 0.2);
+            } catch (e) {
+                console.warn("Could not play sound: ", e);
+            }
+        }
+
+        function playSlashAnimation(text = "DUEL") {
+            const overlay = document.getElementById('slash-overlay');
+            const charImg = document.getElementById('slash-char-img');
+            if (!overlay || !charImg) return;
+
+            const hurdleText = overlay.querySelector('.slash-hurdle-text');
+            if (hurdleText) {
+                hurdleText.innerText = text;
+            }
+
+            // Get selected avatar from local storage or default
+            const avatar = localStorage.getItem('primeedu_avatar') || 'itachi';
+            const avatarMap = {
+                itachi: 'assets/avatars/itachi.webp',
+                goku: 'assets/avatars/goku.webp',
+                gojo: 'assets/avatars/gojo.webp',
+                sasuke: 'assets/avatars/sasuke.webp',
+                naruto: 'assets/avatars/naruto.webp',
+                kakashi: 'assets/avatars/kakashi.webp'
+            };
+            const path = avatarMap[avatar] || 'assets/avatars/itachi.webp';
+            charImg.style.backgroundImage = `url('${path}')`;
+
+            overlay.style.display = 'flex';
+            overlay.classList.remove('slash-active');
+
+            // Trigger reflow
+            void overlay.offsetWidth;
+
+            overlay.classList.add('slash-active');
+            playSwordSound();
+
+            setTimeout(() => {
+                overlay.style.display = 'none';
+                overlay.classList.remove('slash-active');
+            }, 1200);
+        }
+
         function showCustomAlert(title, msg) {
             return new Promise((resolve) => {
                 const modal = document.getElementById('custom-alert-modal');
@@ -393,6 +475,7 @@
         let clanData = null;
         let myEmail = localStorage.getItem('primeedu_email') || '';
         let challengeTimerInterval = null;
+        let serverTimeOffset = 0; // ms offset: serverTime - clientTime
 
         // ON LOAD INITIALIZATION
         document.addEventListener('DOMContentLoaded', async () => {
@@ -438,6 +521,11 @@
                 
                 if (data.status === 'success') {
                     clanData = data;
+                    // Calculate server/client time offset for accurate countdown
+                    if (data.server_time) {
+                        const serverNow = new Date(data.server_time).getTime();
+                        serverTimeOffset = serverNow - Date.now();
+                    }
                     renderClanView();
                 } else {
                     clanData = null;
@@ -469,7 +557,9 @@
             document.getElementById('view-clan-active').style.display = 'block';
 
             document.getElementById('clan-name-header').innerText = clanData.name.toUpperCase();
-            document.getElementById('clan-meta-text').innerHTML = `<i class="fas fa-crown" style="color: var(--neon-yellow);"></i> Leader: <strong>${clanData.leader_email}</strong>`;
+            // Show leader name instead of email
+            const leaderDisplayName = clanData.leader_name || clanData.leader_email;
+            document.getElementById('clan-meta-text').innerHTML = `<i class="fas fa-crown" style="color: var(--neon-yellow);"></i> Commander: <strong>${leaderDisplayName}</strong>`;
             
             // Set terms textarea content
             const termsInput = document.getElementById('clan-terms-input');
@@ -514,14 +604,14 @@
             };
 
             clanData.members.forEach(member => {
-                const isLeader = member.email === clanData.leader_email;
+                const isLeader = member.email.toLowerCase() === clanData.leader_email.toLowerCase();
                 const avatarPath = avatarMap[member.avatar] || 'assets/avatars/itachi.webp';
                 
                 const memberRow = document.createElement('div');
                 memberRow.className = `member-row ${isLeader ? 'leader-border' : ''}`;
                 
                 let dismissBtnHtml = '';
-                if (clanData.is_leader && member.email !== myEmail) {
+                if (clanData.is_leader && member.email.toLowerCase() !== myEmail.toLowerCase()) {
                     dismissBtnHtml = `
                     <button class="neon-btn" style="border-color: var(--neon-pink); color: var(--neon-pink); font-size: 0.65rem; padding: 0.25rem 0.5rem;" onclick="handleDismissMember('${member.email}')">
                         DISMISS
@@ -564,20 +654,79 @@
                 card.className = 'challenge-card';
                 card.id = `arena-challenge-${ch.id}`;
                 
-                const isCreator = ch.creator_email === myEmail;
-                const isAccepted = ch.accepted_by !== null;
+                const acceptedMembers = ch.accepted_members || [];
+                const acceptedCount = acceptedMembers.length;
+                const isCreator = ch.creator_email.toLowerCase() === myEmail.toLowerCase();
+                const isAcceptor = acceptedMembers.some(m => m.email.toLowerCase() === myEmail.toLowerCase());
+                const isParticipant = isCreator || isAcceptor;
+                const isFull = acceptedCount >= 3;
+                
+                const expiresTime = new Date(ch.expires_at).getTime();
+                const adjustedNow = Date.now() + serverTimeOffset;
+                const joiningOpen = adjustedNow < expiresTime;
                 
                 let actionBtnHtml = '';
-                if (isAccepted) {
-                    actionBtnHtml = `<span style="color: #4ade80; font-size: 0.75rem; font-weight: 700; text-transform: uppercase;"><i class="fas fa-circle-check"></i> Accepted by ${ch.accepted_by}</span>`;
-                } else if (isCreator) {
-                    actionBtnHtml = `<span style="color: var(--text-secondary); font-size: 0.75rem; font-weight: 600; text-transform: uppercase;">Awaiting Competitor</span>`;
+                let timerLabel = '';
+                
+                // Determine user's individual start time and reward status if participant
+                let myStartTime = null;
+                let myRewarded = false;
+                if (isCreator) {
+                    myStartTime = ch.creator_accepted_at ? new Date(ch.creator_accepted_at).getTime() : null;
+                    myRewarded = ch.creator_rewarded || false;
+                } else if (isAcceptor) {
+                    const memberObj = acceptedMembers.find(m => m.email.toLowerCase() === myEmail.toLowerCase());
+                    if (memberObj) {
+                        myStartTime = new Date(memberObj.accepted_at).getTime();
+                        myRewarded = memberObj.rewarded || false;
+                    }
+                }
+                
+                if (ch.status === 'completed') {
+                    actionBtnHtml = `<span style="color: #4ade80; font-size: 0.75rem; font-weight: 700; text-transform: uppercase;"><i class="fas fa-trophy" style="color: var(--neon-yellow);"></i> COMPLETED</span>`;
+                    timerLabel = `<span style="color: #4ade80; font-size: 0.8rem; font-weight: bold;">FINISHED ✓</span>`;
+                } else if (isParticipant) {
+                    if (myStartTime) {
+                        const endTime = myStartTime + (ch.duration_minutes * 60000);
+                        if (adjustedNow >= endTime || myRewarded) {
+                            actionBtnHtml = `<span style="color: #4ade80; font-size: 0.7rem; font-weight: 700; text-transform: uppercase;"><i class="fas fa-circle-check"></i> DUEL COMPLETE</span>`;
+                            timerLabel = `<span style="color: #4ade80; font-size: 0.8rem; font-weight: bold;">FINISHED ✓</span>`;
+                        } else {
+                            card.className += ' active-challenge';
+                            actionBtnHtml = `
+                            <div style="display: flex; flex-direction: column; gap: 0.25rem; align-items: flex-end;">
+                                <span style="color: #4ade80; font-size: 0.7rem; font-weight: 700; text-transform: uppercase;"><i class="fas fa-circle-check"></i> DUEL ACTIVE</span>
+                                <span style="color: var(--text-secondary); font-size: 0.65rem;">Joined (${acceptedCount}/3)</span>
+                            </div>
+                            `;
+                            timerLabel = `<span id="challenge-timer-${ch.id}" data-type="focus" data-endtime="${endTime}" style="color: var(--neon-cyan); font-size: 0.8rem; font-weight: bold;">00:00</span>`;
+                        }
+                    } else {
+                        // Creator awaiting competitor acceptance
+                        actionBtnHtml = `<span style="color: var(--text-secondary); font-size: 0.75rem; font-weight: 600; text-transform: uppercase;">Awaiting Competitor</span>`;
+                        timerLabel = `<span id="challenge-timer-${ch.id}" data-type="expiry" data-endtime="${expiresTime}" style="color: var(--neon-pink); font-size: 0.8rem; font-weight: bold;">00:00</span>`;
+                    }
                 } else {
-                    actionBtnHtml = `
-                    <button class="neon-btn" style="border-color: var(--neon-cyan); color: var(--neon-cyan); font-size: 0.7rem; padding: 0.3rem 0.6rem;" onclick="handleAcceptChallenge('${ch.id}')">
-                        ACCEPT DUEL
-                    </button>
-                    `;
+                    // Non-participant
+                    if (isFull) {
+                        actionBtnHtml = `<span style="color: var(--neon-pink); font-size: 0.75rem; font-weight: 700; text-transform: uppercase;">DUEL FULL (3/3)</span>`;
+                    } else if (joiningOpen) {
+                        actionBtnHtml = `
+                        <button class="neon-btn" style="border-color: var(--neon-cyan); color: var(--neon-cyan); font-size: 0.7rem; padding: 0.3rem 0.6rem;" onclick="handleAcceptChallenge('${ch.id}')">
+                            ACCEPT DUEL (${acceptedCount}/3)
+                        </button>
+                        `;
+                    } else {
+                        actionBtnHtml = `<span style="color: var(--text-secondary); font-size: 0.75rem; font-weight: 600; text-transform: uppercase;">CLOSED</span>`;
+                    }
+                    
+                    if (ch.status === 'active') {
+                        // Duel is running but this user didn't join
+                        timerLabel = `<span style="color: var(--text-secondary); font-size: 0.8rem; font-weight: bold;">DUEL RUNNING</span>`;
+                    } else {
+                        // Still open but no one joined, show countdown to join expiry
+                        timerLabel = `<span id="challenge-timer-${ch.id}" data-type="expiry" data-endtime="${expiresTime}" style="color: var(--neon-pink); font-size: 0.8rem; font-weight: bold;">00:00</span>`;
+                    }
                 }
 
                 card.innerHTML = `
@@ -586,7 +735,7 @@
                     Issued by: <strong>${ch.creator_name}</strong> | Target: ${ch.duration_minutes} mins
                 </p>
                 <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 0.5rem;">
-                    <span id="challenge-timer-${ch.id}" style="color: var(--neon-pink); font-size: 0.8rem; font-weight: bold;">00:00</span>
+                    ${timerLabel}
                     ${actionBtnHtml}
                 </div>
                 `;
@@ -596,26 +745,48 @@
 
             // Timer Tick Function
             const tick = () => {
-                challenges.forEach(ch => {
-                    const timerEl = document.getElementById(`challenge-timer-${ch.id}`);
-                    const cardEl = document.getElementById(`arena-challenge-${ch.id}`);
-                    if (!timerEl || !cardEl) return;
-
-                    const expires = new Date(ch.expires_at).getTime();
-                    const now = Date.now();
-                    const diff = expires - now;
-
-                    if (diff <= 0) {
-                        timerEl.innerHTML = `<span style="color: var(--text-secondary);">EXPIRED</span>`;
-                        cardEl.style.borderColor = 'rgba(255,255,255,0.05)';
-                        cardEl.style.opacity = '0.6';
-                        // Remove accept button if present
-                        const btn = cardEl.querySelector('button');
-                        if (btn) btn.style.display = 'none';
-                    } else {
-                        const mins = Math.floor(diff / 60000);
-                        const secs = Math.floor((diff % 60000) / 1000);
-                        timerEl.innerText = `Expires in: ${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+                const adjustedNow = Date.now() + serverTimeOffset;
+                const timerEls = container.querySelectorAll('[id^="challenge-timer-"]');
+                timerEls.forEach(timerEl => {
+                    const type = timerEl.getAttribute('data-type');
+                    const endTime = parseInt(timerEl.getAttribute('data-endtime'));
+                    if (!type || isNaN(endTime)) return;
+                    
+                    const diff = endTime - adjustedNow;
+                    const chId = timerEl.id.replace('challenge-timer-', '');
+                    const cardEl = document.getElementById(`arena-challenge-${chId}`);
+                    
+                    if (type === 'focus') {
+                        if (diff <= 0) {
+                            timerEl.innerHTML = `<span style="color: #4ade80;">CHALLENGE COMPLETE ✓</span>`;
+                            if (cardEl) cardEl.classList.remove('active-challenge');
+                            
+                            const ch = challenges.find(c => c.id === chId);
+                            if (ch && !ch.notified) {
+                                ch.notified = true;
+                                playSlashAnimation("VICTORY");
+                                showCustomAlert("Challenge Complete!", `The focus duel "${ch.title}" is complete! You have been rewarded with 50 Dragon Balls and a completed study session.`);
+                                loadClanInfo();
+                            }
+                        } else {
+                            const mins = Math.floor(diff / 60000);
+                            const secs = Math.floor((diff % 60000) / 1000);
+                            timerEl.innerText = `⏱ Focus: ${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+                        }
+                    } else if (type === 'expiry') {
+                        if (diff <= 0) {
+                            timerEl.innerHTML = `<span style="color: var(--text-secondary);">EXPIRED</span>`;
+                            if (cardEl) {
+                                cardEl.style.borderColor = 'rgba(255,255,255,0.05)';
+                                cardEl.style.opacity = '0.6';
+                                const btn = cardEl.querySelector('button');
+                                if (btn) btn.style.display = 'none';
+                            }
+                        } else {
+                            const mins = Math.floor(diff / 60000);
+                            const secs = Math.floor((diff % 60000) / 1000);
+                            timerEl.innerText = `Joins open: ${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+                        }
                     }
                 });
             };
@@ -782,6 +953,7 @@
                 });
                 const data = await res.json();
                 if (res.ok) {
+                    playSlashAnimation("DUEL");
                     showCustomAlert("Challenge Issued", "Your duel request has been pinned to the Arena board.");
                     await loadClanInfo();
                 } else {
@@ -802,6 +974,7 @@
                 });
                 const data = await res.json();
                 if (res.ok) {
+                    playSlashAnimation("DUEL");
                     showCustomAlert("Duel Accepted", "You have joined the duel. Complete a study session of the target duration to win!");
                     await loadClanInfo();
                 } else {

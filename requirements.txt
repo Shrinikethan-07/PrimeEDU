@@ -23,3 +23,5 @@ tzdata==2026.2
 tzlocal==5.3.1
 Werkzeug==3.1.8
 xlsxwriter==3.2.9
+psycopg2-binary==2.9.10
+
