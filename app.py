@@ -773,13 +773,54 @@ def admin_users():
     for email, profile in db.get('user_profiles', {}).items():
         users_data.append({
             "email": email,
-            "name": profile.get("name", "Unknown"),
+            "name": profile.get("leaderboard_name") or profile.get("name") or "Unknown",
             "creation_date": profile.get("creation_date", ""),
             "last_login": profile.get("last_login", "")
         })
     
     users_data.sort(key=lambda x: x.get('creation_date', ''), reverse=True)
     return jsonify({"status": "success", "users": users_data})
+
+@app.route('/api/admin/reset_fake_warriors', methods=['POST'])
+def reset_fake_warriors():
+    db = load_db()
+    user, uid = get_current_user(db)
+    if not user or uid.lower() != 'buvanavel.m01@gmail.com':
+        return jsonify({"status": "error", "message": "Unauthorized. Admin access required."}), 403
+    
+    admin_email = 'buvanavel.m01@gmail.com'
+    admin_profile = db.get('user_profiles', {}).get(admin_email)
+    
+    if not admin_profile:
+        return jsonify({"status": "error", "message": "Admin profile not found."}), 500
+    
+    # Reset admin's clan status to clear them from any active duels/clans
+    admin_profile['clan_id'] = None
+    admin_profile['is_clan_leader'] = False
+    admin_profile['banned_clans'] = []
+    
+    # Rebuild user_profiles with only the admin
+    db['user_profiles'] = {
+        admin_email: admin_profile
+    }
+    
+    # Wipe all clans
+    db['clans'] = {}
+    
+    # Filter study sessions
+    if 'sessions' in db:
+        db['sessions'] = [s for s in db['sessions'] if str(s.get('user_id', '')).lower() == admin_email]
+        
+    # Filter journals
+    if 'journal' in db:
+        db['journal'] = [j for j in db['journal'] if str(j.get('user_id', '')).lower() == admin_email]
+        
+    # Filter tasks
+    if 'tasks' in db:
+        db['tasks'] = [t for t in db['tasks'] if str(t.get('user_id', '')).lower() == admin_email]
+        
+    save_db(db)
+    return jsonify({"status": "success", "message": "Fake warriors and associated data wiped successfully."})
 
 # --- CLAN ENDPOINTS ---
 @app.route('/api/clan/create', methods=['POST'])
