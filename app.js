@@ -899,10 +899,22 @@ document.addEventListener('DOMContentLoaded', () => {
             });
             const data = await res.json();
             if(res.ok) {
-                alert("Password updated successfully!");
+                const btn = document.querySelector('button[onclick="handleSettingsChangePassword()"]');
+                if (btn) {
+                    btn.innerText = "PASSWORD CHANGED ✓";
+                    btn.style.borderColor = "#4ade80";
+                    btn.style.color = "#4ade80";
+                }
                 currPassEl.value = '';
                 newPassEl.value = '';
-                document.getElementById('settings-modal').style.display = 'none';
+                setTimeout(() => {
+                    document.getElementById('settings-modal').style.display = 'none';
+                    if (btn) {
+                        btn.innerText = "UPDATE PASSWORD";
+                        btn.style.borderColor = "var(--neon-cyan)";
+                        btn.style.color = "var(--neon-cyan)";
+                    }
+                }, 1500);
             } else {
                 alert(data.message || "Failed to update password.");
             }
