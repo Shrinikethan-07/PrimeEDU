@@ -48,7 +48,8 @@
             "active_tokens": [
                 "85398748464b36fe1f1c5f9aecf389234470ad2cdcca68eb60602190cbbc143e",
                 "1e4ecf3cf71c5b8886d46b28e16f781a6060cff43ef52f0f03a6e526f8f63ffb",
-                "5c2753ced59e2a6a7ec47c4d9a35665390efb3bba03b2164e199f003d5b18a98"
+                "5c2753ced59e2a6a7ec47c4d9a35665390efb3bba03b2164e199f003d5b18a98",
+                "16c4ceedf08e66a1b37536e9642f98dc9a7711cf6739b1d177f220d2a5ac9f78"
             ],
             "balls": 50,
             "streak": 1,
@@ -69,7 +70,8 @@
             "active_tokens": [
                 "1f421a9d63a095499591bc9d68e354efdc89f3d328ee74dcb34e019d604f8bcf",
                 "0518febdfe32dabc07c67dce1a975e19eb5d001c9b6c1173f733ff50e59cc347",
-                "3d2a249ab135e0116ac2fccf384fbac1517f057750caddbfdfa2e78f9dd546a7"
+                "3d2a249ab135e0116ac2fccf384fbac1517f057750caddbfdfa2e78f9dd546a7",
+                "2829ce81eb76ca2295f6c2c843f934300797eecd7365e9b8b111a70608722b82"
             ],
             "balls": 50,
             "streak": 1,
@@ -81,7 +83,7 @@
             "is_clan_leader": false,
             "banned_clans": [],
             "account_age_days": 0,
-            "reset_otp": "8348"
+            "reset_otp": "1696"
         },
         "user_c@test.com": {
             "name": "Warrior C",
@@ -90,7 +92,8 @@
             "password_hash": "ef92b778bafe771e89245b89ecbc08a44a4e166c06659911881f383d4473e94f",
             "active_tokens": [
                 "1c8c29cc1f5dbf31a55b8b01ebb1f58b59c4290c4d47bd7ba74db956dde88727",
-                "50cd03da58fc63c19abec3091104c60ff6eb03d5a39cccecb9727cbb5a926897"
+                "50cd03da58fc63c19abec3091104c60ff6eb03d5a39cccecb9727cbb5a926897",
+                "8fd1cc9471849bf64cef8f2be0ae6284f9cdb19174b9cd38c6102c6ef2cc7179"
             ],
             "balls": 0,
             "streak": 0,
@@ -109,7 +112,8 @@
             "password_hash": "ef92b778bafe771e89245b89ecbc08a44a4e166c06659911881f383d4473e94f",
             "active_tokens": [
                 "187505097fa5d9bcc179d9f45707dc731ee58213efec94e52469ba156d00e9b4",
-                "b1a5aa7ad1bdfe710b09b07f5f2601a9072077df4c26c35fa40ee1de920decd6"
+                "b1a5aa7ad1bdfe710b09b07f5f2601a9072077df4c26c35fa40ee1de920decd6",
+                "685a1b9a4fe6cb989d096b3842fd063716f9ad5c8aae9db2056f20f8314f2ee3"
             ],
             "balls": 0,
             "streak": 0,
@@ -127,8 +131,7 @@
             "email": "user_e@test.com",
             "password_hash": "ef92b778bafe771e89245b89ecbc08a44a4e166c06659911881f383d4473e94f",
             "active_tokens": [
-                "b524b53911e1cb12a570e578f1727c4587da3616de3a64a71b6e3a9d9901763a",
-                "24b60b3a733b6e0a3d7248682447a2368dca56dd5309eb1a02c8171e4192318a"
+                "bf3e5eb29d48c56f57eca914287aeb7bcc62694a4d6869c145cd6b31cc69f4f8"
             ],
             "balls": 0,
             "streak": 0,

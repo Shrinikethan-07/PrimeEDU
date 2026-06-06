@@ -242,6 +242,15 @@
                 <p style="font-size:0.7rem; color:var(--text-secondary); margin-top:0.4rem;">You will receive your daily debriefing at this time.</p>
             </div>
 
+            <div class="input-group" style="margin-bottom: 1.5rem; border-top: 1px solid rgba(255,255,255,0.05); padding-top: 1.5rem;">
+                <label style="color:var(--synth-pink); font-size:0.8rem; margin-bottom:0.5rem; display:block;">Change Password</label>
+                <div style="display:flex; flex-direction:column; gap:0.5rem;">
+                    <input type="password" id="settings-curr-pass" placeholder="Current Password" style="background:rgba(255,255,255,0.05); border:1px solid var(--glass-border); padding:0.8rem; color:white; border-radius:8px; font-size:1rem; outline:none; font-family:var(--font-body);">
+                    <input type="password" id="settings-new-pass" placeholder="New Password" style="background:rgba(255,255,255,0.05); border:1px solid var(--glass-border); padding:0.8rem; color:white; border-radius:8px; font-size:1rem; outline:none; font-family:var(--font-body);">
+                    <button class="neon-btn" style="width: 100%; border-color: var(--neon-cyan); color: var(--neon-cyan);" onclick="handleSettingsChangePassword()">UPDATE PASSWORD</button>
+                </div>
+            </div>
+
             <div style="margin-top: 2rem; display:flex; flex-direction:column; gap: 1rem;">
                 <button class="neon-btn" style="width: 100%; border-color: rgba(255,255,255,0.2); color: white;" onclick="handleLogout()">
                     <i class="fas fa-sign-out-alt"></i> LOG OUT (THIS DEVICE)

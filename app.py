@@ -426,6 +426,28 @@ def logout_all():
     save_db(db)
     return jsonify({"status": "success"})
 
+@app.route('/api/user/change_password', methods=['POST'])
+def change_password():
+    db = load_db()
+    user, uid = get_current_user(db)
+    if not user:
+        return jsonify({"status": "error", "message": "Unauthorized"}), 401
+        
+    data = request.json or {}
+    current_password = data.get('current_password')
+    new_password = data.get('new_password')
+    
+    if not current_password or not new_password:
+        return jsonify({"status": "error", "message": "Current and new passwords required"}), 400
+        
+    if user.get('password_hash') != hash_password(current_password):
+        return jsonify({"status": "error", "message": "Incorrect current password"}), 400
+        
+    user['password_hash'] = hash_password(new_password)
+    user['active_tokens'] = [request.headers.get('Authorization').split(' ')[1]] # Log out other sessions
+    save_db(db)
+    return jsonify({"status": "success", "message": "Password updated successfully"})
+
 
 # --- USER ENDPOINTS ---
 @app.route('/api/user/profile', methods=['GET', 'POST'])
@@ -790,7 +812,7 @@ def create_clan():
         "members": [uid.strip().lower()],
         "max_members": 20,
         "terms": "",
-        "created_at": datetime.now(timezone.utc).isoformat(),
+        "created_at": get_ist_iso(),
         "challenges": []
     }
     

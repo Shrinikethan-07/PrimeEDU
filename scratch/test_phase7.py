@@ -170,6 +170,30 @@ def run_tests():
     # Disband Clan
     print("\nDisbanding clan...")
     make_request(f"{BASE_URL}/api/clan/delete", method="POST", headers=users["A"]["headers"])
+
+    # 6. Test Change Password Endpoint
+    print("\n--- Testing Change Password Route ---")
+    status, res = make_request(f"{BASE_URL}/api/user/change_password", method="POST", headers=users["E"]["headers"], data={
+        "current_password": "password123",
+        "new_password": "newpassword456"
+    })
+    assert status == 200
+    print("Password Change Succeeded:", res)
+    
+    # Try logging in with the new password
+    status, res = make_request(f"{BASE_URL}/api/auth/login", method="POST", data={
+        "email": users["E"]["email"],
+        "password": "newpassword456"
+    })
+    assert status == 200
+    print("Login with new password succeeded.")
+    
+    # Reset it back to original for cleanliness
+    headers_new = {"Authorization": f"Bearer {res['token']}"}
+    make_request(f"{BASE_URL}/api/user/change_password", method="POST", headers=headers_new, data={
+        "current_password": "newpassword456",
+        "new_password": "password123"
+    })
     
     print("\n=== PHASE 7 INTEGRATION TESTS PASSED SUCCESSFULY! ===")
 

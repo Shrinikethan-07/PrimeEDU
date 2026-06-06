@@ -880,6 +880,38 @@ document.addEventListener('DOMContentLoaded', () => {
         } catch(e) { console.error(e); }
     };
 
+    window.handleSettingsChangePassword = async () => {
+        const currPassEl = document.getElementById('settings-curr-pass');
+        const newPassEl = document.getElementById('settings-new-pass');
+        const current_password = currPassEl ? currPassEl.value : '';
+        const new_password = newPassEl ? newPassEl.value : '';
+        
+        if(!current_password || !new_password) {
+            alert("Both current and new passwords are required.");
+            return;
+        }
+        
+        try {
+            const res = await fetch(window.API_BASE_URL + '/api/user/change_password', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ current_password, new_password })
+            });
+            const data = await res.json();
+            if(res.ok) {
+                alert("Password updated successfully!");
+                currPassEl.value = '';
+                newPassEl.value = '';
+                document.getElementById('settings-modal').style.display = 'none';
+            } else {
+                alert(data.message || "Failed to update password.");
+            }
+        } catch(e) {
+            console.error(e);
+            alert("Error connecting to server.");
+        }
+    };
+
     window.handleLogout = () => {
         showConfirm("Are you sure you want to log out from this device?", () => {
             localStorage.removeItem('primeedu_token');
