@@ -609,7 +609,7 @@ def handle_profile():
     
     # Calculate account age for Recaps
     created = parse_ist_datetime(user.get('creation_date', get_ist_iso())) or get_ist_now()
-    age_days = (get_ist_now() - created).days
+    age_days = (get_ist_now().date() - created.date()).days + 1
     user['account_age_days'] = age_days
     
     return jsonify(user)
