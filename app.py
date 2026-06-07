@@ -236,27 +236,52 @@ def get_current_user(db):
             return profile, uid
     return None, None
 
+def mark_user_active_today(user):
+    if 'active_days' not in user:
+        user['active_days'] = []
+    today_str = get_ist_now().date().isoformat()
+    if today_str not in user['active_days']:
+        user['active_days'].append(today_str)
+        if len(user['active_days']) > 365:
+            user['active_days'] = user['active_days'][-365:]
+
 def recalculate_user_streak(user, db):
+    from datetime import date
     uid = user.get('email')
     if not uid:
         return 1
     active_dates = set()
     
-    # 1. Check completed sessions
+    # 1. Load creation date (registration day counts as active)
+    creation_str = user.get('creation_date')
+    if creation_str:
+        ct = parse_ist_datetime(creation_str)
+        if ct:
+            active_dates.add(ct.date())
+            
+    # 2. Load persistent active_days list
+    for d_str in user.get('active_days', []):
+        try:
+            d = date.fromisoformat(d_str)
+            active_dates.add(d)
+        except Exception:
+            pass
+            
+    # 3. Check completed or early exit sessions (backup)
     for s in db.get('sessions', []):
-        if s.get('user_id') == uid and s.get('status') == 'completed':
+        if s.get('user_id') == uid and s.get('status') in ('completed', 'early_exit'):
             t = parse_ist_datetime(s.get('start_time'))
             if t:
                 active_dates.add(t.date())
                 
-    # 2. Check journal entries
+    # 4. Check journal entries (backup)
     for j in db.get('journal', []):
         if j.get('user_id') == uid:
             t = parse_ist_datetime(j.get('timestamp'))
             if t:
                 active_dates.add(t.date())
                 
-    # 3. Add current date (IST) as active if they are online now
+    # 5. Add current date (IST) as active if online now
     now_ist = get_ist_now()
     active_dates.add(now_ist.date())
     
@@ -274,6 +299,8 @@ def check_streak_and_login(user, db=None):
     if db is None:
         db = load_db()
         
+    mark_user_active_today(user)
+    
     last_login = user.get('last_login')
     now = get_ist_now()
     
@@ -725,6 +752,7 @@ def sync_journal():
     if not user:
         return jsonify({'status': 'error', 'message': 'Unauthorized'}), 401
     
+    mark_user_active_today(user)
     data = request.json or {}
     entries = data.get('entries', [])
     for e in entries:
@@ -759,6 +787,7 @@ def submit_journal():
     if not user:
         return jsonify({"status": "error", "message": "Unauthorized"}), 401
         
+    mark_user_active_today(user)
     data = request.json or {}
     content = data.get('content')
     if not content or not isinstance(content, str) or not content.strip():
@@ -825,6 +854,7 @@ def sync_tasks():
     if not user:
         return jsonify({"status": "error", "message": "Unauthorized"}), 401
         
+    mark_user_active_today(user)
     data = request.json or {}
     new_tasks = data.get('tasks', [])
     for t in new_tasks: t['user_id'] = uid
@@ -866,6 +896,7 @@ def start_session():
     if not user:
         return jsonify({"status": "error", "message": "Unauthorized"}), 401
         
+    mark_user_active_today(user)
     session = {
         "id": f"sess_{int(get_ist_now().timestamp())}",
         "user_id": uid,
@@ -885,6 +916,7 @@ def end_session():
     if not user:
         return jsonify({"status": "error", "message": "Unauthorized"}), 401
         
+    mark_user_active_today(user)
     data = request.json or {}
     session_id = data.get("session_id")
     early_exit = data.get("early_exit", False)
