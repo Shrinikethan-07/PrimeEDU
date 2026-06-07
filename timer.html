@@ -573,7 +573,9 @@
 
         document.getElementById('timer-reset').onclick = () => {
             if (currentSessionId) {
-                pauseTimer();
+                if (isRunning) {
+                    pauseTimer();
+                }
                 showSaveModal();
             } else {
                 clearInterval(timer);

@@ -236,10 +236,50 @@ def get_current_user(db):
             return profile, uid
     return None, None
 
+def recalculate_user_streak(user, db):
+    uid = user.get('email')
+    if not uid:
+        return 1
+    active_dates = set()
+    
+    # 1. Check completed sessions
+    for s in db.get('sessions', []):
+        if s.get('user_id') == uid and s.get('status') == 'completed':
+            t = parse_ist_datetime(s.get('start_time'))
+            if t:
+                active_dates.add(t.date())
+                
+    # 2. Check journal entries
+    for j in db.get('journal', []):
+        if j.get('user_id') == uid:
+            t = parse_ist_datetime(j.get('timestamp'))
+            if t:
+                active_dates.add(t.date())
+                
+    # 3. Add current date (IST) as active if they are online now
+    now_ist = get_ist_now()
+    active_dates.add(now_ist.date())
+    
+    # Count back consecutive days starting from today
+    streak = 0
+    curr_date = now_ist.date()
+    while curr_date in active_dates:
+        streak += 1
+        curr_date -= timedelta(days=1)
+        
+    return max(1, streak)
+
 # --- Gamification Engine ---
-def check_streak_and_login(user):
+def check_streak_and_login(user, db=None):
+    if db is None:
+        db = load_db()
+        
     last_login = user.get('last_login')
     now = get_ist_now()
+    
+    # Auto-recalculate/heal user streak based on activity logs
+    healed_streak = recalculate_user_streak(user, db)
+    
     if last_login:
         last_date = parse_ist_datetime(last_login)
         if last_date is None:
@@ -250,21 +290,23 @@ def check_streak_and_login(user):
         # Streak logic based on calendar days
         if days_diff == 1:
             # Exactly the next calendar day — increment streak
-            user['streak'] = user.get('streak', 0) + 1
+            user['streak'] = max(healed_streak, user.get('streak', 0) + 1)
             if user['streak'] == 7: user['balls'] = user.get('balls', 0) + 20
             elif user['streak'] == 30: user['balls'] = user.get('balls', 0) + 100
             elif user['streak'] == 365: user['balls'] = user.get('balls', 0) + 1000
+            user['last_login'] = get_ist_iso()
         elif days_diff > 1:
-            # Missed a day — reset streak to 1 today
-            user['streak'] = 1
+            # Missed a day — reset streak to healed_streak instead of 1 if activity was logged
+            user['streak'] = healed_streak
+            user['last_login'] = get_ist_iso()
         elif days_diff == 0:
-            if user.get('streak', 0) == 0:
-                user['streak'] = 1
-        # If days_diff == 0, streak stays unchanged
+            # If days_diff == 0, streak stays unchanged, but heal it if it's lagging
+            if user.get('streak', 0) < healed_streak:
+                user['streak'] = healed_streak
     else:
-        user['streak'] = 1
+        user['streak'] = healed_streak
+        user['last_login'] = get_ist_iso()
             
-    user['last_login'] = get_ist_iso()
     return user
 
 # --- Cron Job / Scheduler ---
@@ -403,7 +445,7 @@ def login():
         if 'active_tokens' not in user:
             user['active_tokens'] = []
         user['active_tokens'].append(token)
-        user = check_streak_and_login(user)
+        user = check_streak_and_login(user, db)
         save_db(db)
         return jsonify({"status": "success", "token": token, "name": user.get('name')})
         
@@ -579,7 +621,7 @@ def handle_profile():
     if not user:
         return jsonify({"status": "error", "message": "Unauthorized"}), 401
         
-    user = check_streak_and_login(user)
+    user = check_streak_and_login(user, db)
     
     if request.method == 'POST':
         data = request.json
