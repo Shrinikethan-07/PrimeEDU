@@ -612,6 +612,7 @@ def handle_profile():
     age_days = (get_ist_now().date() - created.date()).days + 1
     user['account_age_days'] = age_days
     
+    save_db(db)
     return jsonify(user)
 
 @app.route('/api/user/destiny/cancel', methods=['POST'])
@@ -782,19 +783,39 @@ def sync_tasks():
     if not user:
         return jsonify({"status": "error", "message": "Unauthorized"}), 401
         
-    data = request.json
+    data = request.json or {}
     new_tasks = data.get('tasks', [])
     for t in new_tasks: t['user_id'] = uid
     
+    # Track which tasks have already been rewarded to prevent double-spending/duplication rewards
+    new_completed_rewards = 0
+    
+    # Let's check against currently stored tasks to find which tasks were already completed and rewarded
+    rewarded_task_ids = {t.get('id') for t in db.get('tasks', []) if t.get('user_id') == uid and t.get('completed') and t.get('rewarded')}
+    
+    for t in new_tasks:
+        if t.get('completed'):
+            if t.get('id') not in rewarded_task_ids:
+                # Newly completed task! Reward it and mark it as rewarded
+                t['rewarded'] = True
+                new_completed_rewards += 1
+            else:
+                # Keep it marked as rewarded
+                t['rewarded'] = True
+        else:
+            t['rewarded'] = False # If they uncheck it, reset
+            
     # Remove old tasks for this user, insert new ones
     db['tasks'] = [t for t in db['tasks'] if t.get('user_id') != uid] + new_tasks
     
-    # Very basic balls reward logic (simplified)
-    new_completed = len([t for t in new_tasks if t.get('completed')])
-    db['user_profiles'][uid]['balls'] += (new_completed * 2) # small reward
+    # Reward 2 Dragon Balls per newly completed task
+    db['user_profiles'][uid]['balls'] += (new_completed_rewards * 2)
         
     save_db(db)
-    return jsonify({"status": "success"})
+    return jsonify({
+        "status": "success",
+        "balls": db['user_profiles'][uid]['balls']
+    })
 
 @app.route('/api/sessions/start', methods=['POST'])
 def start_session():
@@ -831,10 +852,26 @@ def end_session():
             s['end_time'] = get_ist_iso()
             s['status'] = "completed" if not early_exit else "early_exit"
             
-            earned = 45 if not early_exit else 10
+            # Calculate actual duration focused
+            start = parse_ist_datetime(s.get('start_time'))
+            end = parse_ist_datetime(s.get('end_time'))
+            duration_mins = 0.0
+            if start and end:
+                duration_mins = max(0.0, (end - start).total_seconds() / 60.0)
+            
+            # Proportional rewards: 1 Dragon Ball per minute focused
+            if not early_exit:
+                earned = max(1, int(round(duration_mins)))
+            else:
+                earned = max(1, int(round(duration_mins * 0.5))) # 50% reward for early exit
+                
             db['user_profiles'][uid]['balls'] += earned
             save_db(db)
-            return jsonify({"status": "success", "balls_earned": earned})
+            return jsonify({
+                "status": "success", 
+                "balls_earned": earned,
+                "balls": db['user_profiles'][uid]['balls']
+            })
             
     return jsonify({"status": "error", "message": "Session not found"}), 404
 

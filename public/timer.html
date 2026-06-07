@@ -344,6 +344,9 @@
                 });
                 const data = await res.json();
                 if (data.balls_earned && !early) showCustomAlert('Level Up!', `Session Saved! You earned ${data.balls_earned} Dragon Balls.`);
+                if (data.balls !== undefined) {
+                    localStorage.setItem('primeedu_balls', data.balls);
+                }
             } catch (e) { console.error('API Error:', e); }
             currentSessionId = null;
             saveTimerState();
@@ -421,11 +424,18 @@
             endSessionAPI(false);
             
             let val = parseInt(document.getElementById('custom-minutes').value) || 25;
-            let sessionModeName = mode === 'pomodoro' ? `Pomodoro ${pomodoroCount}` : `Custom duration ${val}m`;
             let durationMins = val;
             if (mode === 'stopwatch') {
-                sessionModeName = 'Stopwatch';
                 durationMins = Math.max(1, Math.round(seconds / 60)); 
+            } else {
+                const totalSecs = val * 60;
+                const elapsedSecs = Math.max(0, totalSecs - seconds);
+                durationMins = Math.max(1, Math.round(elapsedSecs / 60));
+            }
+            
+            let sessionModeName = mode === 'pomodoro' ? `Pomodoro ${pomodoroCount} (${durationMins}m)` : `Custom duration (${durationMins}m)`;
+            if (mode === 'stopwatch') {
+                sessionModeName = `Stopwatch (${durationMins}m)`;
             }
 
             let sessions = getStoredSessions();

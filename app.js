@@ -337,7 +337,11 @@ document.addEventListener('DOMContentLoaded', () => {
                 });
                 const data = await res.json();
                 if (res.ok) {
-                    if (data.balls !== undefined) updateDragonBalls(0); // Will reload from backend shortly anyway
+                    if (data.balls !== undefined) {
+                        const el = document.getElementById('ball-count');
+                        if (el) el.innerText = data.balls.toLocaleString();
+                        localStorage.setItem('primeedu_balls', data.balls);
+                    }
                     loadDestinies();
                 }
             } catch (e) { console.error(e); }
@@ -352,7 +356,10 @@ document.addEventListener('DOMContentLoaded', () => {
             const res = await fetch(window.API_BASE_URL + '/api/user/profile');
             const user = await res.json();
             // Update UI elements while we have the profile
-            if (user.balls !== undefined) document.getElementById('ball-count').innerText = user.balls.toLocaleString();
+            if (user.balls !== undefined) {
+                document.getElementById('ball-count').innerText = user.balls.toLocaleString();
+                localStorage.setItem('primeedu_balls', user.balls);
+            }
             if (user.streak !== undefined) document.querySelector('.user-stats .stat-card:first-child .stat-value').innerText = user.streak;
             if (user.leaderboard_name && document.getElementById('user-greeting')) {
                 document.getElementById('user-greeting').innerText = `Ascended Warrior ${user.leaderboard_name}`;
@@ -485,11 +492,20 @@ document.addEventListener('DOMContentLoaded', () => {
     async function saveTasks() {
         localStorage.setItem('primeedu_manual_tasks', JSON.stringify(manualTasks));
         try {
-            await fetch(window.API_BASE_URL + '/api/tasks/sync', {
+            const res = await fetch(window.API_BASE_URL + '/api/tasks/sync', {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
+                headers: { 
+                    'Content-Type': 'application/json',
+                    'Authorization': 'Bearer ' + localStorage.getItem('primeedu_token')
+                },
                 body: JSON.stringify({ tasks: manualTasks })
             });
+            const data = await res.json();
+            if (data.status === 'success' && data.balls !== undefined) {
+                const el = document.getElementById('ball-count');
+                if (el) el.innerText = data.balls.toLocaleString();
+                localStorage.setItem('primeedu_balls', data.balls);
+            }
         } catch (e) { }
     }
     renderTasks();
@@ -693,6 +709,13 @@ document.addEventListener('DOMContentLoaded', () => {
     if (savedBalls && document.getElementById('ball-count')) {
         document.getElementById('ball-count').innerText = parseInt(savedBalls).toLocaleString();
     }
+    window.addEventListener('storage', (e) => {
+        if (e.key === 'primeedu_balls') {
+            const count = parseInt(e.newValue) || 0;
+            const el = document.getElementById('ball-count');
+            if (el) el.innerText = count.toLocaleString();
+        }
+    });
 
     // ═══════════════ NEURAL FOCUS TIMER (V4 - PERSISTENT) ═══════════════
     let focusInterval = null;

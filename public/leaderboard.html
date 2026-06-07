@@ -600,6 +600,11 @@
             }
         }
         loadLeaderboard();
+        window.addEventListener('storage', (e) => {
+            if (e.key === 'primeedu_balls') {
+                loadLeaderboard();
+            }
+        });
 
         function shareLeaderboard() {
             const text = "Check out my rank on the PrimeEDU Leaderboard! Only the most consistent warriors make it to the top. Can you beat me?";

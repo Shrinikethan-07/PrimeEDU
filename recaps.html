@@ -492,7 +492,10 @@
 
             let dynamicData = {};
             try {
-                const response = await fetch(window.API_BASE_URL + '/api/recap/dynamic');
+                const token = localStorage.getItem('primeedu_token');
+                const response = await fetch(window.API_BASE_URL + '/api/recap/dynamic', {
+                    headers: { 'Authorization': 'Bearer ' + token }
+                });
                 if (response.ok) {
                     dynamicData = await response.json();
                 }

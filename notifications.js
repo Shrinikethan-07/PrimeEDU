@@ -204,6 +204,39 @@
         }
     }
 
+    // 5. Background focus timer monitoring
+    let timerFinishedNotified = {}; // track notified session IDs to avoid duplicate alerts
+
+    function checkBackgroundTimer() {
+        const saved = localStorage.getItem('primeedu_timer_state');
+        if (!saved) return;
+        try {
+            const state = JSON.parse(saved);
+            // Only handle countdown timers (Pomodoro or Custom), stopwatch has no targetEndTime
+            if (state.isRunning && state.mode !== 'stopwatch' && state.targetEndTime && state.currentSessionId) {
+                const remaining = Math.round((state.targetEndTime - Date.now()) / 1000);
+                if (remaining <= 0 && !timerFinishedNotified[state.currentSessionId]) {
+                    timerFinishedNotified[state.currentSessionId] = true;
+                    
+                    // Show premium notification (both browser native notification and glassmorphic toast)
+                    window.showPremiumNotification(
+                        "Session Completed!", 
+                        `Excellent work! You finished your study focus on ${state.currentSubject || 'your subject'}.`, 
+                        "green"
+                    );
+                    
+                    // Update the state so that returning to timer.html opens the save modal
+                    state.isRunning = false;
+                    state.isSaveModalOpen = true;
+                    state.seconds = 0;
+                    localStorage.setItem('primeedu_timer_state', JSON.stringify(state));
+                }
+            }
+        } catch (e) {
+            console.error("Error monitoring background timer:", e);
+        }
+    }
+
     // Initialize
     document.addEventListener('DOMContentLoaded', () => {
         ensureToastContainer();
@@ -213,5 +246,8 @@
         setInterval(pollChallenges, 15000);
         // Initial delay to avoid duplicate on-load fetch collisions
         setTimeout(pollChallenges, 3000);
+        
+        // Monitor timer state every second in the background of all tabs
+        setInterval(checkBackgroundTimer, 1000);
     });
 })();
