@@ -534,7 +534,8 @@ Stay focused on your journey!
         try:
             server = smtplib.SMTP(smtp_host, smtp_port, timeout=10.0)
             server.starttls()
-            server.login(smtp_email, smtp_password)
+            smtp_user = os.environ.get('SMTP_USER', smtp_email)
+            server.login(smtp_user, smtp_password)
             server.sendmail(smtp_email, to_email, msg.as_string())
             print(f"[SMTP] Successfully sent OTP email to {to_email}")
             return True
