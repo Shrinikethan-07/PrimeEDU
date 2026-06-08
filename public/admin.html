@@ -33,7 +33,11 @@
         #unauthorized-view { display: none; text-align: center; margin-top: 100px; }
     </style>
 <script>
-    window.API_BASE_URL = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' ? '' : 'https://primeedu.onrender.com';
+    const isLocal = window.location.hostname === 'localhost' || 
+                    window.location.hostname === '127.0.0.1' || 
+                    window.location.protocol === 'file:' || 
+                    window.location.hostname === '';
+    window.API_BASE_URL = isLocal ? 'http://127.0.0.1:5000' : 'https://primeedu.onrender.com';
 </script>
 </head>
 <body>

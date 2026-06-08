@@ -524,13 +524,23 @@ Stay focused on your journey!
         msg.attach(MIMEText(body, 'plain'))
         
         # Support default smtp.gmail.com
-        server = smtplib.SMTP('smtp.gmail.com', 587)
-        server.starttls()
-        server.login(smtp_email, smtp_password)
-        server.sendmail(smtp_email, to_email, msg.as_string())
-        server.quit()
-        print(f"[SMTP] Successfully sent OTP email to {to_email}")
-        return True
+        server = None
+        try:
+            server = smtplib.SMTP('smtp.gmail.com', 587, timeout=10.0)
+            server.starttls()
+            server.login(smtp_email, smtp_password)
+            server.sendmail(smtp_email, to_email, msg.as_string())
+            print(f"[SMTP] Successfully sent OTP email to {to_email}")
+            return True
+        except Exception as smtp_err:
+            print(f"[SMTP ERROR] SMTP connection/sending failed: {smtp_err}")
+            raise smtp_err
+        finally:
+            if server:
+                try:
+                    server.quit()
+                except Exception:
+                    pass
     except Exception as e:
         print(f"[SMTP ERROR] Failed to send OTP email: {e}")
         return False
