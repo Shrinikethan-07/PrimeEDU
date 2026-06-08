@@ -523,10 +523,16 @@ Stay focused on your journey!
 """
         msg.attach(MIMEText(body, 'plain'))
         
-        # Support default smtp.gmail.com
+        # Support custom SMTP server (e.g. Brevo on port 2525 to bypass Render blocks)
+        smtp_host = os.environ.get('SMTP_HOST', 'smtp.gmail.com')
+        try:
+            smtp_port = int(os.environ.get('SMTP_PORT', '587'))
+        except ValueError:
+            smtp_port = 587
+            
         server = None
         try:
-            server = smtplib.SMTP('smtp.gmail.com', 587, timeout=10.0)
+            server = smtplib.SMTP(smtp_host, smtp_port, timeout=10.0)
             server.starttls()
             server.login(smtp_email, smtp_password)
             server.sendmail(smtp_email, to_email, msg.as_string())
