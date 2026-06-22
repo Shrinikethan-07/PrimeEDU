@@ -105,32 +105,40 @@ class VisualizerAgent:
         completed_sessions = [s for s in sessions if s.get('status') == 'completed']
         total_focus_minutes = 0
         for s in completed_sessions:
-            try:
-                start_str = s.get('start_time')
-                end_str = s.get('end_time')
-                if start_str and end_str:
-                    if isinstance(start_str, str) and start_str.endswith('Z'):
-                        start_str = start_str[:-1] + '+00:00'
-                    if isinstance(end_str, str) and end_str.endswith('Z'):
-                        end_str = end_str[:-1] + '+00:00'
-                    start = datetime.fromisoformat(start_str)
-                    end = datetime.fromisoformat(end_str)
-                    if start.tzinfo is None:
-                        start = start.replace(tzinfo=timezone(timedelta(hours=5, minutes=30)))
-                    else:
-                        start = start.astimezone(timezone(timedelta(hours=5, minutes=30)))
-                    if end.tzinfo is None:
-                        end = end.replace(tzinfo=timezone(timedelta(hours=5, minutes=30)))
-                    else:
-                        end = end.astimezone(timezone(timedelta(hours=5, minutes=30)))
-                    total_focus_minutes += (end - start).total_seconds() / 60.0
-            except Exception:
-                pass
+            if s.get('duration_minutes') is not None:
+                total_focus_minutes += float(s['duration_minutes'])
+            else:
+                try:
+                    start_str = s.get('start_time')
+                    end_str = s.get('end_time')
+                    if start_str and end_str:
+                        if isinstance(start_str, str) and start_str.endswith('Z'):
+                            start_str = start_str[:-1] + '+00:00'
+                        if isinstance(end_str, str) and end_str.endswith('Z'):
+                            end_str = end_str[:-1] + '+00:00'
+                        start = datetime.fromisoformat(start_str)
+                        end = datetime.fromisoformat(end_str)
+                        if start.tzinfo is None:
+                            start = start.replace(tzinfo=timezone(timedelta(hours=5, minutes=30)))
+                        else:
+                            start = start.astimezone(timezone(timedelta(hours=5, minutes=30)))
+                        if end.tzinfo is None:
+                            end = end.replace(tzinfo=timezone(timedelta(hours=5, minutes=30)))
+                        else:
+                            end = end.astimezone(timezone(timedelta(hours=5, minutes=30)))
+                        total_focus_minutes += (end - start).total_seconds() / 60.0
+                except Exception:
+                    pass
         
         balls_earned = len(completed_sessions) * 45
         
+        if len(completed_sessions) == 0:
+            reason = "You have completed 0 focus sessions so far. Time to forge your discipline—start your first focus session today to build your streak!"
+        else:
+            reason = f"You completed {len(completed_sessions)} focus sessions, logging {int(total_focus_minutes)} minutes of deep work. Excellent dedication to your goals."
+            
         return {
-            "reason": f"You completed {len(completed_sessions)} focus sessions, logging {int(total_focus_minutes)} minutes of deep work. Excellent dedication to your goals.",
+            "reason": reason,
             "image": "consistency_v2.png",
             "highlight_stat": str(balls_earned),
             "label": "EARNED"

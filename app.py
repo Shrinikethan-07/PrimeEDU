@@ -1101,15 +1101,29 @@ def end_session():
     
     for s in db['sessions']:
         if s['id'] == session_id and s.get('user_id') == uid:
+            # Prevent double-ending sessions and double-spending rewards
+            if s.get('status') in ["completed", "early_exit"]:
+                return jsonify({
+                    "status": "success", 
+                    "balls_earned": 0,
+                    "balls": db['user_profiles'][uid]['balls']
+                })
+                
             s['end_time'] = get_ist_iso()
             s['status'] = "completed" if not early_exit else "early_exit"
             
-            # Calculate actual duration focused
-            start = parse_ist_datetime(s.get('start_time'))
-            end = parse_ist_datetime(s.get('end_time'))
-            duration_mins = 0.0
-            if start and end:
-                duration_mins = max(0.0, (end - start).total_seconds() / 60.0)
+            # Calculate actual duration focused (use client value if provided)
+            duration_mins = data.get("duration_minutes")
+            if duration_mins is None:
+                start = parse_ist_datetime(s.get('start_time'))
+                end = parse_ist_datetime(s.get('end_time'))
+                duration_mins = 0.0
+                if start and end:
+                    duration_mins = max(0.0, (end - start).total_seconds() / 60.0)
+            else:
+                duration_mins = max(0.0, float(duration_mins))
+            
+            s['duration_minutes'] = duration_mins
             
             # Proportional rewards: 1 Dragon Ball per minute focused
             if not early_exit:
@@ -1162,7 +1176,10 @@ def get_study_hours_by_day(sessions, days_count):
                     else:
                         end = end.astimezone(timezone(timedelta(hours=5, minutes=30)))
                         
-                    duration_hrs = max(0.0, (end - start).total_seconds() / 3600.0)
+                    if s.get('duration_minutes') is not None:
+                        duration_hrs = float(s['duration_minutes']) / 60.0
+                    else:
+                        duration_hrs = max(0.0, (end - start).total_seconds() / 3600.0)
                     s_date = start.date()
                     if s_date in dates:
                         idx = dates.index(s_date)
@@ -1170,11 +1187,6 @@ def get_study_hours_by_day(sessions, days_count):
             except Exception:
                 pass
                 
-    # If no data, populate mock data for testing
-    if sum(hours) == 0.0:
-        for idx in range(days_count):
-            hours[idx] = round(random.uniform(0.5, 3.5), 1)
-            
     return hours, labels
 
 def get_study_hours_by_month(sessions):
@@ -1217,7 +1229,10 @@ def get_study_hours_by_month(sessions):
                     else:
                         end = end.astimezone(timezone(timedelta(hours=5, minutes=30)))
                         
-                    duration_hrs = max(0.0, (end - start).total_seconds() / 3600.0)
+                    if s.get('duration_minutes') is not None:
+                        duration_hrs = float(s['duration_minutes']) / 60.0
+                    else:
+                        duration_hrs = max(0.0, (end - start).total_seconds() / 3600.0)
                     s_ym = (start.year, start.month)
                     if s_ym in months:
                         idx = months.index(s_ym)
@@ -1225,10 +1240,6 @@ def get_study_hours_by_month(sessions):
             except Exception:
                 pass
                 
-    if sum(hours) == 0.0:
-        for idx in range(12):
-            hours[idx] = round(random.uniform(10.0, 45.0), 1)
-            
     return hours, labels
 
 def get_study_hours_by_subject(sessions, days_count=30):
@@ -1261,7 +1272,10 @@ def get_study_hours_by_subject(sessions, days_count=30):
                         end = end.astimezone(timezone(timedelta(hours=5, minutes=30)))
                         
                     if start.date() >= cutoff_date:
-                        duration_hrs = max(0.0, (end - start).total_seconds() / 3600.0)
+                        if s.get('duration_minutes') is not None:
+                            duration_hrs = float(s['duration_minutes']) / 60.0
+                        else:
+                            duration_hrs = max(0.0, (end - start).total_seconds() / 3600.0)
                         subj = s.get('subject') or 'General'
                         subj = subj.strip().capitalize()
                         subject_hours[subj] = subject_hours.get(subj, 0.0) + duration_hrs
@@ -1270,10 +1284,10 @@ def get_study_hours_by_subject(sessions, days_count=30):
                 
     if not subject_hours:
         subject_hours = {
-            "Physics": round(random.uniform(5.0, 20.0), 1),
-            "Chemistry": round(random.uniform(5.0, 20.0), 1),
-            "Maths": round(random.uniform(5.0, 20.0), 1),
-            "Biology": round(random.uniform(5.0, 20.0), 1)
+            "Physics": 0.0,
+            "Chemistry": 0.0,
+            "Maths": 0.0,
+            "Biology": 0.0
         }
         
     sorted_subjs = sorted(subject_hours.items(), key=lambda x: x[1], reverse=True)[:5]

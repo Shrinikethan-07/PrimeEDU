@@ -15,7 +15,7 @@
     <style>
         .recap-grid {
             display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+            grid-template-columns: repeat(auto-fill, minmax(290px, 1fr));
             gap: 2rem;
             padding: 1.5rem 0;
         }
@@ -364,6 +364,11 @@
             const poster = document.createElement('div');
             poster.className = 'recap-poster';
             poster.style.animationDelay = `${index * 0.12}s`;
+            poster.style.cursor = 'zoom-in';
+            poster.addEventListener('click', function(e) {
+                if (e.target.closest('.share-menu-wrap')) return;
+                openZoomCard(poster.outerHTML);
+            });
 
             const escapedTitle = (data.title || '').replace(/'/g, "\\'");
             const escapedContent = (data.content || data.statLabel || '').replace(/'/g, "\\'");
@@ -442,6 +447,28 @@
                 showShareToast('Image downloaded! Share it with the universe ✓');
             });
         }
+
+        window.openZoomCard = function(cardHtml) {
+            const target = document.getElementById('zoom-card-target');
+            target.innerHTML = cardHtml;
+            const shareMenu = target.querySelector('.share-menu-wrap');
+            if (shareMenu) shareMenu.remove();
+            const poster = target.querySelector('.recap-poster');
+            if (poster) {
+                poster.style.transform = 'none';
+                poster.style.boxShadow = '0 20px 50px rgba(0,243,255,0.3)';
+                poster.style.borderColor = 'var(--neon-cyan)';
+                poster.style.animation = 'none';
+                poster.style.cursor = 'default';
+                poster.style.width = '100%';
+                poster.style.maxWidth = '100%';
+            }
+            document.getElementById('zoom-modal').style.display = 'flex';
+        };
+
+        window.closeZoomModal = function() {
+            document.getElementById('zoom-modal').style.display = 'none';
+        };
 
         // ═══ INIT RECAPS ═══
         async function initRecaps() {
@@ -560,6 +587,12 @@
         adminLinks.forEach(link => link.style.display = 'flex');
     }
 </script>
+    <div class="modal-overlay" id="zoom-modal" style="display: none; z-index: 20000; align-items: center; justify-content: center; background: rgba(5, 2, 10, 0.9); position: fixed; top: 0; left: 0; width: 100%; height: 100%;">
+        <div class="zoom-modal-container" style="position: relative; max-width: 500px; width: 90%; transform: scale(1.1); transition: transform 0.3s; z-index: 20001;">
+            <button class="neon-btn" style="position: absolute; top: -45px; right: 0; padding: 0.5rem 1rem; border-color: var(--neon-pink); color: var(--neon-pink); cursor: pointer;" onclick="closeZoomModal()"><i class="fas fa-times"></i> CLOSE</button>
+            <div id="zoom-card-target"></div>
+        </div>
+    </div>
 <script src="notifications.js"></script>
 </body>
 </html>

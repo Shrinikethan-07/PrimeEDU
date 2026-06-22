@@ -279,7 +279,7 @@
             return response;
         };
 
-        let timer, seconds = 1500, isRunning = false, mode = 'pomodoro', currentSubject = 'Physics', currentSessionId = null;
+        let timer, seconds = 1500, startingSeconds = 1500, isRunning = false, mode = 'pomodoro', currentSubject = 'Physics', currentSessionId = null;
         let pomodoroCount = 1;
         let targetEndTime = null;
         let stopwatchStartTime = null;
@@ -297,7 +297,8 @@
                 seconds: seconds,
                 pomodoroCount: pomodoroCount,
                 stopwatchStartTime: (mode === 'stopwatch' && isRunning) ? stopwatchStartTime : null,
-                isSaveModalOpen: isSaveModalOpen
+                isSaveModalOpen: isSaveModalOpen,
+                startingSeconds: startingSeconds
             };
             localStorage.setItem(TIMER_STATE_KEY, JSON.stringify(state));
         }
@@ -334,9 +335,18 @@
             document.getElementById('alert-modal').style.display = 'flex';
         }
 
-        async function endSessionAPI(early = false) {
-            if (!currentSessionId) return;
+        async function endSessionAPI(early = false, durationMins = 0) {
+            const sessId = currentSessionId;
+            
+            // Clear local session state immediately to prevent reload duplicates
+            currentSessionId = null;
+            isSaveModalOpen = false;
+            isRunning = false;
+            saveTimerState();
+            
+            if (!sessId) return;
             const token = localStorage.getItem('primeedu_token');
+            
             try {
                 const res = await fetch(window.API_BASE_URL + '/api/sessions/end', {
                     method: 'POST',
@@ -344,7 +354,11 @@
                         'Content-Type': 'application/json',
                         'Authorization': 'Bearer ' + token
                     },
-                    body: JSON.stringify({ session_id: currentSessionId, early_exit: early })
+                    body: JSON.stringify({ 
+                        session_id: sessId, 
+                        early_exit: early,
+                        duration_minutes: durationMins
+                    })
                 });
                 const data = await res.json();
                 if (data.balls_earned && !early) showCustomAlert('Level Up!', `Session Saved! You earned ${data.balls_earned} Dragon Balls.`);
@@ -352,14 +366,58 @@
                     localStorage.setItem('primeedu_balls', data.balls);
                 }
             } catch (e) { console.error('API Error:', e); }
-            currentSessionId = null;
-            saveTimerState();
         }
 
         window.cancelSession = function() {
             isSaveModalOpen = false;
             document.getElementById('save-modal').style.display = 'none';
-            endSessionAPI(true);
+            
+            let durationMins = 0;
+            if (mode === 'stopwatch') {
+                durationMins = Math.max(0, Math.round(seconds / 60));
+            } else {
+                const elapsedSecs = Math.max(0, (startingSeconds || 0) - seconds);
+                durationMins = Math.max(0, Math.round(elapsedSecs / 60));
+            }
+            
+            endSessionAPI(true, durationMins);
+            resetTimerValue();
+        };
+
+        window.confirmSaveSession = function() {
+            isSaveModalOpen = false;
+            document.getElementById('save-modal').style.display = 'none';
+            
+            let durationMins = 0;
+            if (mode === 'stopwatch') {
+                durationMins = Math.max(1, Math.round(seconds / 60)); 
+            } else {
+                const elapsedSecs = Math.max(0, (startingSeconds || 0) - seconds);
+                durationMins = Math.max(1, Math.round(elapsedSecs / 60));
+            }
+            
+            endSessionAPI(false, durationMins);
+            
+            let sessionModeName = mode === 'pomodoro' ? `Pomodoro ${pomodoroCount} (${durationMins}m)` : `Custom duration (${durationMins}m)`;
+            if (mode === 'stopwatch') {
+                sessionModeName = `Stopwatch (${durationMins}m)`;
+            }
+
+            let sessions = getStoredSessions();
+            sessions.unshift({
+                subject: currentSubject,
+                mode: sessionModeName,
+                timestamp: Date.now()
+            });
+            localStorage.setItem(SESSION_STORAGE_KEY, JSON.stringify(sessions));
+
+            let stats = getYearlyStats();
+            stats[currentSubject] = (stats[currentSubject] || 0) + durationMins;
+            localStorage.setItem(YEARLY_STATS_KEY, JSON.stringify(stats));
+
+            renderSessions();
+
+            if (mode === 'pomodoro') pomodoroCount++;
             resetTimerValue();
         };
 
@@ -527,7 +585,10 @@
                 stopwatchStartTime = Date.now() - (seconds * 1000);
             }
             
-            if(!currentSessionId) startSessionAPI();
+            if(!currentSessionId) {
+                startingSeconds = seconds;
+                startSessionAPI();
+            }
             saveTimerState();
             
             timer = setInterval(() => {
@@ -677,6 +738,7 @@
                 currentSessionId = state.currentSessionId || null;
                 pomodoroCount = state.pomodoroCount || 1;
                 isSaveModalOpen = state.isSaveModalOpen || false;
+                startingSeconds = state.startingSeconds || state.seconds || 1500;
                 
                 // Restore active subject selection UI
                 document.querySelectorAll('.subject-tag').forEach(t => {
