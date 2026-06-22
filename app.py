@@ -1,8 +1,10 @@
-from flask import Flask, render_template, request, jsonify, send_from_directory
+from flask import Flask, render_template, request, jsonify, send_from_directory, g, has_app_context
 from flask_cors import CORS
 import os
 import json
 import psycopg2
+import sqlite3
+import copy
 from datetime import datetime, timedelta, timezone
 import asyncio
 import secrets
@@ -92,133 +94,284 @@ def sanitize_timestamps(db):
 
 DATABASE_URL = os.environ.get('DATABASE_URL')
 
-def init_postgres():
-    if not DATABASE_URL:
-        print("[INFO] No DATABASE_URL set. Storing data locally.")
-        return
-    try:
-        conn = psycopg2.connect(DATABASE_URL)
-        cur = conn.cursor()
-        cur.execute("""
-            CREATE TABLE IF NOT EXISTS primeedu_db (
-                id INT PRIMARY KEY,
-                data JSONB
+TABLES_SCHEMA = {
+    "user_profiles": "email",
+    "sessions": "id",
+    "tasks": "id",
+    "syllabus_progress": "email",
+    "topic_notes": "email",
+    "journal": "id",
+    "custom_syllabus": "subject",
+    "clans": "clan_id"
+}
+
+def init_normalized_tables(conn):
+    cur = conn.cursor()
+    data_type = "JSONB" if DATABASE_URL else "TEXT"
+    for table_name, pk_col in TABLES_SCHEMA.items():
+        cur.execute(f"""
+            CREATE TABLE IF NOT EXISTS {table_name} (
+                {pk_col} TEXT PRIMARY KEY,
+                data {data_type}
             );
         """)
-        cur.execute("SELECT COUNT(*) FROM primeedu_db WHERE id = 1;")
-        if cur.fetchone()[0] == 0:
-            template = {
-                "user_profiles": {},
-                "sessions": [],
-                "tasks": [],
-                "syllabus_progress": {},
-                "topic_notes": {},
-                "journal": [],
-                "custom_syllabus": {
-                    "physics": [], "chemistry": [], "biology": [], "mathematics": []
-                },
-                "clans": {}
-            }
-            cur.execute("INSERT INTO primeedu_db (id, data) VALUES (1, %s);", (json.dumps(template),))
+    conn.commit()
+    cur.close()
+
+def execute_upsert_internal(cur, table, key_col, key_val, data_val):
+    if DATABASE_URL:
+        sql = f"""
+            INSERT INTO {table} ({key_col}, data)
+            VALUES (%s, %s)
+            ON CONFLICT ({key_col}) DO UPDATE SET data = EXCLUDED.data;
+        """
+        cur.execute(sql, (key_val, json.dumps(data_val)))
+    else:
+        sql = f"""
+            INSERT OR REPLACE INTO {table} ({key_col}, data)
+            VALUES (?, ?);
+        """
+        cur.execute(sql, (key_val, json.dumps(data_val)))
+
+def migrate_legacy_data(conn):
+    legacy_data = None
+    
+    # Check Postgres legacy data
+    if DATABASE_URL:
+        try:
+            cur = conn.cursor()
+            cur.execute("""
+                SELECT EXISTS (
+                    SELECT FROM information_schema.tables 
+                    WHERE table_name = 'primeedu_db'
+                );
+            """)
+            if cur.fetchone()[0]:
+                cur.execute("SELECT data FROM primeedu_db WHERE id = 1;")
+                row = cur.fetchone()
+                if row:
+                    legacy_data = row[0]
+                    if isinstance(legacy_data, str):
+                        legacy_data = json.loads(legacy_data)
+            cur.close()
+        except Exception as e:
+            print(f"[ERROR] Checking legacy Postgres DB: {e}")
+            
+    # Check SQLite/local file legacy data
+    if not legacy_data and os.path.exists(DB_PATH):
+        try:
+            with open(DB_PATH, 'r') as f:
+                legacy_data = json.load(f)
+        except Exception as e:
+            print(f"[ERROR] Reading legacy local DB file: {e}")
+            
+    if not legacy_data:
+        return
+        
+    print("[INFO] Migrating legacy database to normalized tables...")
+    try:
+        cur = conn.cursor()
+        for table_name, pk_col in TABLES_SCHEMA.items():
+            legacy_val = legacy_data.get(table_name)
+            if not legacy_val:
+                continue
+                
+            if isinstance(legacy_val, dict):
+                for pk_val, item_data in legacy_val.items():
+                    execute_upsert_internal(cur, table_name, pk_col, str(pk_val), item_data)
+            elif isinstance(legacy_val, list):
+                for item in legacy_val:
+                    pk_val = item.get(pk_col)
+                    if pk_val is not None:
+                        execute_upsert_internal(cur, table_name, pk_col, str(pk_val), item)
+                        
         conn.commit()
         cur.close()
-        conn.close()
-        print("[INFO] PostgreSQL database initialized successfully.")
+        print("[INFO] Migration completed successfully!")
+        
+        # Clean up legacy database
+        if DATABASE_URL:
+            try:
+                cur = conn.cursor()
+                cur.execute("DROP TABLE IF EXISTS primeedu_db;")
+                conn.commit()
+                cur.close()
+                print("[INFO] Dropped legacy primeedu_db table.")
+            except Exception as e:
+                print(f"[ERROR] Failed to drop legacy table: {e}")
+        else:
+            try:
+                backup_path = DB_PATH + ".bak"
+                if os.path.exists(DB_PATH):
+                    os.rename(DB_PATH, backup_path)
+                    print(f"[INFO] Renamed legacy DB file to {backup_path}")
+            except Exception as e:
+                print(f"[ERROR] Failed to rename legacy DB file: {e}")
+                
     except Exception as e:
-        print(f"[ERROR] Failed to initialize PostgreSQL database: {e}")
+        print(f"[ERROR] Migration failed: {e}")
+        conn.rollback()
 
-def init_db():
-    global _DB_CACHE
-    if not os.path.exists('data'):
-        os.makedirs('data')
-    if not os.path.exists(DB_PATH):
-        _DB_CACHE = {
-            "user_profiles": {},
-            "sessions": [],
-            "tasks": [],
-            "syllabus_progress": {},
-            "topic_notes": {},
-            "journal": [],
-            "custom_syllabus": {
-                "physics": [], "chemistry": [], "biology": [], "mathematics": []
-            },
-            "clans": {}
-        }
-        with open(DB_PATH, 'w') as f:
-            json.dump(_DB_CACHE, f, indent=4)
+def get_conn():
+    if has_app_context():
+        if not hasattr(g, 'db_conn'):
+            if DATABASE_URL:
+                g.db_conn = psycopg2.connect(DATABASE_URL)
+            else:
+                g.db_conn = sqlite3.connect('data/primeedu.db')
+        return g.db_conn
     else:
-        with open(DB_PATH, 'r') as f:
-            _DB_CACHE = json.load(f)
-        if "clans" not in _DB_CACHE:
-            _DB_CACHE["clans"] = {}
-            with open(DB_PATH, 'w') as f:
-                json.dump(_DB_CACHE, f, indent=4)
+        if DATABASE_URL:
+            return psycopg2.connect(DATABASE_URL)
+        else:
+            if not os.path.exists('data'):
+                os.makedirs('data')
+            return sqlite3.connect('data/primeedu.db')
+
+@app.teardown_appcontext
+def close_db_connection(exception):
+    conn = getattr(g, 'db_conn', None)
+    if conn is not None:
+        try:
+            conn.close()
+        except Exception:
+            pass
+
+def load_db_normalized(conn):
+    db_dict = {
+        "user_profiles": {},
+        "sessions": [],
+        "tasks": [],
+        "syllabus_progress": {},
+        "topic_notes": {},
+        "journal": [],
+        "custom_syllabus": {
+            "physics": [], "chemistry": [], "biology": [], "mathematics": []
+        },
+        "clans": {}
+    }
+    cur = conn.cursor()
+    for table_name, pk_col in TABLES_SCHEMA.items():
+        try:
+            cur.execute(f"SELECT {pk_col}, data FROM {table_name};")
+            rows = cur.fetchall()
+            for pk_val, data_val in rows:
+                if isinstance(data_val, str):
+                    data_val = json.loads(data_val)
+                
+                if table_name in ["user_profiles", "syllabus_progress", "topic_notes", "clans"]:
+                    db_dict[table_name][pk_val] = data_val
+                elif table_name == "custom_syllabus":
+                    db_dict[table_name][pk_val] = data_val
+                else:  # sessions, tasks, journal
+                    db_dict[table_name].append(data_val)
+        except Exception as e:
+            print(f"[ERROR] Failed to load table {table_name}: {e}")
+    cur.close()
+    return db_dict
+
+def save_db_normalized(conn, new_db, old_db):
+    cur = conn.cursor()
+    for table_name, pk_col in TABLES_SCHEMA.items():
+        new_val = new_db.get(table_name)
+        old_val = old_db.get(table_name) if old_db else None
+        
+        if table_name in ["user_profiles", "syllabus_progress", "topic_notes", "custom_syllabus", "clans"]:
+            new_dict = new_val or {}
+            old_dict = old_val or {}
+            
+            for key, val in new_dict.items():
+                if key not in old_dict or old_dict[key] != val:
+                    execute_upsert_internal(cur, table_name, pk_col, str(key), val)
+                    
+            for key in old_dict.keys():
+                if key not in new_dict:
+                    cur.execute(f"DELETE FROM {table_name} WHERE {pk_col} = %s" if DATABASE_URL else f"DELETE FROM {table_name} WHERE {pk_col} = ?", (str(key),))
+        else:
+            new_list = new_val or []
+            old_list = old_val or []
+            
+            new_map = {str(item.get(pk_col)): item for item in new_list if item.get(pk_col) is not None}
+            old_map = {str(item.get(pk_col)): item for item in old_list if item.get(pk_col) is not None}
+            
+            for key, item in new_map.items():
+                if key not in old_map or old_map[key] != item:
+                    execute_upsert_internal(cur, table_name, pk_col, key, item)
+                    
+            for key in old_map.keys():
+                if key not in new_map:
+                    cur.execute(f"DELETE FROM {table_name} WHERE {pk_col} = %s" if DATABASE_URL else f"DELETE FROM {table_name} WHERE {pk_col} = ?", (key,))
+    conn.commit()
+    cur.close()
 
 def load_db():
     global _DB_CACHE
     with db_lock:
-        if DATABASE_URL:
-            try:
-                conn = psycopg2.connect(DATABASE_URL)
-                cur = conn.cursor()
-                cur.execute("SELECT data FROM primeedu_db WHERE id = 1;")
-                row = cur.fetchone()
-                if row:
-                    _DB_CACHE = row[0]
-                    if "clans" not in _DB_CACHE:
-                        _DB_CACHE["clans"] = {}
-                    
-                    # Prune and save if changed
-                    old_len_s = len(_DB_CACHE.get('sessions', []))
-                    old_len_j = len(_DB_CACHE.get('journal', []))
-                    prune_old_data(_DB_CACHE)
-                    sanitized = sanitize_timestamps(_DB_CACHE)
-                    if len(_DB_CACHE.get('sessions', [])) != old_len_s or len(_DB_CACHE.get('journal', [])) != old_len_j or sanitized:
-                        cur.execute("UPDATE primeedu_db SET data = %s WHERE id = 1;", (json.dumps(_DB_CACHE),))
-                        conn.commit()
-                    
-                    cur.close()
-                    conn.close()
-                    return _DB_CACHE
-                cur.close()
-                conn.close()
-            except Exception as e:
-                print(f"[ERROR] Failed to load from PostgreSQL, falling back to local file: {e}")
-                
-        if _DB_CACHE is None:
-            init_db()
+        if has_app_context() and hasattr(g, 'db_cache'):
+            return g.db_cache
             
-        old_len_s = len(_DB_CACHE.get('sessions', []))
-        old_len_j = len(_DB_CACHE.get('journal', []))
-        prune_old_data(_DB_CACHE)
-        sanitized = sanitize_timestamps(_DB_CACHE)
-        if len(_DB_CACHE.get('sessions', [])) != old_len_s or len(_DB_CACHE.get('journal', [])) != old_len_j or sanitized:
-            with open(DB_PATH, 'w') as f:
-                json.dump(_DB_CACHE, f, indent=4)
+        conn = get_conn()
+        try:
+            db_data = load_db_normalized(conn)
+            if has_app_context():
+                g.original_db_cache = copy.deepcopy(db_data)
+                g.db_cache = db_data
+            _DB_CACHE = db_data
+            
+            # Prune and sanitize
+            old_len_s = len(_DB_CACHE.get('sessions', []))
+            old_len_j = len(_DB_CACHE.get('journal', []))
+            prune_old_data(_DB_CACHE)
+            sanitized = sanitize_timestamps(_DB_CACHE)
+            if len(_DB_CACHE.get('sessions', [])) != old_len_s or len(_DB_CACHE.get('journal', [])) != old_len_j or sanitized:
+                save_db(_DB_CACHE)
                 
-        return _DB_CACHE
+            return _DB_CACHE
+        except Exception as e:
+            print(f"[ERROR] Failed to load database: {e}")
+            if _DB_CACHE is None:
+                _DB_CACHE = {
+                    "user_profiles": {}, "sessions": [], "tasks": [],
+                    "syllabus_progress": {}, "topic_notes": {}, "journal": [],
+                    "custom_syllabus": {"physics": [], "chemistry": [], "biology": [], "mathematics": []},
+                    "clans": {}
+                }
+            return _DB_CACHE
+        finally:
+            if not has_app_context():
+                conn.close()
 
 def save_db(data):
     global _DB_CACHE
     with db_lock:
-        _DB_CACHE = data
-        if DATABASE_URL:
-            try:
-                conn = psycopg2.connect(DATABASE_URL)
-                cur = conn.cursor()
-                cur.execute("UPDATE primeedu_db SET data = %s WHERE id = 1;", (json.dumps(data),))
-                conn.commit()
-                cur.close()
+        conn = get_conn()
+        try:
+            old_db = None
+            if has_app_context():
+                old_db = getattr(g, 'original_db_cache', None)
+            
+            save_db_normalized(conn, data, old_db)
+            
+            if has_app_context():
+                g.original_db_cache = copy.deepcopy(data)
+                g.db_cache = data
+            _DB_CACHE = data
+        except Exception as e:
+            print(f"[ERROR] Failed to save database: {e}")
+        finally:
+            if not has_app_context():
                 conn.close()
-                return
-            except Exception as e:
-                print(f"[ERROR] Failed to save to PostgreSQL: {e}")
-                
-        with open(DB_PATH, 'w') as f:
-            json.dump(data, f, indent=4)
 
-init_db()
-init_postgres()
+# Initialize tables and migrate legacy data on startup
+with app.app_context():
+    startup_conn = get_conn()
+    try:
+        init_normalized_tables(startup_conn)
+        migrate_legacy_data(startup_conn)
+    except Exception as startup_err:
+        print(f"[ERROR] Startup DB init/migration failed: {startup_err}")
+    finally:
+        startup_conn.close()
 
 def get_current_user(db):
     auth_header = request.headers.get('Authorization')
