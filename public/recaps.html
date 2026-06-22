@@ -446,9 +446,9 @@
         // ═══ INIT RECAPS ═══
         async function initRecaps() {
             let accountAgeDays = 1;
+            const token = localStorage.getItem('primeedu_token');
             try {
                 // We add token to headers just in case it's needed by the backend
-                const token = localStorage.getItem('primeedu_token');
                 const pRes = await fetch(window.API_BASE_URL + '/api/user/profile', {
                     headers: { 'Authorization': 'Bearer ' + token }
                 });
@@ -496,7 +496,6 @@
 
             let dynamicData = {};
             try {
-                const token = localStorage.getItem('primeedu_token');
                 const response = await fetch(window.API_BASE_URL + '/api/recap/dynamic', {
                     headers: { 'Authorization': 'Bearer ' + token }
                 });
@@ -513,7 +512,7 @@
                 applyLockOverlay('weekly-grid', 7, 'Weekly Insights');
             } else {
                 const weeklyData = [
-                    { title: "Weekly Grit", content: dynamicData.reason || 'You stayed disciplined and forged your mind daily.', type: 'chart', image: dynamicData.image || 'consistency_v2.png' },
+                    { title: "Weekly Grit", content: dynamicData.reason || 'You stayed disciplined and forged your mind daily.', type: 'chart', image: `${window.API_BASE_URL}/api/recap/graph/weekly_grit?token=${token}` },
                     { title: "Dragon Balls", statValue: dynamicData.highlight_stat || '150', statLabel: dynamicData.label || 'EARNED', type: 'stat' }
                 ];
                 weeklyData.forEach((d, i) => weeklyGrid.appendChild(createPoster(d, i)));
@@ -526,8 +525,8 @@
             } else {
                 const monthlyData = [
                     { title: "Identity", html: `<div style="font-size:0.85rem;color:var(--neon-purple);font-family:var(--font-heading);border:1px solid var(--neon-purple);padding:0.4rem 0.8rem;border-radius:8px;margin-bottom:0.75rem;">THE ALCHEMIST</div><p style="font-size:0.8rem;">Surgical Precision.</p><div style="background-image:url('https://i.pinimg.com/736x/97/4a/5b/974a5b6a4e8b3c2d1f0e9a8b7c6d5e4f.jpg');height:90px;background-size:cover;background-position:center;border-radius:12px;width:100%;"></div>` },
-                    { title: "Consistency", content: "28 Day Streak. Unstoppable.", type: 'chart', image: 'consistency_v2.png' },
-                    { title: "Knowledge", content: "3 Chapters Decoded.", type: 'chart', image: 'focus_bars.png' },
+                    { title: "Consistency", content: "Unstoppable study grit.", type: 'chart', image: `${window.API_BASE_URL}/api/recap/graph/consistency_monthly?token=${token}` },
+                    { title: "Knowledge", content: "Focus hours distributed by subject.", type: 'chart', image: `${window.API_BASE_URL}/api/recap/graph/knowledge_monthly?token=${token}` },
                     { title: "Focus Master", statValue: "154", statLabel: "HOURS", type: 'stat' }
                 ];
                 monthlyData.forEach((d, i) => monthlyGrid.appendChild(createPoster(d, i)));
@@ -539,9 +538,9 @@
                 applyLockOverlay('yearly-grid', 365, 'Yearly Legacy');
             } else {
                 const yearlyData = [
-                    { title: "Legacy", content: "Master of Deep Work.", type: 'chart', image: 'consistency_graph.png' },
+                    { title: "Legacy", content: "Yearly consistency trend.", type: 'chart', image: `${window.API_BASE_URL}/api/recap/graph/legacy_yearly?token=${token}` },
                     { title: "Chronos", statValue: "8,400", statLabel: "MINUTES", type: 'stat' },
-                    { title: "Growth Mindset", content: "Peak Form.", type: 'chart', image: 'focus_bars.png' },
+                    { title: "Growth Mindset", content: "Subject breakdown for legacy work.", type: 'chart', image: `${window.API_BASE_URL}/api/recap/graph/growth_yearly?token=${token}` },
                     { title: "The Scroll", statValue: "154", statLabel: "ENTRIES", type: 'stat' },
                     { title: "Final Form", html: `<div style="color:#ff00ea;font-family:var(--font-heading);border:1px solid #ff00ea;padding:0.4rem 0.8rem;border-radius:8px;font-size:0.8rem;margin-bottom:0.75rem;">ASCENDED WARRIOR</div><div style="background-image:url('https://i.pinimg.com/736x/4e/40/87/4e4087e01177d1c3ea5e7143e7284f9e.jpg');height:90px;background-size:cover;background-position:center;border-radius:12px;width:100%;"></div>` },
                     { title: "Prime Rating", statValue: "9.8", statLabel: "TIER S+", type: 'stat' }
