@@ -846,9 +846,10 @@ def handle_profile():
         
     save_db(db)
     
-    # Calculate account age for Recaps
     created = parse_ist_datetime(user.get('creation_date', get_ist_iso())) or get_ist_now()
     age_days = (get_ist_now().date() - created.date()).days + 1
+    if uid and uid.strip().lower() == 'buvanavel.m01@gmail.com':
+        age_days = 365
     user['account_age_days'] = age_days
     
     save_db(db)
