@@ -4,8 +4,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Leaderboard | PrimeEDU</title>
-    <meta name="description" content="PrimeEDU Royal Leaderboard — champions of consistency compete for glory.">
+    <title>Leaderboard | MavX Mndset</title>
+    <meta name="description" content="MavX Mndset Royal Leaderboard — champions of consistency compete for glory.">
     <link rel="stylesheet" href="style.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -312,7 +312,7 @@
     <!-- Leaderboard Intro Animation -->
     <div id="lb-intro" style="position: fixed; inset: 0; z-index: 10000; background: #0f172a; display: flex; align-items: center; justify-content: center; transition: opacity 0.5s ease 1s;">
         <div style="position: relative; width: 400px; height: 400px; display: flex; align-items: center; justify-content: center;">
-            <img src="assets/swords_shield.png" style="width: 100%; height: 100%; object-fit: contain; filter: drop-shadow(0 0 30px rgba(59, 130, 246, 0.5)); opacity: 0; animation: shieldPop 0.8s cubic-bezier(0.175, 0.885, 0.32, 1.275) 0.5s forwards;" alt="PrimeEDU Swords">
+            <img src="assets/swords_shield.png" style="width: 100%; height: 100%; object-fit: contain; filter: drop-shadow(0 0 30px rgba(59, 130, 246, 0.5)); opacity: 0; animation: shieldPop 0.8s cubic-bezier(0.175, 0.885, 0.32, 1.275) 0.5s forwards;" alt="MavX Mndset Swords">
         </div>
     </div>
 
@@ -320,7 +320,7 @@
         <nav class="sidebar">
             <div class="logo">
                 <i class="fas fa-bolt"></i>
-                <span>PrimeEDU</span>
+                <span>MavX Mndset</span>
             </div>
                         <ul class="nav-links">
                 <li class="nav-item"><a href="dashboard.html" class="nav-link"><i class="fas fa-th-large"></i><span>Dashboard</span></a></li>
@@ -611,10 +611,10 @@
         });
 
         function shareLeaderboard() {
-            const text = "Check out my rank on the PrimeEDU Leaderboard! Only the most consistent warriors make it to the top. Can you beat me?";
+            const text = "Check out my rank on the MavX Mndset Leaderboard! Only the most consistent warriors make it to the top. Can you beat me?";
             if (navigator.share) {
                 navigator.share({
-                    title: 'PrimeEDU Leaderboard',
+                    title: 'MavX Mndset Leaderboard',
                     text: text,
                     url: window.location.href
                 });
@@ -696,11 +696,11 @@
                 }
             });
             
-            const shareText = `🔥 I am currently Rank #${myRank} globally on PrimeEDU with ${balls} Dragon Balls!\n\nThe grind to mastery never stops. Join the arena.\n\n📚 PrimeEDU Warrior Journey: https://primeedu.web.app`;
+            const shareText = `🔥 I am currently Rank #${myRank} globally on MavX Mndset with ${balls} Dragon Balls!\n\nThe grind to mastery never stops. Join the arena.\n\n📚 MavX Mndset Warrior Journey: https://mavx-mndset.web.app`;
             
             if (navigator.share) {
                 navigator.share({
-                    title: 'My PrimeEDU Rank',
+                    title: 'My MavX Mndset Rank',
                     text: shareText
                 }).catch(err => console.log('Error sharing', err));
             } else {

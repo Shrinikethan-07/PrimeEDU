@@ -4,8 +4,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Recap Center | PrimeEDU</title>
-    <meta name="description" content="PrimeEDU Recap Center — your achievements immortalized in premium shareable cards.">
+    <title>Recap Center | MavX Mndset</title>
+    <meta name="description" content="MavX Mndset Recap Center — your achievements immortalized in premium shareable cards.">
     <link rel="stylesheet" href="style.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -219,7 +219,7 @@
         <nav class="sidebar">
             <div class="logo">
                 <i class="fas fa-bolt"></i>
-                <span>PrimeEDU</span>
+                <span>MavX Mndset</span>
             </div>
                         <ul class="nav-links">
                 <li class="nav-item"><a href="dashboard.html" class="nav-link"><i class="fas fa-th-large"></i><span>Dashboard</span></a></li>
@@ -328,23 +328,23 @@
         }
 
         function shareViaWhatsApp(title, text) {
-            const msg = encodeURIComponent(`🔥 ${title}\n${text}\n\n📚 PrimeEDU Warrior Journey\n${pageUrl}`);
+            const msg = encodeURIComponent(`🔥 ${title}\n${text}\n\n📚 MavX Mndset Warrior Journey\n${pageUrl}`);
             window.open(`https://api.whatsapp.com/send?text=${msg}`, '_blank');
         }
 
         function shareViaInsta(title) {
-            navigator.clipboard.writeText(`🔥 ${title} | PrimeEDU Warrior Journey 📚\n${pageUrl}`).then(() => {
+            navigator.clipboard.writeText(`🔥 ${title} | MavX Mndset Warrior Journey 📚\n${pageUrl}`).then(() => {
                 showShareToast('Caption copied! Open Instagram and paste it ✓');
             });
         }
 
         function shareViaTwitter(title, text) {
-            const tweet = encodeURIComponent(`🔥 ${title} — ${text}\n\n📚 PrimeEDU Warrior Journey\n${pageUrl}`);
+            const tweet = encodeURIComponent(`🔥 ${title} — ${text}\n\n📚 MavX Mndset Warrior Journey\n${pageUrl}`);
             window.open(`https://twitter.com/intent/tweet?text=${tweet}`, '_blank');
         }
 
         function copyShareLink(title, text) {
-            const content = `🔥 ${title}\n${text}\n\nPrimeEDU Warrior Journey: ${pageUrl}`;
+            const content = `🔥 ${title}\n${text}\n\nMavX Mndset Warrior Journey: ${pageUrl}`;
             navigator.clipboard.writeText(content).then(() => {
                 showShareToast('Link & recap copied to clipboard ✓');
             });
@@ -400,7 +400,7 @@
                     ` : ''}
                 </div>
 
-                <div style="position:absolute;bottom:58px;right:16px;font-size:0.55rem;opacity:0.4;font-family:var(--font-heading);color:var(--neon-cyan);letter-spacing:1px;">PRIMEEDU.AI</div>
+                <div style="position:absolute;bottom:58px;right:16px;font-size:0.55rem;opacity:0.4;font-family:var(--font-heading);color:var(--neon-cyan);letter-spacing:1px;">MAVXMNDSET.AI</div>
 
                 <div class="share-menu-wrap">
                     <button class="share-main-btn" onclick="toggleShareMenu(this)">
@@ -441,7 +441,7 @@
             html2canvas(poster, { backgroundColor: '#0d041a', scale: 2 }).then(canvas => {
                 shareWrap.style.display = 'block'; // Restore UI
                 const link = document.createElement('a');
-                link.download = 'PrimeEDU_Recap.png';
+                link.download = 'MavX_Mndset_Recap.png';
                 link.href = canvas.toDataURL();
                 link.click();
                 showShareToast('Image downloaded! Share it with the universe ✓');

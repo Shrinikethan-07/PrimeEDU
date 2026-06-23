@@ -656,30 +656,30 @@ def send_otp_email(to_email, otp, is_registration=False):
         msg['To'] = to_email
         
         if is_registration:
-            msg['Subject'] = "PrimeEDU - Warrior Registration Verification OTP"
+            msg['Subject'] = "MavX Mndset - Warrior Registration Verification OTP"
             body = f"""Greetings Warrior!
 
-Welcome to PrimeEDU. To complete your identity forging and verify your Google email address, please use the following OTP:
+Welcome to MavX Mndset. To complete your identity forging and verify your Google email address, please use the following OTP:
 
 Verification OTP: {otp}
 
 Enter this code in the registration form to finalize your registration.
 
 Stay focused on your journey!
-- PrimeEDU System
+- MavX Mndset System
 """
         else:
-            msg['Subject'] = "PrimeEDU - Warrior Password Reset OTP"
+            msg['Subject'] = "MavX Mndset - Warrior Password Reset OTP"
             body = f"""Greetings Warrior!
 
-You have requested a password reset for your PrimeEDU account.
+You have requested a password reset for your MavX Mndset account.
 
 Your Verification OTP is: {otp}
 
 Enter this code in the app to forge a new password. If you did not request this, please ignore this email.
 
 Stay focused on your journey!
-- PrimeEDU System
+- MavX Mndset System
 """
         msg.attach(MIMEText(body, 'plain'))
         
@@ -2097,5 +2097,5 @@ def list_challenges():
     return jsonify(clan.get('challenges', []))
 
 if __name__ == '__main__':
-    print("PrimeEDU Local Server Starting...")
+    print("MavX Mndset Local Server Starting...")
     app.run(debug=True, host='0.0.0.0', port=5000)

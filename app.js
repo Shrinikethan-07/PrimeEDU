@@ -1028,7 +1028,7 @@ document.addEventListener('DOMContentLoaded', () => {
         noise.start(audioCtx.currentTime);
     };
 
-    console.log('PrimeEDU v4 Refinement Complete');
+    console.log('MavX Mndset v4 Refinement Complete');
 });
 
 
