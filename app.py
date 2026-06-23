@@ -1332,8 +1332,8 @@ def get_study_hours_by_subject(sessions, days_count=30):
     return categories, values
 
 def generate_line_graph(data_points, labels):
-    width, height = 400, 250
-    img = Image.new('RGBA', (width, height), color=(13, 4, 26, 255))
+    width, height = 500, 320
+    img = Image.new('RGBA', (width, height), color=(0, 0, 0, 0))
     draw = ImageDraw.Draw(img)
     
     margin_l, margin_r = 45, 20
@@ -1384,8 +1384,8 @@ def generate_line_graph(data_points, labels):
     return buf
 
 def generate_bar_graph(categories, values):
-    width, height = 400, 250
-    img = Image.new('RGBA', (width, height), color=(13, 4, 26, 255))
+    width, height = 500, 320
+    img = Image.new('RGBA', (width, height), color=(0, 0, 0, 0))
     draw = ImageDraw.Draw(img)
     
     margin_l, margin_r = 45, 20
@@ -1436,7 +1436,7 @@ def get_dynamic_recap():
         
     sessions = [s for s in db.get('sessions', []) if s.get('user_id') == uid]
     tasks = [t for t in db.get('tasks', []) if t.get('user_id') == uid]
-    visuals = visual_agent.get_recap_visuals(sessions, tasks)
+    visuals = visual_agent.get_recap_visuals(sessions, tasks, user_balls=user.get('balls', 0))
     return jsonify(visuals)
 
 @app.route('/api/recap/graph/<graph_type>')

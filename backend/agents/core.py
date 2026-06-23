@@ -101,7 +101,7 @@ class VisualizerAgent:
     def __init__(self):
         pass
 
-    def get_recap_visuals(self, sessions, tasks) -> dict:
+    def get_recap_visuals(self, sessions, tasks, user_balls=0) -> dict:
         completed_sessions = [s for s in sessions if s.get('status') == 'completed']
         total_focus_minutes = 0
         for s in completed_sessions:
@@ -132,14 +132,77 @@ class VisualizerAgent:
         
         balls_earned = len(completed_sessions) * 45
         
+        # Determine user role dynamically
         if len(completed_sessions) == 0:
-            reason = "You have completed 0 focus sessions so far. Time to forge your discipline—start your first focus session today to build your streak!"
+            role = "JUST CHILLING"
+            role_title = "JUST CHILLING"
+            role_subtitle = "Surgical Precision: 0% Effort"
+            role_image = "assets/recap_chilling.jpg"
+            role_desc = "Time to forge your discipline."
         else:
-            reason = f"You completed {len(completed_sessions)} focus sessions, logging {int(total_focus_minutes)} minutes of deep work. Excellent dedication to your goals."
+            night_count = 0
+            for s in completed_sessions:
+                try:
+                    t_str = s.get('start_time')
+                    if t_str:
+                        if isinstance(t_str, str) and t_str.endswith('Z'):
+                            t_str = t_str[:-1] + '+00:00'
+                        dt = datetime.fromisoformat(t_str)
+                        if dt.tzinfo and dt.tzinfo != timezone(timedelta(hours=5, minutes=30)):
+                            dt = dt.astimezone(timezone(timedelta(hours=5, minutes=30)))
+                        h = dt.hour
+                        if h >= 21 or h < 5:
+                            night_count += 1
+                except Exception:
+                    pass
+            
+            subject_counts = {}
+            for s in completed_sessions:
+                subj = s.get('subject') or 'General'
+                subject_counts[subj] = subject_counts.get(subj, 0) + 1
+            
+            max_subj_count = max(subject_counts.values()) if subject_counts else 0
+            max_subj_ratio = (max_subj_count / len(completed_sessions)) if completed_sessions else 0
+            
+            if user_balls >= 1000 or len(completed_sessions) >= 50:
+                role = "THE KNOWLEDGE SAGE"
+                role_title = "THE KNOWLEDGE SAGE"
+                role_subtitle = "Master of All Domains"
+                role_image = "assets/recap_sage.jpg"
+                role_desc = "You dominate the arena with grand wisdom."
+            elif (night_count / len(completed_sessions)) >= 0.5:
+                role = "GHOST OF UCHIHA"
+                role_title = "GHOST OF UCHIHA"
+                role_subtitle = "Warrior of the Night"
+                role_image = "assets/recap_uchiha.jpg"
+                role_desc = "Your training is forged in the shadows of the night."
+            elif max_subj_ratio >= 0.65:
+                role = "SHARINGAN SIGHT"
+                role_title = "SHARINGAN SIGHT"
+                role_subtitle = "Laser-Focused Precision"
+                role_image = "assets/recap_sharingan.jpg"
+                role_desc = "Laser focus on a single domain to achieve mastery."
+            else:
+                role = "THE MULTITASKER"
+                role_title = "THE MULTITASKER"
+                role_subtitle = "Versatile Scholar"
+                role_image = "assets/recap_multitasker.jpg"
+                role_desc = "Perfect balance of discipline across all tasks."
+
+        if len(completed_sessions) == 0:
+            reason = "You have completed 0 focus sessions so far. Start your first focus session today to build your streak!"
+        else:
+            reason = f"You completed {len(completed_sessions)} focus sessions, logging {int(total_focus_minutes)} minutes of deep work. Excellent dedication."
             
         return {
             "reason": reason,
             "image": "consistency_v2.png",
             "highlight_stat": str(balls_earned),
-            "label": "EARNED"
+            "label": "EARNED",
+            "role": role,
+            "role_title": role_title,
+            "role_subtitle": role_subtitle,
+            "role_image": role_image,
+            "role_desc": role_desc
         }
+

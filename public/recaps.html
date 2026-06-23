@@ -25,7 +25,7 @@
             border: 2px solid var(--neon-purple);
             border-radius: 20px;
             padding: 1.5rem;
-            aspect-ratio: 4/5;
+            min-height: 400px;
             position: relative;
             overflow: hidden;
             display: flex;
@@ -201,7 +201,7 @@
         }
 
         .growth-chart-box {
-            height: 130px;
+            height: 180px;
             margin: 0.5rem 0;
         }
     </style>
@@ -365,6 +365,12 @@
             poster.className = 'recap-poster';
             poster.style.animationDelay = `${index * 0.12}s`;
             poster.style.cursor = 'zoom-in';
+            
+            const roleImage = window.USER_ROLE_IMAGE || 'assets/recap_chilling.jpg';
+            poster.style.backgroundImage = `linear-gradient(180deg, rgba(13, 4, 26, 0.88) 0%, rgba(26, 10, 46, 0.94) 100%), url('${roleImage}')`;
+            poster.style.backgroundSize = 'cover';
+            poster.style.backgroundPosition = 'center';
+            
             poster.addEventListener('click', function(e) {
                 if (e.target.closest('.share-menu-wrap')) return;
                 openZoomCard(poster.outerHTML);
@@ -533,6 +539,8 @@
                 console.error("Failed to load dynamic data, using fallbacks", e);
             }
 
+            window.USER_ROLE_IMAGE = dynamicData.role_image || 'assets/recap_chilling.jpg';
+
             // Weekly Data
             const weeklyGrid = document.getElementById('weekly-grid');
             if(accountAgeDays < 7) {
@@ -551,7 +559,7 @@
                 applyLockOverlay('monthly-grid', 30, 'Monthly Mastery');
             } else {
                 const monthlyData = [
-                    { title: "Identity", html: `<div style="font-size:0.85rem;color:var(--neon-purple);font-family:var(--font-heading);border:1px solid var(--neon-purple);padding:0.4rem 0.8rem;border-radius:8px;margin-bottom:0.75rem;">THE ALCHEMIST</div><p style="font-size:0.8rem;">Surgical Precision.</p><div style="background-image:url('https://i.pinimg.com/736x/97/4a/5b/974a5b6a4e8b3c2d1f0e9a8b7c6d5e4f.jpg');height:90px;background-size:cover;background-position:center;border-radius:12px;width:100%;"></div>` },
+                    { title: "Identity", html: `<div style="font-size:0.85rem;color:var(--neon-purple);font-family:var(--font-heading);border:1px solid var(--neon-purple);padding:0.4rem 0.8rem;border-radius:8px;margin-bottom:0.75rem;text-transform:uppercase;">${dynamicData.role_title || 'THE ALCHEMIST'}</div><p style="font-size:0.8rem;margin-bottom:0.5rem;">${dynamicData.role_subtitle || 'Surgical Precision.'}</p><div style="background-image:url('${dynamicData.role_image || 'assets/recap_chilling.jpg'}');height:90px;background-size:cover;background-position:center;border-radius:12px;width:100%;"></div>` },
                     { title: "Consistency", content: "Unstoppable study grit.", type: 'chart', image: `${window.API_BASE_URL}/api/recap/graph/consistency_monthly?token=${token}` },
                     { title: "Knowledge", content: "Focus hours distributed by subject.", type: 'chart', image: `${window.API_BASE_URL}/api/recap/graph/knowledge_monthly?token=${token}` },
                     { title: "Focus Master", statValue: "154", statLabel: "HOURS", type: 'stat' }
@@ -569,7 +577,7 @@
                     { title: "Chronos", statValue: "8,400", statLabel: "MINUTES", type: 'stat' },
                     { title: "Growth Mindset", content: "Subject breakdown for legacy work.", type: 'chart', image: `${window.API_BASE_URL}/api/recap/graph/growth_yearly?token=${token}` },
                     { title: "The Scroll", statValue: "154", statLabel: "ENTRIES", type: 'stat' },
-                    { title: "Final Form", html: `<div style="color:#ff00ea;font-family:var(--font-heading);border:1px solid #ff00ea;padding:0.4rem 0.8rem;border-radius:8px;font-size:0.8rem;margin-bottom:0.75rem;">ASCENDED WARRIOR</div><div style="background-image:url('https://i.pinimg.com/736x/4e/40/87/4e4087e01177d1c3ea5e7143e7284f9e.jpg');height:90px;background-size:cover;background-position:center;border-radius:12px;width:100%;"></div>` },
+                    { title: "Final Form", html: `<div style="color:#ff00ea;font-family:var(--font-heading);border:1px solid #ff00ea;padding:0.4rem 0.8rem;border-radius:8px;font-size:0.8rem;margin-bottom:0.75rem;text-transform:uppercase;">${dynamicData.role_title || 'ASCENDED WARRIOR'}</div><p style="font-size:0.8rem;margin-bottom:0.5rem;">${dynamicData.role_subtitle || 'Peak Form.'}</p><div style="background-image:url('${dynamicData.role_image || 'assets/recap_chilling.jpg'}');height:90px;background-size:cover;background-position:center;border-radius:12px;width:100%;"></div>` },
                     { title: "Prime Rating", statValue: "9.8", statLabel: "TIER S+", type: 'stat' }
                 ];
                 yearlyData.forEach((d, i) => yearlyGrid.appendChild(createPoster(d, i)));
