@@ -133,7 +133,7 @@ class VisualizerAgent:
         total_focus_hours = total_focus_minutes / 60.0
         
         # Determine user role dynamically
-        if len(completed_sessions) == 0:
+        if len(completed_sessions) == 0 and user_balls == 0:
             role = "JUST CHILLING"
             role_title = "JUST CHILLING"
             role_subtitle = "Surgical Precision: 0% Effort"
@@ -170,13 +170,13 @@ class VisualizerAgent:
                 role_subtitle = "Master of All Domains"
                 role_image = "assets/recap_sage.jpg"
                 role_desc = "You dominate the arena with grand wisdom."
-            elif (night_count / len(completed_sessions)) >= 0.5:
+            elif (len(completed_sessions) > 0 and (night_count / len(completed_sessions)) >= 0.5) or user_balls >= 500:
                 role = "GHOST OF UCHIHA"
                 role_title = "GHOST OF UCHIHA"
                 role_subtitle = "Warrior of the Night"
                 role_image = "assets/recap_uchiha.jpg"
                 role_desc = "Your training is forged in the shadows of the night."
-            elif max_subj_ratio >= 0.65:
+            elif (len(completed_sessions) > 0 and max_subj_ratio >= 0.65) or user_balls >= 200:
                 role = "SHARINGAN SIGHT"
                 role_title = "SHARINGAN SIGHT"
                 role_subtitle = "Laser-Focused Precision"

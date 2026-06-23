@@ -496,44 +496,6 @@
             logs.innerHTML = html;
         }
 
-        window.confirmSaveSession = function() {
-            isSaveModalOpen = false;
-            document.getElementById('save-modal').style.display = 'none';
-            endSessionAPI(false);
-            
-            let val = parseInt(document.getElementById('custom-minutes').value) || 25;
-            let durationMins = val;
-            if (mode === 'stopwatch') {
-                durationMins = Math.max(1, Math.round(seconds / 60)); 
-            } else {
-                const totalSecs = val * 60;
-                const elapsedSecs = Math.max(0, totalSecs - seconds);
-                durationMins = Math.max(1, Math.round(elapsedSecs / 60));
-            }
-            
-            let sessionModeName = mode === 'pomodoro' ? `Pomodoro ${pomodoroCount} (${durationMins}m)` : `Custom duration (${durationMins}m)`;
-            if (mode === 'stopwatch') {
-                sessionModeName = `Stopwatch (${durationMins}m)`;
-            }
-
-            let sessions = getStoredSessions();
-            sessions.unshift({
-                subject: currentSubject,
-                mode: sessionModeName,
-                timestamp: Date.now()
-            });
-            localStorage.setItem(SESSION_STORAGE_KEY, JSON.stringify(sessions));
-
-            let stats = getYearlyStats();
-            stats[currentSubject] = (stats[currentSubject] || 0) + durationMins;
-            localStorage.setItem(YEARLY_STATS_KEY, JSON.stringify(stats));
-
-            renderSessions();
-
-            if (mode === 'pomodoro') pomodoroCount++;
-            resetTimerValue();
-        };
-
         function resetTimerValue() {
             let val = parseInt(document.getElementById('custom-minutes').value);
             if (isNaN(val) || val < 1) {

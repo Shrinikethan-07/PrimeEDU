@@ -44,6 +44,12 @@ def parse_ist_datetime(dt_str):
     except Exception:
         return None
 
+def is_in_period(completed_at_str, start, end):
+    if not completed_at_str:
+        return start <= get_ist_now() <= end
+    t = parse_ist_datetime(completed_at_str)
+    return start <= t <= end if t else False
+
 def hash_password(password):
     return hashlib.sha256(password.encode()).hexdigest()
 
@@ -1048,12 +1054,20 @@ def sync_tasks():
             if t.get('id') not in rewarded_task_ids:
                 # Newly completed task! Reward it and mark it as rewarded
                 t['rewarded'] = True
+                t['completed_at'] = get_ist_iso()
                 new_completed_rewards += 1
             else:
                 # Keep it marked as rewarded
                 t['rewarded'] = True
+                # Get existing completed_at if present
+                existing_t = next((et for et in db.get('tasks', []) if et.get('id') == t.get('id') and et.get('user_id') == uid), None)
+                if existing_t and existing_t.get('completed_at'):
+                    t['completed_at'] = existing_t.get('completed_at')
+                else:
+                    t['completed_at'] = get_ist_iso()
         else:
             t['rewarded'] = False # If they uncheck it, reset
+            t['completed_at'] = None
             
     # Remove old tasks for this user, insert new ones
     db['tasks'] = [t for t in db['tasks'] if t.get('user_id') != uid] + new_tasks
@@ -1437,14 +1451,102 @@ def get_dynamic_recap():
     sessions = [s for s in db.get('sessions', []) if s.get('user_id') == uid]
     tasks = [t for t in db.get('tasks', []) if t.get('user_id') == uid]
     journal_entries = [j for j in db.get('journal', []) if j.get('user_id') == uid]
-    visuals = visual_agent.get_recap_visuals(
-        sessions, 
-        tasks, 
-        user_balls=user.get('balls', 0),
-        journal_count=len(journal_entries),
-        user_streak=user.get('streak', 0)
+    
+    weekly_offset = int(request.args.get('weekly_offset', 0))
+    monthly_offset = int(request.args.get('monthly_offset', 0))
+    yearly_offset = int(request.args.get('yearly_offset', 0))
+    
+    ist_now = get_ist_now()
+    
+    # 1. Weekly bounds
+    current_week_start = (ist_now - timedelta(days=ist_now.weekday())).replace(hour=0, minute=0, second=0, microsecond=0)
+    w_start = current_week_start - timedelta(weeks=weekly_offset)
+    w_end = w_start + timedelta(days=7) - timedelta(microseconds=1)
+    
+    # 2. Monthly bounds
+    w_y = ist_now.year
+    w_m = ist_now.month - monthly_offset
+    while w_m <= 0:
+        w_m += 12
+        w_y -= 1
+    m_start = datetime(w_y, w_m, 1, tzinfo=timezone(timedelta(hours=5, minutes=30)))
+    ny = w_y
+    nm = w_m + 1
+    if nm > 12:
+        nm = 1
+        ny += 1
+    m_end = datetime(ny, nm, 1, tzinfo=timezone(timedelta(hours=5, minutes=30))) - timedelta(microseconds=1)
+    
+    # 3. Yearly bounds
+    y_year = ist_now.year - yearly_offset
+    y_start = datetime(y_year, 1, 1, tzinfo=timezone(timedelta(hours=5, minutes=30)))
+    y_end = datetime(y_year + 1, 1, 1, tzinfo=timezone(timedelta(hours=5, minutes=30))) - timedelta(microseconds=1)
+    
+    def get_period_balls(p_sessions, p_tasks, p_journals):
+        balls = 0
+        for s in p_sessions:
+            if s.get('status') in ['completed', 'early_exit']:
+                duration_mins = s.get('duration_minutes', 0)
+                if duration_mins is None:
+                    duration_mins = 0
+                early_exit = (s.get('status') == 'early_exit')
+                if not early_exit:
+                    earned = max(1, int(round(duration_mins)))
+                else:
+                    earned = max(1, int(round(duration_mins * 0.5)))
+                balls += earned
+        
+        balls += len([t for t in p_tasks if t.get('completed')]) * 2
+        balls += len(p_journals) * 50
+        return balls
+
+    # Filter for Weekly
+    w_sessions = [s for s in sessions if (t := parse_ist_datetime(s.get('start_time'))) and w_start <= t <= w_end]
+    w_tasks = [t for t in tasks if t.get('completed') and is_in_period(t.get('completed_at'), w_start, w_end)]
+    w_journals = [j for j in journal_entries if (t := parse_ist_datetime(j.get('timestamp'))) and w_start <= t <= w_end]
+    w_balls = get_period_balls(w_sessions, w_tasks, w_journals)
+    
+    # Filter for Monthly
+    m_sessions = [s for s in sessions if (t := parse_ist_datetime(s.get('start_time'))) and m_start <= t <= m_end]
+    m_tasks = [t for t in tasks if t.get('completed') and is_in_period(t.get('completed_at'), m_start, m_end)]
+    m_journals = [j for j in journal_entries if (t := parse_ist_datetime(j.get('timestamp'))) and m_start <= t <= m_end]
+    m_balls = get_period_balls(m_sessions, m_tasks, m_journals)
+    
+    # Filter for Yearly
+    y_sessions = [s for s in sessions if (t := parse_ist_datetime(s.get('start_time'))) and y_start <= t <= y_end]
+    y_tasks = [t for t in tasks if t.get('completed') and is_in_period(t.get('completed_at'), y_start, y_end)]
+    y_journals = [j for j in journal_entries if (t := parse_ist_datetime(j.get('timestamp'))) and y_start <= t <= y_end]
+    y_balls = get_period_balls(y_sessions, y_tasks, y_journals)
+    
+    weekly_visuals = visual_agent.get_recap_visuals(
+        w_sessions, 
+        w_tasks, 
+        user_balls=w_balls,
+        journal_count=len(w_journals),
+        user_streak=user.get('streak', 0) if weekly_offset == 0 else 0
     )
-    return jsonify(visuals)
+    
+    monthly_visuals = visual_agent.get_recap_visuals(
+        m_sessions, 
+        m_tasks, 
+        user_balls=m_balls,
+        journal_count=len(m_journals),
+        user_streak=user.get('streak', 0) if monthly_offset == 0 else 0
+    )
+    
+    yearly_visuals = visual_agent.get_recap_visuals(
+        y_sessions, 
+        y_tasks, 
+        user_balls=y_balls,
+        journal_count=len(y_journals),
+        user_streak=user.get('streak', 0) if yearly_offset == 0 else 0
+    )
+    
+    return jsonify({
+        "weekly": weekly_visuals,
+        "monthly": monthly_visuals,
+        "yearly": yearly_visuals
+    })
 
 @app.route('/api/recap/graph/<graph_type>')
 def get_recap_graph(graph_type):
@@ -1454,22 +1556,158 @@ def get_recap_graph(graph_type):
         return jsonify({"status": "error", "message": "Unauthorized"}), 401
         
     sessions = [s for s in db.get('sessions', []) if s.get('user_id') == uid]
-    
+    offset = int(request.args.get('offset', 0))
+    ist_now = get_ist_now()
+
     if graph_type == 'weekly_grit':
-        hours, labels = get_study_hours_by_day(sessions, 7)
+        current_week_start = (ist_now - timedelta(days=ist_now.weekday())).replace(hour=0, minute=0, second=0, microsecond=0)
+        start = current_week_start - timedelta(weeks=offset)
+        end = start + timedelta(days=7) - timedelta(microseconds=1)
+        
+        period_sessions = [s for s in sessions if (t := parse_ist_datetime(s.get('start_time'))) and start <= t <= end]
+        
+        hours = [0.0] * 7
+        labels = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
+        week_dates = [start.date() + timedelta(days=i) for i in range(7)]
+        
+        for s in period_sessions:
+            if s.get('status') == 'completed':
+                try:
+                    start_t = parse_ist_datetime(s.get('start_time'))
+                    if start_t:
+                        s_date = start_t.date()
+                        if s_date in week_dates:
+                            idx = week_dates.index(s_date)
+                            duration_mins = s.get('duration_minutes', 0)
+                            if duration_mins is None:
+                                duration_mins = 0
+                            hours[idx] += float(duration_mins) / 60.0
+                except Exception:
+                    pass
         buf = generate_line_graph(hours, labels)
+        
     elif graph_type == 'consistency_monthly':
-        hours, labels = get_study_hours_by_day(sessions, 30)
+        import calendar
+        w_y = ist_now.year
+        w_m = ist_now.month - offset
+        while w_m <= 0:
+            w_m += 12
+            w_y -= 1
+        _, num_days = calendar.monthrange(w_y, w_m)
+        start = datetime(w_y, w_m, 1, tzinfo=timezone(timedelta(hours=5, minutes=30)))
+        ny = w_y
+        nm = w_m + 1
+        if nm > 12:
+            nm = 1
+            ny += 1
+        end = datetime(ny, nm, 1, tzinfo=timezone(timedelta(hours=5, minutes=30))) - timedelta(microseconds=1)
+        
+        period_sessions = [s for s in sessions if (t := parse_ist_datetime(s.get('start_time'))) and start <= t <= end]
+        
+        hours = [0.0] * num_days
+        labels = [str(i) for i in range(1, num_days + 1)]
+        month_dates = [datetime(w_y, w_m, i).date() for i in range(1, num_days + 1)]
+        
+        for s in period_sessions:
+            if s.get('status') == 'completed':
+                try:
+                    start_t = parse_ist_datetime(s.get('start_time'))
+                    if start_t:
+                        s_date = start_t.date()
+                        if s_date in month_dates:
+                            idx = month_dates.index(s_date)
+                            duration_mins = s.get('duration_minutes', 0)
+                            if duration_mins is None:
+                                duration_mins = 0
+                            hours[idx] += float(duration_mins) / 60.0
+                except Exception:
+                    pass
         buf = generate_line_graph(hours, labels)
+        
     elif graph_type == 'knowledge_monthly':
-        categories, values = get_study_hours_by_subject(sessions, 30)
+        w_y = ist_now.year
+        w_m = ist_now.month - offset
+        while w_m <= 0:
+            w_m += 12
+            w_y -= 1
+        start = datetime(w_y, w_m, 1, tzinfo=timezone(timedelta(hours=5, minutes=30)))
+        ny = w_y
+        nm = w_m + 1
+        if nm > 12:
+            nm = 1
+            ny += 1
+        end = datetime(ny, nm, 1, tzinfo=timezone(timedelta(hours=5, minutes=30))) - timedelta(microseconds=1)
+        
+        period_sessions = [s for s in sessions if (t := parse_ist_datetime(s.get('start_time'))) and start <= t <= end]
+        
+        subject_hours = {}
+        for s in period_sessions:
+            if s.get('status') == 'completed':
+                try:
+                    subj = s.get('subject') or 'General'
+                    duration_mins = s.get('duration_minutes', 0)
+                    if duration_mins is None:
+                        duration_mins = 0
+                    subject_hours[subj] = subject_hours.get(subj, 0.0) + (float(duration_mins) / 60.0)
+                except Exception:
+                    pass
+        
+        if not subject_hours:
+            categories, values = ["No Data"], [0.0]
+        else:
+            categories = list(subject_hours.keys())
+            values = list(subject_hours.values())
         buf = generate_bar_graph(categories, values)
+        
     elif graph_type == 'legacy_yearly':
-        hours, labels = get_study_hours_by_month(sessions)
+        y_year = ist_now.year - offset
+        start = datetime(y_year, 1, 1, tzinfo=timezone(timedelta(hours=5, minutes=30)))
+        end = datetime(y_year + 1, 1, 1, tzinfo=timezone(timedelta(hours=5, minutes=30))) - timedelta(microseconds=1)
+        
+        period_sessions = [s for s in sessions if (t := parse_ist_datetime(s.get('start_time'))) and start <= t <= end]
+        
+        hours = [0.0] * 12
+        labels = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
+        for s in period_sessions:
+            if s.get('status') == 'completed':
+                try:
+                    start_t = parse_ist_datetime(s.get('start_time'))
+                    if start_t:
+                        idx = start_t.month - 1
+                        duration_mins = s.get('duration_minutes', 0)
+                        if duration_mins is None:
+                            duration_mins = 0
+                        hours[idx] += float(duration_mins) / 60.0
+                except Exception:
+                    pass
         buf = generate_line_graph(hours, labels)
+        
     elif graph_type == 'growth_yearly':
-        categories, values = get_study_hours_by_subject(sessions, 365)
+        y_year = ist_now.year - offset
+        start = datetime(y_year, 1, 1, tzinfo=timezone(timedelta(hours=5, minutes=30)))
+        end = datetime(y_year + 1, 1, 1, tzinfo=timezone(timedelta(hours=5, minutes=30))) - timedelta(microseconds=1)
+        
+        period_sessions = [s for s in sessions if (t := parse_ist_datetime(s.get('start_time'))) and start <= t <= end]
+        
+        subject_hours = {}
+        for s in period_sessions:
+            if s.get('status') == 'completed':
+                try:
+                    subj = s.get('subject') or 'General'
+                    duration_mins = s.get('duration_minutes', 0)
+                    if duration_mins is None:
+                        duration_mins = 0
+                    subject_hours[subj] = subject_hours.get(subj, 0.0) + (float(duration_mins) / 60.0)
+                except Exception:
+                    pass
+        
+        if not subject_hours:
+            categories, values = ["No Data"], [0.0]
+        else:
+            categories = list(subject_hours.keys())
+            values = list(subject_hours.values())
         buf = generate_bar_graph(categories, values)
+        
     else:
         return jsonify({"status": "error", "message": "Invalid graph type"}), 400
         
