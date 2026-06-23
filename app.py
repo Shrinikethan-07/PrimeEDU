@@ -2622,6 +2622,32 @@ def generate_echo_card(echo_id, template_id, username, avatar_id, achievement_ph
         tw_wm = bbox_wm[2] - bbox_wm[0]
         draw.text(((W - tw_wm) // 2, H - 50), wm, fill=(255, 255, 255, 80), font=font_wm)
 
+        # --- Chibi character sticker (bottom-right corner) ---
+        sticker_map = {
+            'naruto':      'assets/echo_stickers/naruto.png',
+            'dbz':         'assets/echo_stickers/goku.png',
+            'deathnote':   'assets/echo_stickers/ryuk.png',
+            'onepiece':    'assets/echo_stickers/luffy.png',
+            'jjk':         'assets/echo_stickers/gojo.png',
+            'aot':         'assets/echo_stickers/eren.png',
+            'demonslayer': 'assets/echo_stickers/tanjirou.png'
+        }
+        st_path = sticker_map.get(template_id, 'assets/echo_stickers/naruto.png')
+        if os.path.exists(st_path):
+            try:
+                st_img = Image.open(st_path).convert('RGBA')
+                # Resize sticker: width 200px, maintaining aspect ratio
+                st_w = 200
+                st_h = int(st_img.height * (st_w / st_img.width))
+                st_img = st_img.resize((st_w, st_h), Image.LANCZOS)
+                
+                # Paste in bottom-right corner
+                st_x = W - st_w - 10
+                st_y = H - st_h - 120 # above watermark
+                canvas.paste(st_img, (st_x, st_y), st_img)
+            except Exception as e:
+                print(f"[STICKER ERROR] {e}")
+
         # Save as RGB PNG
         final = canvas.convert('RGB')
         final.save(out_path, 'PNG', quality=95)
