@@ -1141,6 +1141,41 @@ def end_session():
             
     return jsonify({"status": "error", "message": "Session not found"}), 404
 
+# --- ACTIVE FOCUSING ENDPOINT ---
+@app.route('/api/sessions/active', methods=['GET'])
+def get_active_focusing_warriors():
+    db = load_db()
+    user, uid = get_current_user(db)
+    if not user:
+        return jsonify({"status": "error", "message": "Unauthorized"}), 401
+        
+    now_ist = get_ist_now()
+    active_warriors = []
+    seen_users = set()
+    
+    for s in db.get('sessions', []):
+        if s.get('status') == 'running':
+            s_uid = s.get('user_id')
+            if s_uid and s_uid not in seen_users:
+                try:
+                    start_time = parse_ist_datetime(s.get('start_time'))
+                    # Consider active if started within the last 4 hours
+                    if start_time and (now_ist - start_time).total_seconds() < 4 * 3600:
+                        seen_users.add(s_uid)
+                        profile = db.get('user_profiles', {}).get(s_uid, {})
+                        active_warriors.append({
+                            "name": profile.get("leaderboard_name") or profile.get("name") or "Warrior",
+                            "avatar": profile.get("avatar") or "itachi",
+                            "subject": s.get("subject") or "General"
+                        })
+                except Exception:
+                    pass
+                    
+    return jsonify({
+        "count": len(active_warriors),
+        "warriors": active_warriors
+    })
+
 def get_study_hours_by_day(sessions, days_count):
     now_ist = get_ist_now()
     hours = [0.0] * days_count

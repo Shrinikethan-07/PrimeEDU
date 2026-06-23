@@ -112,6 +112,12 @@
         .back-from-flip:hover {
             color: #fff;
         }
+
+        @keyframes pulse {
+            0% { transform: scale(1); opacity: 0.8; }
+            50% { transform: scale(1.2); opacity: 1; box-shadow: 0 0 12px #00ff66; }
+            100% { transform: scale(1); opacity: 0.8; }
+        }
     </style>
 <script>
     const isLocal = window.location.hostname === 'localhost' || 
@@ -163,6 +169,15 @@
     <!-- Flip Clock Screensaver -->
     <div class="flip-clock-overlay" id="flip-overlay">
         <i class="fas fa-times back-from-flip" onclick="closeFlipClock()"></i>
+        
+        <div class="live-focus-indicator" style="margin-bottom: 2.5rem; display: flex; flex-direction: column; align-items: center; gap: 0.75rem;">
+            <div style="background: rgba(0, 243, 255, 0.1); border: 1px solid var(--neon-cyan); padding: 0.55rem 1rem; border-radius: 24px; font-family: var(--font-heading); font-size: 0.88rem; color: var(--neon-cyan); box-shadow: 0 0 15px rgba(0, 243, 255, 0.15); display: flex; align-items: center; gap: 0.5rem;">
+                <span class="live-dot" style="width: 8px; height: 8px; background: #00ff66; border-radius: 50%; display: inline-block; box-shadow: 0 0 8px #00ff66; animation: pulse 1.8s infinite;"></span>
+                <span id="live-warriors-text">Loading live warriors...</span>
+            </div>
+            <div id="live-warriors-avatars" style="display: flex; justify-content: center; align-items: center; height: 36px; margin-top: 0.25rem;"></div>
+        </div>
+
         <div class="flip-clock">
             <div class="flip-card" id="flip-h">00</div>
             <div class="flip-card" id="flip-m">00</div>
@@ -284,6 +299,7 @@
         let targetEndTime = null;
         let stopwatchStartTime = null;
         let isSaveModalOpen = false;
+        let activeWarriorsInterval = null;
 
         const TIMER_STATE_KEY = 'primeedu_timer_state';
 
@@ -672,8 +688,63 @@
             saveTimerState();
         };
 
-        window.openFlipClock = () => document.getElementById('flip-overlay').classList.add('active');
-        window.closeFlipClock = () => document.getElementById('flip-overlay').classList.remove('active');
+        async function updateActiveWarriors() {
+            try {
+                const token = localStorage.getItem('primeedu_token');
+                const res = await fetch(window.API_BASE_URL + '/api/sessions/active', {
+                    headers: { 'Authorization': 'Bearer ' + token }
+                });
+                if (!res.ok) return;
+                const data = await res.json();
+                
+                const countText = data.count === 1 ? '1 Warrior focusing right now' : `${data.count} Warriors focusing right now`;
+                document.getElementById('live-warriors-text').innerText = countText;
+                
+                const avatarContainer = document.getElementById('live-warriors-avatars');
+                avatarContainer.innerHTML = '';
+                
+                data.warriors.forEach(w => {
+                    const char = CHARACTERS.find(c => c.id === w.avatar) || CHARACTERS[0];
+                    const img = document.createElement('img');
+                    img.src = char.img;
+                    img.alt = w.name;
+                    img.title = `${w.name} (${w.subject})`;
+                    img.style.cssText = `
+                        width: 32px;
+                        height: 32px;
+                        border-radius: 50%;
+                        border: 2px solid var(--neon-cyan);
+                        margin: 0 -5px;
+                        object-fit: cover;
+                        background: #000;
+                        box-shadow: 0 0 10px rgba(0, 243, 255, 0.4);
+                        cursor: pointer;
+                        transition: transform 0.2s;
+                    `;
+                    img.onmouseenter = () => { img.style.transform = 'scale(1.2) translateY(-3px)'; img.style.zIndex = '100'; };
+                    img.onmouseleave = () => { img.style.transform = 'none'; img.style.zIndex = 'auto'; };
+                    img.onerror = () => { img.src = char.fallback; };
+                    avatarContainer.appendChild(img);
+                });
+            } catch (e) {
+                console.error("Failed to load active warriors", e);
+            }
+        }
+
+        window.openFlipClock = function() {
+            document.getElementById('flip-overlay').classList.add('active');
+            updateActiveWarriors();
+            if (activeWarriorsInterval) clearInterval(activeWarriorsInterval);
+            activeWarriorsInterval = setInterval(updateActiveWarriors, 15000);
+        };
+
+        window.closeFlipClock = function() {
+            document.getElementById('flip-overlay').classList.remove('active');
+            if (activeWarriorsInterval) {
+                clearInterval(activeWarriorsInterval);
+                activeWarriorsInterval = null;
+            }
+        };
 
         function setupSubjectTags() {
             document.querySelectorAll('.subject-tag:not(#add-subject-btn)').forEach(tag => {
