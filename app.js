@@ -1139,4 +1139,13 @@ document.addEventListener('DOMContentLoaded', () => {
     setInterval(checkDailyRecap, 60000);
     // Check immediately on load
     setTimeout(checkDailyRecap, 2000);
+
+    // Check URL parameters for Settings/Avatar modals
+    const urlParams = new URLSearchParams(window.location.search);
+    if (urlParams.get('openSettings') === 'true') {
+        const settingsModal = document.getElementById('settings-modal');
+        if (settingsModal) settingsModal.style.display = 'flex';
+    } else if (urlParams.get('openAvatar') === 'true') {
+        if (typeof openCharacterSelect === 'function') openCharacterSelect();
+    }
 });
