@@ -1763,6 +1763,67 @@ def update_balls():
     save_db(db)
     return jsonify({"status": "success", "balls": user['balls']})
 
+# --- PERIOD LEADERBOARD ENDPOINT ---
+@app.route('/api/leaderboard/period', methods=['GET'])
+def get_period_leaderboard():
+    db = load_db()
+    user, uid = get_current_user(db)
+    if not user:
+        return jsonify({"status": "error", "message": "Unauthorized"}), 401
+        
+    period = request.args.get('period', 'weekly') # weekly, monthly, yearly
+    ist_now = get_ist_now()
+    
+    if period == 'weekly':
+        start = (ist_now - timedelta(days=ist_now.weekday())).replace(hour=0, minute=0, second=0, microsecond=0)
+        end = start + timedelta(days=7) - timedelta(microseconds=1)
+    elif period == 'monthly':
+        start = datetime(ist_now.year, ist_now.month, 1, tzinfo=timezone(timedelta(hours=5, minutes=30)))
+        ny = ist_now.year
+        nm = ist_now.month + 1
+        if nm > 12:
+            nm = 1
+            ny += 1
+        end = datetime(ny, nm, 1, tzinfo=timezone(timedelta(hours=5, minutes=30))) - timedelta(microseconds=1)
+    else: # yearly
+        start = datetime(ist_now.year, 1, 1, tzinfo=timezone(timedelta(hours=5, minutes=30)))
+        end = datetime(ist_now.year + 1, 1, 1, tzinfo=timezone(timedelta(hours=5, minutes=30))) - timedelta(microseconds=1)
+        
+    users_list = []
+    for user_id, profile in db.get('user_profiles', {}).items():
+        p_sessions = [s for s in db.get('sessions', []) if s.get('user_id') == user_id and s.get('status') in ['completed', 'early_exit']]
+        p_sessions = [s for s in p_sessions if (t := parse_ist_datetime(s.get('start_time'))) and start <= t <= end]
+        
+        p_tasks = [t for t in db.get('tasks', []) if t.get('user_id') == user_id and t.get('completed') and is_in_period(t.get('completed_at'), start, end)]
+        p_journals = [j for j in db.get('journal', []) if j.get('user_id') == user_id and (t := parse_ist_datetime(j.get('timestamp'))) and start <= t <= end]
+        
+        balls = 0
+        focus_mins = 0.0
+        for s in p_sessions:
+            duration_mins = s.get('duration_minutes', 0)
+            if duration_mins is None:
+                duration_mins = 0
+            if s.get('status') == 'completed':
+                focus_mins += float(duration_mins)
+                balls += max(1, int(round(duration_mins)))
+            else: # early_exit
+                balls += max(1, int(round(duration_mins * 0.5)))
+                
+        balls += len(p_tasks) * 2
+        balls += len(p_journals) * 50
+        
+        users_list.append({
+            "name": profile.get("leaderboard_name") or profile.get("name") or "Warrior",
+            "email": profile.get("email") or user_id,
+            "balls": balls,
+            "focus_hours": round(focus_mins / 60.0, 1),
+            "sessions_count": len(p_sessions),
+            "avatar": profile.get("avatar", "itachi")
+        })
+        
+    users_list.sort(key=lambda x: x['balls'], reverse=True)
+    return jsonify(users_list)
+
 # --- LEADERBOARD ENDPOINT ---
 @app.route('/api/leaderboard', methods=['GET'])
 def get_leaderboard():
