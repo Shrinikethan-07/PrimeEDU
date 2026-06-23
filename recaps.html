@@ -16,6 +16,8 @@
         .recap-grid {
             display: grid;
             grid-template-columns: repeat(auto-fill, minmax(290px, 1fr));
+            justify-content: center;
+            justify-items: center;
             gap: 2rem;
             padding: 1.5rem 0;
         }
@@ -25,7 +27,9 @@
             border: 2px solid var(--neon-purple);
             border-radius: 20px;
             padding: 1.5rem;
-            min-height: 400px;
+            width: 100%;
+            max-width: 300px;
+            aspect-ratio: 1 / 1.4;
             position: relative;
             overflow: hidden;
             display: flex;
