@@ -40,40 +40,7 @@
     body { background: var(--bg-gradient); min-height: 100vh; display: flex; }
     a { text-decoration: none; color: inherit; }
 
-    .sidebar {
-      position: fixed; left: 0; top: 0;
-      width: var(--sidebar-width); height: 100vh;
-      background: var(--glass-bg);
-      border-right: 1px solid var(--glass-border);
-      backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
-      display: flex; flex-direction: column;
-      z-index: 200; padding: 1.5rem 0;
-      overflow-y: auto; transition: transform 0.3s ease;
-    }
-    .logo {
-      display: flex; align-items: center; gap: 0.75rem;
-      padding: 0 1.5rem 1.75rem;
-      font-family: var(--font-heading); font-size: 1.25rem; font-weight: 800;
-      color: var(--neon-cyan);
-      border-bottom: 1px solid var(--glass-border); letter-spacing: 0.5px;
-    }
-    .logo i { font-size: 1.4rem; filter: drop-shadow(0 0 8px var(--neon-cyan)); }
-    .nav-links { list-style: none; padding: 1.25rem 0; flex: 1; }
-    .nav-item { margin: 0.1rem 0.75rem; }
-    .nav-link {
-      display: flex; align-items: center; gap: 0.85rem;
-      padding: 0.75rem 1rem; border-radius: 12px;
-      font-size: 0.875rem; font-weight: 500;
-      color: rgba(255,255,255,0.55); transition: all 0.25s ease; position: relative;
-    }
-    .nav-link i { width: 20px; text-align: center; font-size: 1rem; transition: color 0.25s ease; }
-    .nav-link:hover { background: rgba(0,243,255,0.07); color: var(--neon-cyan); }
-    .nav-link:hover i { color: var(--neon-cyan); }
-    .nav-link.active { background: rgba(0,243,255,0.12); color: var(--neon-cyan); box-shadow: inset 3px 0 0 var(--neon-cyan); }
-    .nav-link.active i { color: var(--neon-cyan); filter: drop-shadow(0 0 6px var(--neon-cyan)); }
-    .sidebar-bottom { padding: 1.25rem 1.5rem 0.5rem; border-top: 1px solid var(--glass-border); }
-    .avatar-preview { display: flex; align-items: center; justify-content: center; }
-    .avatar-circle { width: 48px; height: 48px; border-radius: 50%; object-fit: cover; border: 2px solid var(--neon-cyan); box-shadow: 0 0 16px rgba(0,243,255,0.35); }
+    
 
     .main-wrapper { margin-left: var(--sidebar-width); flex: 1; min-height: 100vh; display: flex; flex-direction: column; }
 
@@ -289,8 +256,7 @@
 
     @media (max-width: 900px) {
       .main-wrapper { margin-left: 0; }
-      .sidebar { transform: translateX(-100%); z-index: 300; }
-      .sidebar.open { transform: translateX(0); }
+
       .content-area { padding: 1.5rem; }
       header { padding: 1.25rem 1.5rem; }
       .header-left h1 { font-size: 1.3rem; }

@@ -57,73 +57,7 @@
       overflow-x: hidden;
     }
 
-    /* ─── Sidebar ────────────────────────────────────────────────── */
-    .sidebar {
-      width: var(--sidebar-width);
-      min-height: 100vh;
-      background: rgba(7,1,20,0.95);
-      border-right: 1px solid var(--glass-border);
-      display: flex;
-      flex-direction: column;
-      position: fixed;
-      top: 0; left: 0; bottom: 0;
-      z-index: 100;
-      backdrop-filter: blur(20px);
-      padding: 1.5rem 0;
-      overflow-y: auto;
-    }
 
-    .logo {
-      display: flex;
-      align-items: center;
-      gap: 0.75rem;
-      padding: 0 1.5rem 1.5rem;
-      font-family: var(--font-heading);
-      font-size: 1.15rem;
-      font-weight: 800;
-      color: var(--neon-cyan);
-      border-bottom: 1px solid var(--glass-border);
-      margin-bottom: 1rem;
-    }
-    .logo i { font-size: 1.3rem; text-shadow: 0 0 12px var(--neon-cyan); }
-
-    .nav-links { list-style: none; padding: 0; flex: 1; }
-    .nav-item { margin: 0.2rem 0.75rem; }
-    .nav-link {
-      display: flex;
-      align-items: center;
-      gap: 0.8rem;
-      padding: 0.7rem 1rem;
-      border-radius: 10px;
-      text-decoration: none;
-      color: var(--text-secondary);
-      font-size: 0.88rem;
-      font-weight: 500;
-      transition: all 0.25s ease;
-    }
-    .nav-link:hover {
-      background: rgba(0,243,255,0.07);
-      color: var(--neon-cyan);
-    }
-    .nav-link.active {
-      background: rgba(157,0,255,0.15);
-      color: var(--neon-purple);
-      border: 1px solid rgba(157,0,255,0.3);
-    }
-    .nav-link i { width: 18px; text-align: center; }
-
-    .sidebar-bottom {
-      padding: 1.5rem;
-      border-top: 1px solid var(--glass-border);
-      margin-top: auto;
-    }
-    .avatar-preview { display: flex; justify-content: center; }
-    .avatar-circle {
-      width: 44px; height: 44px;
-      border-radius: 50%;
-      object-fit: cover;
-      border: 2px solid var(--neon-purple);
-    }
 
     /* ─── Main Content ───────────────────────────────────────────── */
     .main-content {

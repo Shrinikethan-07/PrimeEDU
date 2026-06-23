@@ -258,7 +258,9 @@ def load_db_normalized(conn):
         "custom_syllabus": {
             "physics": [], "chemistry": [], "biology": [], "mathematics": []
         },
-        "clans": {}
+        "clans": {},
+        "echoes": {},
+        "synergy_pairs": {}
     }
     cur = conn.cursor()
     for table_name, pk_col in TABLES_SCHEMA.items():
@@ -269,7 +271,7 @@ def load_db_normalized(conn):
                 if isinstance(data_val, str):
                     data_val = json.loads(data_val)
                 
-                if table_name in ["user_profiles", "syllabus_progress", "topic_notes", "clans"]:
+                if table_name in ["user_profiles", "syllabus_progress", "topic_notes", "clans", "echoes", "synergy_pairs"]:
                     db_dict[table_name][pk_val] = data_val
                 elif table_name == "custom_syllabus":
                     db_dict[table_name][pk_val] = data_val
@@ -286,7 +288,7 @@ def save_db_normalized(conn, new_db, old_db):
         new_val = new_db.get(table_name)
         old_val = old_db.get(table_name) if old_db else None
         
-        if table_name in ["user_profiles", "syllabus_progress", "topic_notes", "custom_syllabus", "clans"]:
+        if table_name in ["user_profiles", "syllabus_progress", "topic_notes", "custom_syllabus", "clans", "echoes", "synergy_pairs"]:
             new_dict = new_val or {}
             old_dict = old_val or {}
             
@@ -320,6 +322,7 @@ def load_db():
         if has_app_context() and hasattr(g, 'db_cache'):
             return g.db_cache
             
+            # (Note: we use g.db_cache in request contexts for efficiency)
         conn = get_conn()
         try:
             db_data = load_db_normalized(conn)
@@ -344,7 +347,7 @@ def load_db():
                     "user_profiles": {}, "sessions": [], "tasks": [],
                     "syllabus_progress": {}, "topic_notes": {}, "journal": [],
                     "custom_syllabus": {"physics": [], "chemistry": [], "biology": [], "mathematics": []},
-                    "clans": {}
+                    "clans": {}, "echoes": {}, "synergy_pairs": {}
                 }
             return _DB_CACHE
         finally:
@@ -512,6 +515,7 @@ def midnight_wipe():
     print("Running 24-Hour Automated Refresh...")
     db = load_db()
     db['tasks'] = [] # wipe daily routines
+    cleanup_old_echoes(db)
     save_db(db)
 
 def synergy_penalty_check():
@@ -2552,9 +2556,12 @@ def generate_echo_card(echo_id, template_id, username, avatar_id, achievement_ph
             draw.rounded_rectangle([badge_x, badge_y, badge_x+110, badge_y+36], radius=10,
                                    fill=(40, 0, 80, 180), outline=(157, 0, 255, 255), width=1)
             try:
-                font_badge = ImageFont.truetype('arial.ttf', 18)
+                font_badge = ImageFont.truetype('assets/fonts/Montserrat-Regular.ttf', 18)
             except Exception:
-                font_badge = ImageFont.load_default()
+                try:
+                    font_badge = ImageFont.truetype('arial.ttf', 18)
+                except Exception:
+                    font_badge = ImageFont.load_default()
             draw.text((badge_x + 12, badge_y + 8), '⚡∞ SYNERGY', fill=(200, 150, 255, 255), font=font_badge)
 
         # --- Avatar circle (top-right) ---
@@ -2576,12 +2583,15 @@ def generate_echo_card(echo_id, template_id, username, avatar_id, achievement_ph
 
         # --- Achievement phrase (center of bottom zone) ---
         try:
-            font_phrase = ImageFont.truetype('arialbd.ttf', 44)
+            font_phrase = ImageFont.truetype('assets/fonts/Montserrat-Bold.ttf', 44)
         except Exception:
             try:
-                font_phrase = ImageFont.truetype('arial.ttf', 44)
+                font_phrase = ImageFont.truetype('arialbd.ttf', 44)
             except Exception:
-                font_phrase = ImageFont.load_default()
+                try:
+                    font_phrase = ImageFont.truetype('arial.ttf', 44)
+                except Exception:
+                    font_phrase = ImageFont.load_default()
 
         phrase_y = int(H * 0.68)
         # Word-wrap to max 18 chars per line
@@ -2603,9 +2613,12 @@ def generate_echo_card(echo_id, template_id, username, avatar_id, achievement_ph
 
         # --- Username (below phrase) ---
         try:
-            font_user = ImageFont.truetype('arial.ttf', 28)
+            font_user = ImageFont.truetype('assets/fonts/Montserrat-Regular.ttf', 28)
         except Exception:
-            font_user = ImageFont.load_default()
+            try:
+                font_user = ImageFont.truetype('arial.ttf', 28)
+            except Exception:
+                font_user = ImageFont.load_default()
         user_text = f'@{username}'
         bbox_u = draw.textbbox((0, 0), user_text, font=font_user)
         tw_u = bbox_u[2] - bbox_u[0]
@@ -2614,9 +2627,12 @@ def generate_echo_card(echo_id, template_id, username, avatar_id, achievement_ph
 
         # --- MavX Echoes watermark (bottom-center) ---
         try:
-            font_wm = ImageFont.truetype('arial.ttf', 20)
+            font_wm = ImageFont.truetype('assets/fonts/Montserrat-Regular.ttf', 20)
         except Exception:
-            font_wm = ImageFont.load_default()
+            try:
+                font_wm = ImageFont.truetype('arial.ttf', 20)
+            except Exception:
+                font_wm = ImageFont.load_default()
         wm = 'MavX Echoes'
         bbox_wm = draw.textbbox((0, 0), wm, font=font_wm)
         tw_wm = bbox_wm[2] - bbox_wm[0]
@@ -2729,9 +2745,46 @@ def check_echo_eligibility(user, uid, db):
     return eligibility
 
 
+def cleanup_old_echoes(db):
+    """Deletes echoes older than 24 hours from the database."""
+    now = get_ist_now()
+    changed = False
+    echoes = db.get('echoes', {})
+    to_delete = []
+    for eid, echo in echoes.items():
+        if not isinstance(echo, dict):
+            continue
+        created_str = echo.get('created_at')
+        if created_str:
+            created_t = parse_ist_datetime(created_str)
+            if created_t:
+                # 24 hours = 86400 seconds
+                age_seconds = (now - created_t).total_seconds()
+                if age_seconds > 86400:
+                    to_delete.append(eid)
+                    card_path = echo.get('card_path')
+                    if card_path and os.path.exists(card_path):
+                        try:
+                            os.remove(card_path)
+                        except Exception:
+                            pass
+            else:
+                to_delete.append(eid)
+        else:
+            to_delete.append(eid)
+            
+    for eid in to_delete:
+        del echoes[eid]
+        changed = True
+        
+    if changed:
+        save_db(db)
+
+
 @app.route('/api/echoes', methods=['GET'])
 def get_echoes():
     db = load_db()
+    cleanup_old_echoes(db)
     user, uid = get_current_user(db)
     if not user:
         return jsonify({'status': 'error', 'message': 'Unauthorized'}), 401
@@ -2766,6 +2819,7 @@ def get_echoes():
 @app.route('/api/echoes/eligible', methods=['GET'])
 def get_eligible_echoes():
     db = load_db()
+    cleanup_old_echoes(db)
     user, uid = get_current_user(db)
     if not user:
         return jsonify({'status': 'error', 'message': 'Unauthorized'}), 401
@@ -2788,6 +2842,7 @@ def get_eligible_echoes():
 @app.route('/api/echoes/share', methods=['POST'])
 def share_echo():
     db = load_db()
+    cleanup_old_echoes(db)
     user, uid = get_current_user(db)
     if not user:
         return jsonify({'status': 'error', 'message': 'Unauthorized'}), 401
@@ -2850,6 +2905,7 @@ def share_echo():
 @app.route('/api/echoes/<echo_id>/like', methods=['POST'])
 def like_echo(echo_id):
     db = load_db()
+    cleanup_old_echoes(db)
     user, uid = get_current_user(db)
     if not user:
         return jsonify({'status': 'error', 'message': 'Unauthorized'}), 401
@@ -2874,6 +2930,7 @@ def like_echo(echo_id):
 @app.route('/api/echoes/card-image/<echo_id>', methods=['GET'])
 def serve_echo_card(echo_id):
     db = load_db()
+    cleanup_old_echoes(db)
     echo = db.get('echoes', {}).get(echo_id)
     if not echo:
         return jsonify({'status': 'error', 'message': 'Echo not found'}), 404
