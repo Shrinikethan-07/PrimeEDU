@@ -761,6 +761,40 @@
         ];
         const DEFAULT_AVATAR = 'assets/avatars/itachi.webp';
 
+        async function syncSessionsFromBackend() {
+            const token = localStorage.getItem('primeedu_token');
+            if (!token) return;
+            try {
+                const res = await fetch(window.API_BASE_URL + '/api/sessions', {
+                    headers: { 'Authorization': 'Bearer ' + token }
+                });
+                if (res.ok) {
+                    const backendSessions = await res.json();
+                    let localSessions = backendSessions.map(s => {
+                        let t = new Date(s.start_time).getTime();
+                        return {
+                            subject: s.subject,
+                            mode: s.mode,
+                            timestamp: t
+                        };
+                    });
+                    localStorage.setItem(SESSION_STORAGE_KEY, JSON.stringify(localSessions));
+                    
+                    let stats = {};
+                    backendSessions.forEach(s => {
+                        let startT = new Date(s.start_time);
+                        if (startT.getFullYear() === new Date().getFullYear()) {
+                            stats[s.subject] = (stats[s.subject] || 0) + (s.duration_minutes || 0);
+                        }
+                    });
+                    localStorage.setItem(YEARLY_STATS_KEY, JSON.stringify(stats));
+                    renderSessions();
+                }
+            } catch (e) {
+                console.error("Failed to sync sessions from backend:", e);
+            }
+        }
+
         function loadTimerState() {
             const saved = localStorage.getItem(TIMER_STATE_KEY);
             if (!saved) return;
@@ -866,6 +900,7 @@
         }
         syncAvatar();
         renderSessions();
+        syncSessionsFromBackend();
         loadTimerState();
 
     </script>

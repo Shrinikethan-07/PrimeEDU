@@ -1155,6 +1155,44 @@ def end_session():
             
     return jsonify({"status": "error", "message": "Session not found"}), 404
 
+def auto_close_running_sessions(db, uid):
+    now_ist = get_ist_now()
+    updated = False
+    for s in db.get('sessions', []):
+        if s.get('user_id') == uid and s.get('status') == 'running':
+            try:
+                start_t = parse_ist_datetime(s.get('start_time'))
+                if start_t:
+                    diff_hours = (now_ist - start_t).total_seconds() / 3600.0
+                    # If it's been running for more than 4 hours, auto-end it
+                    if diff_hours > 4.0:
+                        s['status'] = 'early_exit'
+                        s['end_time'] = (start_t + timedelta(hours=4)).isoformat()
+                        duration_mins = 240.0
+                        s['duration_minutes'] = duration_mins
+                        earned = max(1, int(round(duration_mins * 0.5)))
+                        if uid in db.get('user_profiles', {}):
+                            db['user_profiles'][uid]['balls'] += earned
+                        updated = True
+            except Exception:
+                pass
+    if updated:
+        save_db(db)
+
+@app.route('/api/sessions', methods=['GET'])
+def get_user_sessions():
+    db = load_db()
+    user, uid = get_current_user(db)
+    if not user:
+        return jsonify({"status": "error", "message": "Unauthorized"}), 401
+        
+    auto_close_running_sessions(db, uid)
+    
+    user_sessions = [s for s in db.get('sessions', []) if s.get('user_id') == uid]
+    user_sessions = [s for s in user_sessions if s.get('status') in ['completed', 'early_exit']]
+    user_sessions.sort(key=lambda x: x.get('start_time') or '', reverse=True)
+    return jsonify(user_sessions)
+
 # --- ACTIVE FOCUSING ENDPOINT ---
 @app.route('/api/sessions/active', methods=['GET'])
 def get_active_focusing_warriors():

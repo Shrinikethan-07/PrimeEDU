@@ -164,19 +164,19 @@ class VisualizerAgent:
             max_subj_count = max(subject_counts.values()) if subject_counts else 0
             max_subj_ratio = (max_subj_count / len(completed_sessions)) if completed_sessions else 0
             
-            if user_balls >= 1000 or len(completed_sessions) >= 50:
+            if user_balls >= 1000 or len(completed_sessions) >= 50 or total_focus_hours >= 50:
                 role = "THE KNOWLEDGE SAGE"
                 role_title = "THE KNOWLEDGE SAGE"
                 role_subtitle = "Master of All Domains"
                 role_image = "assets/recap_sage.jpg"
                 role_desc = "You dominate the arena with grand wisdom."
-            elif (len(completed_sessions) > 0 and (night_count / len(completed_sessions)) >= 0.5) or user_balls >= 500:
+            elif (len(completed_sessions) > 0 and (night_count / len(completed_sessions)) >= 0.5) or user_balls >= 500 or len(completed_sessions) >= 25 or total_focus_hours >= 25:
                 role = "GHOST OF UCHIHA"
                 role_title = "GHOST OF UCHIHA"
                 role_subtitle = "Warrior of the Night"
                 role_image = "assets/recap_uchiha.jpg"
                 role_desc = "Your training is forged in the shadows of the night."
-            elif (len(completed_sessions) > 0 and max_subj_ratio >= 0.65) or user_balls >= 200:
+            elif (len(completed_sessions) > 0 and max_subj_ratio >= 0.65) or user_balls >= 200 or len(completed_sessions) >= 10 or total_focus_hours >= 10:
                 role = "SHARINGAN SIGHT"
                 role_title = "SHARINGAN SIGHT"
                 role_subtitle = "Laser-Focused Precision"
@@ -188,6 +188,7 @@ class VisualizerAgent:
                 role_subtitle = "Versatile Scholar"
                 role_image = "assets/recap_multitasker.jpg"
                 role_desc = "Perfect balance of discipline across all tasks."
+
 
         if len(completed_sessions) == 0:
             reason = "You have completed 0 focus sessions so far. Start your first focus session today to build your streak!"
