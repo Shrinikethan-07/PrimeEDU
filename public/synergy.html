@@ -1222,7 +1222,7 @@
     ═══════════════════════════════════════════════════════════════ */
     async function initSynergy() {
       /* Load sidebar avatar */
-      const storedChar = localStorage.getItem('primeedu_character') || localStorage.getItem('character_id');
+      const storedChar = localStorage.getItem('primeedu_avatar') || localStorage.getItem('primeedu_character') || localStorage.getItem('character_id') || 'itachi';
       if (storedChar) {
         const sidebarAv = document.getElementById('sidebarAvatar');
         if (sidebarAv) {

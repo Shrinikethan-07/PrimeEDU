@@ -1,4 +1,4 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
@@ -249,9 +249,9 @@
     .tpl-dbz       { background: linear-gradient(160deg, #FFD700 0%, #FF8C00 50%, #1a0a00 100%); }
     .tpl-deathnote { background: linear-gradient(160deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%); }
     .tpl-aot       { background: linear-gradient(160deg, #5c3d11 0%, #8B6914 50%, #2d1b00 100%); }
-    .tpl-mha       { background: linear-gradient(160deg, #00C853 0%, #1565C0 60%, #000d1a 100%); }
+    .tpl-onepiece  { background: linear-gradient(160deg, #00a8ff 0%, #0097e6 50%, #002f6c 100%); }
     .tpl-jjk       { background: linear-gradient(160deg, #0d0d0d 0%, #3a0ca3 50%, #7209b7 100%); }
-    .tpl-hxh       { background: linear-gradient(160deg, #004d00 0%, #00a300 50%, #000d00 100%); }
+    .tpl-demonslayer { background: linear-gradient(160deg, #ff0055 0%, #2f004f 60%, #0c001c 100%); }
 
     @media (max-width: 900px) {
       .main-wrapper { margin-left: 0; }
@@ -373,13 +373,13 @@
     ];
 
     const TEMPLATES = [
-      { id:'naruto',    label:'Naruto',     cls:'tpl-naruto' },
-      { id:'dbz',       label:'DBZ',        cls:'tpl-dbz' },
-      { id:'deathnote', label:'Death Note', cls:'tpl-deathnote' },
-      { id:'aot',       label:'AoT',        cls:'tpl-aot' },
-      { id:'mha',       label:'MHA',        cls:'tpl-mha' },
-      { id:'jjk',       label:'JJK',        cls:'tpl-jjk' },
-      { id:'hxh',       label:'HxH',        cls:'tpl-hxh' },
+      { id:'naruto',      label:'Naruto',       cls:'tpl-naruto' },
+      { id:'dbz',         label:'DBZ',          cls:'tpl-dbz' },
+      { id:'deathnote',   label:'Death Note',   cls:'tpl-deathnote' },
+      { id:'onepiece',    label:'One Piece',    cls:'tpl-onepiece' },
+      { id:'jjk',         label:'JJK',          cls:'tpl-jjk' },
+      { id:'aot',         label:'AoT',          cls:'tpl-aot' },
+      { id:'demonslayer', label:'Demon Slayer', cls:'tpl-demonslayer' },
     ];
 
     let currentTab        = 'all';
@@ -398,14 +398,22 @@
     }
 
     async function loadProfile() {
+      // Immediate local load fallback
+      const storedChar = localStorage.getItem('primeedu_avatar') || localStorage.getItem('primeedu_character') || 'itachi';
+      const av = document.getElementById('sidebarAvatar');
+      if (av) {
+        av.src = getAvatarSrc(storedChar);
+        av.onerror = () => { av.src = getAvatarFallback(storedChar); };
+      }
       try {
-        const res = await fetch(`${window.API_BASE_URL}/api/profile`);
+        const res = await fetch(`${window.API_BASE_URL}/api/user/profile`);
         if (!res.ok) return;
         const data = await res.json();
         const p = data.profile || data;
-        const av = document.getElementById('sidebarAvatar');
-        av.src = getAvatarSrc(p.avatar_id);
-        av.onerror = () => { av.src = getAvatarFallback(p.avatar_id); };
+        if (av) {
+          av.src = getAvatarSrc(p.avatar);
+          av.onerror = () => { av.src = getAvatarFallback(p.avatar); };
+        }
         currentUserEmail = p.email || '';
         if (p.is_admin) document.querySelectorAll('.admin-only-link').forEach(el => el.style.display = '');
       } catch(e) { console.warn('Profile load failed:', e); }
@@ -522,11 +530,11 @@
       grid.innerHTML = badges.map(b => {
         const locked = !b.eligible;
         return `<button class="badge-btn ${locked?'locked':''}"
-          onclick="${locked?'':``selectBadge('${b.type}',this)``}"
+          onclick="${locked ? '' : `selectBadge('${b.type}', this)`}"
           data-type="${b.type}" ${locked?'disabled':''} title="${b.reason||''}">
-          <div class="badge-icon"><i class="${b.icon_class||'fas fa-star'}"></i></div>
+          <div class="badge-icon">${b.icon||'⭐'}</div>
           <div class="badge-label">${b.label||b.type}</div>
-          <div class="badge-desc">${b.description||''}</div>
+          <div class="badge-desc">${b.phrase||b.description||''}</div>
           ${locked?`<div class="lock-icon"><i class="fas fa-lock"></i> ${b.reason||'Locked'}</div>`:''}
         </button>`;
       }).join('');
@@ -534,12 +542,12 @@
 
     function renderFallbackBadges() {
       renderBadgeGrid([
-        { type:'streak_7',  label:'7-Day Streak',   icon_class:'fas fa-fire',         description:'Journal 7 days in a row',   eligible:false, reason:'Keep journaling!' },
-        { type:'streak_30', label:'30-Day Streak',  icon_class:'fas fa-meteor',       description:'Journal 30 days in a row',  eligible:false, reason:'Keep journaling!' },
-        { type:'module_1',  label:'First Module',   icon_class:'fas fa-book-open',    description:'Complete your first module', eligible:false, reason:'Finish a module' },
-        { type:'hours_10',  label:'10 Study Hours', icon_class:'fas fa-stopwatch',    description:'Log 10+ total study hours', eligible:false, reason:'Study more!' },
-        { type:'clan_join', label:'Clan Member',    icon_class:'fas fa-shield-halved', description:'Join a clan',              eligible:false, reason:'Join a clan' },
-        { type:'synergy_1', label:'First Synergy',  icon_class:'fas fa-link',         description:'Link with a study partner', eligible:false, reason:'Connect on Synergy' },
+        { type:'streak_7',  label:'7-Day Streak',   icon:'🔥',         phrase:'7-Day Consistency Streak',   eligible:false, reason:'Keep journaling!' },
+        { type:'streak_30', label:'30-Day Streak',  icon:'💎',       phrase:'30-Day Warrior Streak',  eligible:false, reason:'Keep journaling!' },
+        { type:'module_1',  label:'First Module',   icon:'📚',    phrase:'Complete your first module', eligible:false, reason:'Finish a module' },
+        { type:'hours_10',  label:'10 Study Hours', icon:'⏱️',    phrase:'Log 10+ total study hours', eligible:false, reason:'Study more!' },
+        { type:'clan_join', label:'Clan Member',    icon:'🛡️', phrase:'Join a clan',              eligible:false, reason:'Join a clan' },
+        { type:'synergy_1', label:'First Synergy',  icon:'🔗',         phrase:'Link with a study partner', eligible:false, reason:'Connect on Synergy' },
       ]);
     }
 
