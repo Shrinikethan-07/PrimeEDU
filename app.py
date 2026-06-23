@@ -110,7 +110,9 @@ TABLES_SCHEMA = {
     "topic_notes": "email",
     "journal": "id",
     "custom_syllabus": "subject",
-    "clans": "clan_id"
+    "clans": "clan_id",
+    "echoes": "id",
+    "synergy_pairs": "duo_id"
 }
 
 def init_normalized_tables(conn):
@@ -399,6 +401,9 @@ def get_current_user(db):
             if 'banned_clans' not in profile: profile['banned_clans'] = []
             if 'balls' not in profile: profile['balls'] = 0
             if 'streak' not in profile: profile['streak'] = 0
+            if 'partner_id' not in profile: profile['partner_id'] = None
+            if 'aura_balance' not in profile: profile['aura_balance'] = 0
+            if 'synergy_symbol' not in profile: profile['synergy_symbol'] = None
             return profile, uid
     return None, None
 
@@ -509,8 +514,49 @@ def midnight_wipe():
     db['tasks'] = [] # wipe daily routines
     save_db(db)
 
+def synergy_penalty_check():
+    """Runs every 6 hours — deducts 20 Aura from both partners if no Synergy activity in 48h."""
+    print("[SYNERGY] Running penalty check...")
+    try:
+        conn = get_conn()
+        try:
+            db = load_db_normalized(conn)
+        finally:
+            if not has_app_context():
+                conn.close()
+        db = load_db()
+        now_ist = get_ist_now()
+        cutoff = now_ist - timedelta(hours=48)
+        changed = False
+        for duo_id, pair_data in db.get('synergy_pairs', {}).items():
+            if not pair_data.get('is_active'):
+                continue
+            last_act_str = pair_data.get('last_activity')
+            if not last_act_str:
+                continue
+            last_act = parse_ist_datetime(last_act_str)
+            if last_act and last_act < cutoff:
+                a_id = pair_data.get('partner_a_id')
+                b_id = pair_data.get('partner_b_id')
+                pair_data['aura_a'] = pair_data.get('aura_a', 0) - 20
+                pair_data['aura_b'] = pair_data.get('aura_b', 0) - 20
+                if a_id and a_id in db.get('user_profiles', {}):
+                    db['user_profiles'][a_id]['aura_balance'] = db['user_profiles'][a_id].get('aura_balance', 0) - 20
+                if b_id and b_id in db.get('user_profiles', {}):
+                    db['user_profiles'][b_id]['aura_balance'] = db['user_profiles'][b_id].get('aura_balance', 0) - 20
+                pair_data['last_penalty_at'] = get_ist_iso()
+                db['synergy_pairs'][duo_id] = pair_data
+                changed = True
+                print(f"[SYNERGY] Penalty applied to {a_id} & {b_id}: -20 Aura each")
+        if changed:
+            save_db(db)
+    except Exception as e:
+        print(f"[SYNERGY PENALTY ERROR] {e}")
+
+
 scheduler = BackgroundScheduler(timezone=timezone(timedelta(hours=5, minutes=30)))
 scheduler.add_job(func=midnight_wipe, trigger="cron", hour=0, minute=0)
+scheduler.add_job(func=synergy_penalty_check, trigger="cron", hour="*/6", minute=0)
 scheduler.start()
 
 journal_agent = FocusForgeAgent(api_key="LOCAL_DEV")
@@ -2439,6 +2485,700 @@ def list_challenges():
         return jsonify({"status": "error", "message": "Clan not found"}), 404
         
     return jsonify(clan.get('challenges', []))
+
+# ═══════════════════════════════════════════════════════════
+# MAVX ECHOES — MILESTONE CARD GALLERY
+# ═══════════════════════════════════════════════════════════
+
+ECHO_TEMPLATES = {
+    'naruto':     'assets/echo_templates/naruto.png',
+    'dbz':        'assets/echo_templates/dbz.png',
+    'deathnote':  'assets/echo_templates/deathnote.png',
+    'onepiece':   'assets/echo_templates/onepiece.png',
+    'jjk':        'assets/echo_templates/jjk.png',
+    'aot':        'assets/echo_templates/aot.png',
+    'demonslayer':'assets/echo_templates/demonslayer.png',
+}
+
+AVATAR_MAP = {
+    'itachi':  'assets/avatars/itachi.jpg',
+    'kakashi': 'assets/avatars/kakashi.jpg',
+    'naruto':  'assets/avatars/naruto.jpg',
+    'sasuke':  'assets/avatars/sasuke.jpg',
+}
+
+MILESTONE_META = {
+    'initiation':   {'label': 'Initiation Echo',        'icon': '🔥', 'phrase': 'Joined the MavX Mndset'},
+    'streak_7':     {'label': '7-Day Streak',            'icon': '⚡', 'phrase': '7-Day Consistency Streak'},
+    'streak_30':    {'label': '30-Day Streak',           'icon': '💎', 'phrase': '30-Day Warrior Streak'},
+    'leaderboard_1':{'label': 'Leaderboard #1',          'icon': '👑', 'phrase': 'Ranked #1 on Leaderboard'},
+    'pomodoro_5':   {'label': '5-Session Day',           'icon': '🎯', 'phrase': '5 Focus Sessions in One Day'},
+    'journal_7':    {'label': '7-Day Journal Streak',    'icon': '📜', 'phrase': '7-Day Journal Streak'},
+}
+
+
+def generate_echo_card(echo_id, template_id, username, avatar_id, achievement_phrase, has_synergy):
+    """Composite an Echo card PNG using PIL: template BG + dark overlay + text + avatar circle."""
+    try:
+        os.makedirs('assets/echoes', exist_ok=True)
+        out_path = f'assets/echoes/{echo_id}.png'
+
+        # --- Canvas: 720x1280 (9:16) ---
+        W, H = 720, 1280
+
+        # Load background template
+        tmpl_path = ECHO_TEMPLATES.get(template_id, ECHO_TEMPLATES['naruto'])
+        if os.path.exists(tmpl_path):
+            bg = Image.open(tmpl_path).convert('RGBA').resize((W, H), Image.LANCZOS)
+        else:
+            bg = Image.new('RGBA', (W, H), (7, 1, 20, 255))
+
+        canvas = bg.copy()
+        draw = ImageDraw.Draw(canvas)
+
+        # --- Dark gradient overlay at bottom 45% ---
+        overlay = Image.new('RGBA', (W, H), (0, 0, 0, 0))
+        ov_draw = ImageDraw.Draw(overlay)
+        grad_start = int(H * 0.42)
+        for y in range(grad_start, H):
+            alpha = int(220 * ((y - grad_start) / (H - grad_start)) ** 0.6)
+            ov_draw.line([(0, y), (W, y)], fill=(0, 0, 0, alpha))
+        canvas = Image.alpha_composite(canvas, overlay)
+        draw = ImageDraw.Draw(canvas)
+
+        # --- Synergy badge (top-left) ---
+        if has_synergy:
+            badge_x, badge_y = 30, 30
+            draw.rounded_rectangle([badge_x, badge_y, badge_x+110, badge_y+36], radius=10,
+                                   fill=(40, 0, 80, 180), outline=(157, 0, 255, 255), width=1)
+            try:
+                font_badge = ImageFont.truetype('arial.ttf', 18)
+            except Exception:
+                font_badge = ImageFont.load_default()
+            draw.text((badge_x + 12, badge_y + 8), '⚡∞ SYNERGY', fill=(200, 150, 255, 255), font=font_badge)
+
+        # --- Avatar circle (top-right) ---
+        av_size = 96
+        av_x, av_y = W - av_size - 30, 30
+        av_path = AVATAR_MAP.get(avatar_id, 'assets/avatars/itachi.jpg')
+        if os.path.exists(av_path):
+            try:
+                av_img = Image.open(av_path).convert('RGBA').resize((av_size, av_size), Image.LANCZOS)
+                mask = Image.new('L', (av_size, av_size), 0)
+                ImageDraw.Draw(mask).ellipse([(0, 0), (av_size, av_size)], fill=255)
+                av_img.putalpha(mask)
+                canvas.paste(av_img, (av_x, av_y), av_img)
+                # Neon cyan ring
+                draw.ellipse([av_x - 3, av_y - 3, av_x + av_size + 3, av_y + av_size + 3],
+                             outline=(0, 243, 255, 200), width=3)
+            except Exception:
+                pass
+
+        # --- Achievement phrase (center of bottom zone) ---
+        try:
+            font_phrase = ImageFont.truetype('arialbd.ttf', 44)
+        except Exception:
+            try:
+                font_phrase = ImageFont.truetype('arial.ttf', 44)
+            except Exception:
+                font_phrase = ImageFont.load_default()
+
+        phrase_y = int(H * 0.68)
+        # Word-wrap to max 18 chars per line
+        words = achievement_phrase.split()
+        lines, line = [], ''
+        for w in words:
+            if len(line + ' ' + w) <= 18:
+                line = (line + ' ' + w).strip()
+            else:
+                if line:
+                    lines.append(line)
+                line = w
+        if line:
+            lines.append(line)
+        for i, ln in enumerate(lines):
+            bbox = draw.textbbox((0, 0), ln, font=font_phrase)
+            tw = bbox[2] - bbox[0]
+            draw.text(((W - tw) // 2, phrase_y + i * 52), ln, fill=(255, 255, 255, 255), font=font_phrase)
+
+        # --- Username (below phrase) ---
+        try:
+            font_user = ImageFont.truetype('arial.ttf', 28)
+        except Exception:
+            font_user = ImageFont.load_default()
+        user_text = f'@{username}'
+        bbox_u = draw.textbbox((0, 0), user_text, font=font_user)
+        tw_u = bbox_u[2] - bbox_u[0]
+        user_y = phrase_y + len(lines) * 52 + 20
+        draw.text(((W - tw_u) // 2, user_y), user_text, fill=(0, 243, 255, 220), font=font_user)
+
+        # --- MavX Echoes watermark (bottom-center) ---
+        try:
+            font_wm = ImageFont.truetype('arial.ttf', 20)
+        except Exception:
+            font_wm = ImageFont.load_default()
+        wm = 'MavX Echoes'
+        bbox_wm = draw.textbbox((0, 0), wm, font=font_wm)
+        tw_wm = bbox_wm[2] - bbox_wm[0]
+        draw.text(((W - tw_wm) // 2, H - 50), wm, fill=(255, 255, 255, 80), font=font_wm)
+
+        # Save as RGB PNG
+        final = canvas.convert('RGB')
+        final.save(out_path, 'PNG', quality=95)
+        return out_path
+    except Exception as e:
+        print(f'[ECHO CARD ERROR] {e}')
+        return None
+
+
+def check_echo_eligibility(user, uid, db):
+    """Returns dict of milestone_type -> {eligible: bool, reason: str}."""
+    eligibility = {}
+    streak = user.get('streak', 0)
+    creation_str = user.get('creation_date', get_ist_iso())
+    created = parse_ist_datetime(creation_str) or get_ist_now()
+    age_days = max(1, (get_ist_now().date() - created.date()).days + 1)
+
+    # Collect already shared milestone types
+    shared_types = set()
+    for echo in db.get('echoes', {}).values():
+        if isinstance(echo, dict) and echo.get('user_id') == uid:
+            shared_types.add(echo.get('milestone_type'))
+
+    # Initiation — once only, day 1+
+    if 'initiation' not in shared_types:
+        eligibility['initiation'] = {'eligible': True, 'reason': ''}
+    else:
+        eligibility['initiation'] = {'eligible': False, 'reason': 'Already shared'}
+
+    # Streak milestones — eligible each time a new one is hit
+    for stype, needed in [('streak_7', 7), ('streak_30', 30)]:
+        if streak >= needed:
+            # Find the last time they shared this type
+            last_share = None
+            for echo in db.get('echoes', {}).values():
+                if isinstance(echo, dict) and echo.get('user_id') == uid and echo.get('milestone_type') == stype:
+                    t = parse_ist_datetime(echo.get('created_at', ''))
+                    if t and (last_share is None or t > last_share):
+                        last_share = t
+            # Eligible if streak was at different value (new milestone) — allow re-share
+            eligibility[stype] = {'eligible': True, 'reason': ''}
+        else:
+            eligibility[stype] = {'eligible': False, 'reason': f'Reach {needed}-day streak first'}
+
+    # Leaderboard #1 — check current ranking
+    all_profiles = db.get('user_profiles', {})
+    sorted_users = sorted(all_profiles.items(), key=lambda x: x[1].get('balls', 0), reverse=True)
+    is_rank1 = len(sorted_users) > 0 and sorted_users[0][0] == uid
+    if is_rank1 and 'leaderboard_1' not in shared_types:
+        eligibility['leaderboard_1'] = {'eligible': True, 'reason': ''}
+    elif is_rank1:
+        eligibility['leaderboard_1'] = {'eligible': True, 'reason': 'New milestone = new eligibility'}
+    else:
+        eligibility['leaderboard_1'] = {'eligible': False, 'reason': 'Reach #1 on Leaderboard first'}
+
+    # 5 sessions in one day
+    today = get_ist_now().date()
+    today_sessions = [s for s in db.get('sessions', []) if s.get('user_id') == uid
+                      and s.get('status') in ('completed', 'early_exit')
+                      and parse_ist_datetime(s.get('start_time', '')) is not None
+                      and parse_ist_datetime(s.get('start_time', '')).date() == today]
+    if len(today_sessions) >= 5:
+        eligibility['pomodoro_5'] = {'eligible': True, 'reason': ''}
+    else:
+        eligibility['pomodoro_5'] = {'eligible': False, 'reason': f'Complete 5 sessions today ({len(today_sessions)}/5 done)'}
+
+    # 7 journal days
+    journal_dates = set()
+    for j in db.get('journal', []):
+        if j.get('user_id') == uid:
+            t = parse_ist_datetime(j.get('timestamp', ''))
+            if t:
+                journal_dates.add(t.date())
+    if len(journal_dates) >= 7:
+        eligibility['journal_7'] = {'eligible': True, 'reason': ''}
+    else:
+        eligibility['journal_7'] = {'eligible': False, 'reason': f'Write journal on 7 days ({len(journal_dates)}/7 done)'}
+
+    return eligibility
+
+
+@app.route('/api/echoes', methods=['GET'])
+def get_echoes():
+    db = load_db()
+    user, uid = get_current_user(db)
+    if not user:
+        return jsonify({'status': 'error', 'message': 'Unauthorized'}), 401
+
+    tab = request.args.get('tab', 'all')  # 'all' or 'mine'
+    page = int(request.args.get('page', 0))
+    per_page = 20
+
+    all_echoes = list(db.get('echoes', {}).values())
+    if isinstance(all_echoes, list) and len(all_echoes) > 0 and isinstance(all_echoes[0], dict):
+        pass
+    else:
+        all_echoes = [v for v in db.get('echoes', {}).values() if isinstance(v, dict)]
+
+    if tab == 'mine':
+        all_echoes = [e for e in all_echoes if e.get('user_id') == uid]
+
+    all_echoes.sort(key=lambda x: x.get('created_at', ''), reverse=True)
+    paginated = all_echoes[page * per_page:(page + 1) * per_page]
+
+    # Annotate liked_by_me
+    result = []
+    for e in paginated:
+        ec = dict(e)
+        ec['liked_by_me'] = uid in (ec.get('likes') or [])
+        ec['likes_count'] = len(ec.get('likes') or [])
+        result.append(ec)
+
+    return jsonify(result)
+
+
+@app.route('/api/echoes/eligible', methods=['GET'])
+def get_eligible_echoes():
+    db = load_db()
+    user, uid = get_current_user(db)
+    if not user:
+        return jsonify({'status': 'error', 'message': 'Unauthorized'}), 401
+
+    elig = check_echo_eligibility(user, uid, db)
+    result = []
+    for mtype, meta in MILESTONE_META.items():
+        e = elig.get(mtype, {'eligible': False, 'reason': 'Not available'})
+        result.append({
+            'type': mtype,
+            'label': meta['label'],
+            'icon': meta['icon'],
+            'phrase': meta['phrase'],
+            'eligible': e['eligible'],
+            'reason': e['reason'],
+        })
+    return jsonify(result)
+
+
+@app.route('/api/echoes/share', methods=['POST'])
+def share_echo():
+    db = load_db()
+    user, uid = get_current_user(db)
+    if not user:
+        return jsonify({'status': 'error', 'message': 'Unauthorized'}), 401
+
+    data = request.json or {}
+    milestone_type = data.get('milestone_type', '').strip()
+    template_id = data.get('template_id', 'naruto').strip()
+
+    if milestone_type not in MILESTONE_META:
+        return jsonify({'status': 'error', 'message': 'Invalid milestone type'}), 400
+    if template_id not in ECHO_TEMPLATES:
+        template_id = 'naruto'
+
+    # Verify eligibility
+    elig = check_echo_eligibility(user, uid, db)
+    if not elig.get(milestone_type, {}).get('eligible'):
+        reason = elig.get(milestone_type, {}).get('reason', 'Not eligible')
+        return jsonify({'status': 'error', 'message': f'Not eligible: {reason}'}), 403
+
+    # Determine Synergy status
+    partner_id = user.get('partner_id')
+    has_synergy = bool(partner_id)
+    partner_name = None
+    if has_synergy and partner_id in db.get('user_profiles', {}):
+        pf = db['user_profiles'][partner_id]
+        partner_name = pf.get('leaderboard_name') or pf.get('name', 'Partner')
+
+    echo_id = f"echo_{int(get_ist_now().timestamp())}_{random.randint(1000, 9999)}"
+    username_display = user.get('leaderboard_name') or user.get('name', 'Warrior')
+    achievement_phrase = MILESTONE_META[milestone_type]['phrase']
+    avatar_id = user.get('avatar', 'itachi')
+
+    # Generate the card image
+    card_path = generate_echo_card(echo_id, template_id, username_display, avatar_id, achievement_phrase, has_synergy)
+
+    echo_obj = {
+        'id': echo_id,
+        'user_id': uid,
+        'template_id': template_id,
+        'milestone_type': milestone_type,
+        'achievement_phrase': achievement_phrase,
+        'username_display': username_display,
+        'avatar_id': avatar_id,
+        'has_synergy': has_synergy,
+        'partner_name': partner_name,
+        'synergy_symbol': user.get('synergy_symbol'),
+        'likes': [],
+        'card_path': card_path,
+        'created_at': get_ist_iso(),
+    }
+
+    if 'echoes' not in db:
+        db['echoes'] = {}
+    db['echoes'][echo_id] = echo_obj
+    save_db(db)
+
+    return jsonify({'status': 'success', 'echo_id': echo_id, 'card_path': card_path})
+
+
+@app.route('/api/echoes/<echo_id>/like', methods=['POST'])
+def like_echo(echo_id):
+    db = load_db()
+    user, uid = get_current_user(db)
+    if not user:
+        return jsonify({'status': 'error', 'message': 'Unauthorized'}), 401
+
+    echo = db.get('echoes', {}).get(echo_id)
+    if not echo:
+        return jsonify({'status': 'error', 'message': 'Echo not found'}), 404
+
+    likes = echo.get('likes', [])
+    if uid in likes:
+        likes.remove(uid)
+        liked = False
+    else:
+        likes.append(uid)
+        liked = True
+    echo['likes'] = likes
+    db['echoes'][echo_id] = echo
+    save_db(db)
+    return jsonify({'status': 'success', 'likes_count': len(likes), 'liked': liked})
+
+
+@app.route('/api/echoes/card-image/<echo_id>', methods=['GET'])
+def serve_echo_card(echo_id):
+    db = load_db()
+    echo = db.get('echoes', {}).get(echo_id)
+    if not echo:
+        return jsonify({'status': 'error', 'message': 'Echo not found'}), 404
+    card_path = echo.get('card_path', '')
+    if not card_path or not os.path.exists(card_path):
+        return jsonify({'status': 'error', 'message': 'Card image not found'}), 404
+    return send_file(card_path, mimetype='image/png')
+
+
+# ═══════════════════════════════════════════════════════════
+# MAVX SYNERGY — ACCOUNTABILITY DUO SYSTEM
+# ═══════════════════════════════════════════════════════════
+
+def generate_synergy_code(db):
+    import string
+    chars = string.ascii_uppercase + string.digits
+    while True:
+        code = 'MAVX-' + ''.join(random.choice(chars) for _ in range(4))
+        existing = [p.get('synergy_code') for p in db.get('synergy_pairs', {}).values()]
+        if code not in existing:
+            return code
+
+
+def get_active_pair_for_user(uid, db):
+    """Returns (duo_id, pair_data) if user has an active synergy, else (None, None)."""
+    for duo_id, pair in db.get('synergy_pairs', {}).items():
+        if isinstance(pair, dict) and pair.get('is_active'):
+            if pair.get('partner_a_id') == uid or pair.get('partner_b_id') == uid:
+                return duo_id, pair
+    return None, None
+
+
+@app.route('/api/synergy/create', methods=['POST'])
+def synergy_create():
+    db = load_db()
+    user, uid = get_current_user(db)
+    if not user:
+        return jsonify({'status': 'error', 'message': 'Unauthorized'}), 401
+
+    if user.get('partner_id'):
+        return jsonify({'status': 'error', 'message': 'Already in an active Synergy'}), 400
+
+    # Check for existing pending invite from this user
+    for duo_id, pair in db.get('synergy_pairs', {}).items():
+        if pair.get('partner_a_id') == uid and not pair.get('partner_b_id') and pair.get('is_active') is False:
+            return jsonify({'status': 'success', 'synergy_code': pair['synergy_code'], 'duo_id': duo_id})
+
+    if 'synergy_pairs' not in db:
+        db['synergy_pairs'] = {}
+
+    code = generate_synergy_code(db)
+    duo_id = f"syn_{int(get_ist_now().timestamp())}_{random.randint(100, 999)}"
+    pair = {
+        'duo_id': duo_id,
+        'partner_a_id': uid,
+        'partner_b_id': None,
+        'synergy_code': code,
+        'is_active': False,
+        'aura_a': 0,
+        'aura_b': 0,
+        'created_at': get_ist_iso(),
+        'last_activity': get_ist_iso(),
+        'recent_sessions': [],
+    }
+    db['synergy_pairs'][duo_id] = pair
+    save_db(db)
+    return jsonify({'status': 'success', 'synergy_code': code, 'duo_id': duo_id})
+
+
+@app.route('/api/synergy/join', methods=['POST'])
+def synergy_join():
+    db = load_db()
+    user, uid = get_current_user(db)
+    if not user:
+        return jsonify({'status': 'error', 'message': 'Unauthorized'}), 401
+
+    if user.get('partner_id'):
+        return jsonify({'status': 'error', 'message': 'Already in an active Synergy'}), 400
+
+    data = request.json or {}
+    code = (data.get('synergy_code') or '').strip().upper()
+    if not code:
+        return jsonify({'status': 'error', 'message': 'Synergy code required'}), 400
+
+    # Find the pending pair
+    target_duo_id = None
+    target_pair = None
+    for duo_id, pair in db.get('synergy_pairs', {}).items():
+        if pair.get('synergy_code') == code and not pair.get('partner_b_id') and not pair.get('is_active'):
+            target_duo_id = duo_id
+            target_pair = pair
+            break
+
+    if not target_pair:
+        return jsonify({'status': 'error', 'message': 'Invalid or expired Synergy Code'}), 404
+
+    a_id = target_pair['partner_a_id']
+    if a_id == uid:
+        return jsonify({'status': 'error', 'message': 'Cannot link with yourself'}), 400
+
+    symbol = '⚡∞'
+    target_pair['partner_b_id'] = uid
+    target_pair['is_active'] = True
+    target_pair['linked_at'] = get_ist_iso()
+    target_pair['last_activity'] = get_ist_iso()
+    db['synergy_pairs'][target_duo_id] = target_pair
+
+    # Update both user profiles
+    db['user_profiles'][a_id]['partner_id'] = uid
+    db['user_profiles'][a_id]['synergy_symbol'] = symbol
+    db['user_profiles'][uid]['partner_id'] = a_id
+    db['user_profiles'][uid]['synergy_symbol'] = symbol
+
+    save_db(db)
+    return jsonify({'status': 'success', 'message': 'Synergy link established!', 'synergy_symbol': symbol})
+
+
+@app.route('/api/synergy/status', methods=['GET'])
+def synergy_status():
+    db = load_db()
+    user, uid = get_current_user(db)
+    if not user:
+        return jsonify({'status': 'error', 'message': 'Unauthorized'}), 401
+
+    partner_id = user.get('partner_id')
+    if not partner_id:
+        # Check for pending invite this user created
+        pending_code = None
+        for pair in db.get('synergy_pairs', {}).values():
+            if pair.get('partner_a_id') == uid and not pair.get('is_active'):
+                pending_code = pair.get('synergy_code')
+                break
+        return jsonify({
+            'has_partner': False,
+            'pending_code': pending_code,
+            'aura_self': user.get('aura_balance', 0),
+        })
+
+    duo_id, pair = get_active_pair_for_user(uid, db)
+    if not pair:
+        # Stale partner_id, clean up
+        db['user_profiles'][uid]['partner_id'] = None
+        db['user_profiles'][uid]['synergy_symbol'] = None
+        save_db(db)
+        return jsonify({'has_partner': False})
+
+    is_a = pair.get('partner_a_id') == uid
+    aura_self = pair.get('aura_a') if is_a else pair.get('aura_b')
+    aura_partner = pair.get('aura_b') if is_a else pair.get('aura_a')
+
+    partner_profile = db.get('user_profiles', {}).get(partner_id, {})
+    partner_info = {
+        'name': partner_profile.get('leaderboard_name') or partner_profile.get('name', 'Partner'),
+        'avatar': partner_profile.get('avatar', 'itachi'),
+        'aura': aura_partner,
+    }
+
+    return jsonify({
+        'has_partner': True,
+        'duo_id': duo_id,
+        'synergy_code': pair.get('synergy_code'),
+        'synergy_symbol': user.get('synergy_symbol', '⚡∞'),
+        'partner': partner_info,
+        'aura_self': aura_self,
+        'aura_partner': aura_partner,
+        'created_at': pair.get('linked_at') or pair.get('created_at'),
+        'recent_sessions': pair.get('recent_sessions', [])[-10:],
+    })
+
+
+@app.route('/api/synergy/task/start', methods=['POST'])
+def synergy_task_start():
+    db = load_db()
+    user, uid = get_current_user(db)
+    if not user:
+        return jsonify({'status': 'error', 'message': 'Unauthorized'}), 401
+
+    data = request.json or {}
+    title = (data.get('title') or '').strip()
+    if not title:
+        return jsonify({'status': 'error', 'message': 'Task title is required'}), 400
+    words = [w for w in title.split() if w]
+    if len(words) < 2:
+        return jsonify({'status': 'error', 'message': 'Title must be at least 2 words'}), 400
+
+    mark_user_active_today(user)
+
+    # Record as a normal session with the Synergy task title as subject
+    session_id = f"syn_sess_{int(get_ist_now().timestamp())}_{random.randint(1000, 9999)}"
+    session = {
+        'id': session_id,
+        'user_id': uid,
+        'subject': f'[Synergy] {title}',
+        'mode': 'Synergy Duo Task',
+        'start_time': get_ist_iso(),
+        'status': 'running',
+        'is_synergy': True,
+    }
+    db['sessions'].append(session)
+    save_db(db)
+    return jsonify({'status': 'success', 'session_id': session_id})
+
+
+@app.route('/api/synergy/task/end', methods=['POST'])
+def synergy_task_end():
+    db = load_db()
+    user, uid = get_current_user(db)
+    if not user:
+        return jsonify({'status': 'error', 'message': 'Unauthorized'}), 401
+
+    data = request.json or {}
+    session_id = data.get('session_id', '')
+    duration_minutes = max(0.0, float(data.get('duration_minutes', 0)))
+
+    # Complete the normal session record
+    for s in db['sessions']:
+        if s['id'] == session_id and s.get('user_id') == uid:
+            if s.get('status') == 'running':
+                s['status'] = 'completed'
+                s['end_time'] = get_ist_iso()
+                s['duration_minutes'] = duration_minutes
+                # Standard ball reward for focus
+                earned_balls = max(1, int(round(duration_minutes)))
+                db['user_profiles'][uid]['balls'] = db['user_profiles'][uid].get('balls', 0) + earned_balls
+            break
+
+    # Calculate Aura: 2 pts per minute
+    aura_earned = int(duration_minutes * 2)
+    duo_id, pair = get_active_pair_for_user(uid, db)
+
+    if pair:
+        is_a = pair.get('partner_a_id') == uid
+        partner_id = pair.get('partner_b_id') if is_a else pair.get('partner_a_id')
+
+        if is_a:
+            pair['aura_a'] = pair.get('aura_a', 0) + aura_earned
+        else:
+            pair['aura_b'] = pair.get('aura_b', 0) + aura_earned
+
+        # Also credit partner
+        if partner_id and partner_id in db.get('user_profiles', {}):
+            if is_a:
+                pair['aura_b'] = pair.get('aura_b', 0) + aura_earned
+                db['user_profiles'][partner_id]['aura_balance'] = db['user_profiles'][partner_id].get('aura_balance', 0) + aura_earned
+            else:
+                pair['aura_a'] = pair.get('aura_a', 0) + aura_earned
+                db['user_profiles'][partner_id]['aura_balance'] = db['user_profiles'][partner_id].get('aura_balance', 0) + aura_earned
+
+        db['user_profiles'][uid]['aura_balance'] = db['user_profiles'][uid].get('aura_balance', 0) + aura_earned
+        pair['last_activity'] = get_ist_iso()
+
+        # Log in recent sessions
+        recent = pair.get('recent_sessions', [])
+        task_title = ''
+        for s in db['sessions']:
+            if s.get('id') == session_id:
+                task_title = s.get('subject', 'Duo Task').replace('[Synergy] ', '')
+                break
+        recent.append({
+            'session_id': session_id,
+            'title': task_title,
+            'duration_minutes': duration_minutes,
+            'aura_earned': aura_earned,
+            'completed_by': uid,
+            'completed_at': get_ist_iso(),
+        })
+        pair['recent_sessions'] = recent[-50:]  # Keep last 50
+        db['synergy_pairs'][duo_id] = pair
+
+    save_db(db)
+    total_aura = db['user_profiles'][uid].get('aura_balance', 0)
+    return jsonify({'status': 'success', 'aura_earned': aura_earned, 'total_aura': total_aura})
+
+
+@app.route('/api/synergy/dismantle', methods=['POST'])
+def synergy_dismantle():
+    db = load_db()
+    user, uid = get_current_user(db)
+    if not user:
+        return jsonify({'status': 'error', 'message': 'Unauthorized'}), 401
+
+    partner_id = user.get('partner_id')
+    if not partner_id:
+        return jsonify({'status': 'error', 'message': 'No active Synergy to dismantle'}), 400
+
+    duo_id, pair = get_active_pair_for_user(uid, db)
+
+    # Apply penalties
+    db['user_profiles'][uid]['balls'] = db['user_profiles'][uid].get('balls', 0) - 50
+    db['user_profiles'][uid]['partner_id'] = None
+    db['user_profiles'][uid]['synergy_symbol'] = None
+
+    if partner_id in db.get('user_profiles', {}):
+        db['user_profiles'][partner_id]['balls'] = db['user_profiles'][partner_id].get('balls', 0) - 50
+        db['user_profiles'][partner_id]['partner_id'] = None
+        db['user_profiles'][partner_id]['synergy_symbol'] = None
+
+    if pair:
+        pair['is_active'] = False
+        pair['dismantled_at'] = get_ist_iso()
+        pair['dismantled_by'] = uid
+        db['synergy_pairs'][duo_id] = pair
+
+    save_db(db)
+    return jsonify({'status': 'success', 'message': 'Synergy dismantled. -50 Dragon Balls applied.'})
+
+
+@app.route('/api/synergy/leaderboard', methods=['GET'])
+def synergy_leaderboard():
+    db = load_db()
+    user, uid = get_current_user(db)
+    if not user:
+        return jsonify({'status': 'error', 'message': 'Unauthorized'}), 401
+
+    if not user.get('partner_id'):
+        return jsonify({'status': 'error', 'message': 'Aura Ranking only visible to partnered warriors'}), 403
+
+    # Build list of all partnered users with their aura
+    result = []
+    for user_id, profile in db.get('user_profiles', {}).items():
+        if profile.get('partner_id'):
+            result.append({
+                'name': profile.get('leaderboard_name') or profile.get('name', 'Warrior'),
+                'email': user_id,
+                'avatar': profile.get('avatar', 'itachi'),
+                'aura': profile.get('aura_balance', 0),
+                'synergy_symbol': profile.get('synergy_symbol', '⚡∞'),
+            })
+    result.sort(key=lambda x: x['aura'], reverse=True)
+    return jsonify(result)
+
 
 if __name__ == '__main__':
     print("MavX Mndset Local Server Starting...")

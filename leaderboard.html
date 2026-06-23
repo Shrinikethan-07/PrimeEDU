@@ -330,6 +330,8 @@
                 <li class="nav-item"><a href="recaps.html" class="nav-link"><i class="fas fa-magic"></i><span>Recaps</span></a></li>
                 <li class="nav-item"><a href="leaderboard.html" class="nav-link active"><i class="fas fa-trophy"></i><span>Leaderboard</span></a></li>
                 <li class="nav-item"><a href="teams.html" class="nav-link"><i class="fas fa-shield-halved"></i><span>Clan Arena</span></a></li>
+                <li class="nav-item"><a href="echoes.html" class="nav-link"><i class="fas fa-images"></i><span>Echoes</span></a></li>
+                <li class="nav-item"><a href="synergy.html" class="nav-link"><i class="fas fa-link"></i><span>Synergy</span></a></li>
                 <li class="nav-item admin-only-link" style="display: none;">
                     <a href="admin.html" class="nav-link" style="color: #ff3366;">
                         <i class="fas fa-user-shield"></i><span>Admin</span>
@@ -437,13 +439,42 @@
                 const res = await fetch(window.API_BASE_URL + '/api/user/profile');
                 const data = await res.json();
                 const nameEl = document.getElementById('user-lb-name');
-                if (nameEl) {
-                    nameEl.innerText = data.leaderboard_name || data.name || 'Warrior';
-                }
+                if (nameEl) nameEl.innerText = data.leaderboard_name || data.name || 'Warrior';
                 const beansEl = document.getElementById('user-lb-beans');
                 if (beansEl) {
                     const balls = (data.balls || 0).toLocaleString();
                     beansEl.innerHTML = `${balls}<small>Dragon Balls</small>`;
+                }
+                // Admin link
+                if (data.email && data.email.toLowerCase() === 'buvanavel.m01@gmail.com') {
+                    document.querySelectorAll('.admin-only-link').forEach(el => el.style.display = '');
+                }
+                // Synergy badge on avatar
+                if (data.synergy_symbol) {
+                    document.querySelectorAll('.avatar-preview').forEach(ap => {
+                        let badge = ap.querySelector('.synergy-badge-nav');
+                        if (!badge) {
+                            badge = document.createElement('span');
+                            badge.className = 'synergy-badge-nav';
+                            badge.style.cssText = 'position:absolute;bottom:-4px;right:-4px;background:rgba(157,0,255,0.85);border:1px solid var(--neon-purple);border-radius:6px;font-size:0.6rem;padding:1px 4px;color:white;z-index:2;';
+                            ap.style.position = 'relative';
+                            ap.appendChild(badge);
+                        }
+                        badge.textContent = data.synergy_symbol;
+                    });
+                }
+                // Aura Ranking tab injection (only for partnered users)
+                if (data.partner_id) {
+                    const sortBar = document.getElementById('lb-sort-bar');
+                    if (sortBar && !document.querySelector('[data-sort="aura"]')) {
+                        const auraBtn = document.createElement('button');
+                        auraBtn.className = 'neon-btn sort-pill';
+                        auraBtn.setAttribute('data-sort', 'aura');
+                        auraBtn.style.cssText = 'font-size:0.8rem!important;padding:0.5rem 1rem!important;border-color:rgba(157,0,255,0.4)!important;color:var(--neon-purple)!important;background:rgba(157,0,255,0.04)!important;';
+                        auraBtn.innerHTML = '<i class="fas fa-bolt"></i> ⚡∞ Aura Ranking';
+                        auraBtn.onclick = () => changeSort('aura');
+                        sortBar.appendChild(auraBtn);
+                    }
                 }
             } catch (e) {}
         }
@@ -514,6 +545,8 @@
                 return `${(u.sessions_count || 0)} sessions`;
             } else if (currentSort === 'streak') {
                 return `${(u.streak || 0)} days`;
+            } else if (currentSort === 'aura') {
+                return `${(u.aura || 0).toLocaleString()} Aura`;
             } else {
                 return `${(u.balls || 0).toLocaleString()} Balls`;
             }
@@ -526,6 +559,8 @@
                 return 'Completed Sessions';
             } else if (currentSort === 'streak') {
                 return 'Day Streak';
+            } else if (currentSort === 'aura') {
+                return '⚡∞ Aura Points';
             } else {
                 return 'Dragon Balls';
             }
@@ -545,8 +580,16 @@
 
         async function loadLeaderboard() {
             try {
-                const res = await fetch(window.API_BASE_URL + '/api/leaderboard?sort_by=' + currentSort);
-                const users = await res.json();
+                let users;
+                if (currentSort === 'aura') {
+                    const res = await fetch(window.API_BASE_URL + '/api/synergy/leaderboard');
+                    users = await res.json();
+                    if (!Array.isArray(users)) users = [];
+                } else {
+                    const res = await fetch(window.API_BASE_URL + '/api/leaderboard?sort_by=' + currentSort);
+                    users = await res.json();
+                    if (!Array.isArray(users)) users = [];
+                }
                 
                 const podiumDiv = document.getElementById('dynamic-podium');
                 const listDiv = document.getElementById('dynamic-list');

@@ -1,0 +1,603 @@
+﻿<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>MavX Echoes | Gallery of Greatness</title>
+
+  <script>
+    const isLocal = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' || window.location.protocol === 'file:' || window.location.hostname === '';
+    window.API_BASE_URL = isLocal ? 'http://127.0.0.1:5000' : 'https://primeedu.onrender.com';
+  </script>
+
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@700;800&family=Poppins:wght@400;500;600&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
+  <link rel="stylesheet" href="style.css" />
+
+  <style>
+    :root {
+      --bg-deep: #070114;
+      --bg-gradient: linear-gradient(135deg, #070114 0%, #150a24 100%);
+      --bg-secondary: #0f0820;
+      --neon-cyan: #00f3ff;
+      --neon-purple: #9d00ff;
+      --neon-yellow: #fff01f;
+      --neon-pink: #ff0055;
+      --neon-orange: #ff6a00;
+      --glass-bg: rgba(21, 10, 36, 0.8);
+      --glass-border: rgba(255, 255, 255, 0.08);
+      --border-radius: 16px;
+      --font-heading: 'Montserrat', sans-serif;
+      --font-body: 'Poppins', sans-serif;
+      --sidebar-width: 260px;
+      --text-primary: #ffffff;
+      --text-secondary: rgba(255, 255, 255, 0.5);
+    }
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body { height: 100%; background: var(--bg-deep); color: var(--text-primary); font-family: var(--font-body); overflow-x: hidden; }
+    body { background: var(--bg-gradient); min-height: 100vh; display: flex; }
+    a { text-decoration: none; color: inherit; }
+
+    .sidebar {
+      position: fixed; left: 0; top: 0;
+      width: var(--sidebar-width); height: 100vh;
+      background: var(--glass-bg);
+      border-right: 1px solid var(--glass-border);
+      backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
+      display: flex; flex-direction: column;
+      z-index: 200; padding: 1.5rem 0;
+      overflow-y: auto; transition: transform 0.3s ease;
+    }
+    .logo {
+      display: flex; align-items: center; gap: 0.75rem;
+      padding: 0 1.5rem 1.75rem;
+      font-family: var(--font-heading); font-size: 1.25rem; font-weight: 800;
+      color: var(--neon-cyan);
+      border-bottom: 1px solid var(--glass-border); letter-spacing: 0.5px;
+    }
+    .logo i { font-size: 1.4rem; filter: drop-shadow(0 0 8px var(--neon-cyan)); }
+    .nav-links { list-style: none; padding: 1.25rem 0; flex: 1; }
+    .nav-item { margin: 0.1rem 0.75rem; }
+    .nav-link {
+      display: flex; align-items: center; gap: 0.85rem;
+      padding: 0.75rem 1rem; border-radius: 12px;
+      font-size: 0.875rem; font-weight: 500;
+      color: rgba(255,255,255,0.55); transition: all 0.25s ease; position: relative;
+    }
+    .nav-link i { width: 20px; text-align: center; font-size: 1rem; transition: color 0.25s ease; }
+    .nav-link:hover { background: rgba(0,243,255,0.07); color: var(--neon-cyan); }
+    .nav-link:hover i { color: var(--neon-cyan); }
+    .nav-link.active { background: rgba(0,243,255,0.12); color: var(--neon-cyan); box-shadow: inset 3px 0 0 var(--neon-cyan); }
+    .nav-link.active i { color: var(--neon-cyan); filter: drop-shadow(0 0 6px var(--neon-cyan)); }
+    .sidebar-bottom { padding: 1.25rem 1.5rem 0.5rem; border-top: 1px solid var(--glass-border); }
+    .avatar-preview { display: flex; align-items: center; justify-content: center; }
+    .avatar-circle { width: 48px; height: 48px; border-radius: 50%; object-fit: cover; border: 2px solid var(--neon-cyan); box-shadow: 0 0 16px rgba(0,243,255,0.35); }
+
+    .main-wrapper { margin-left: var(--sidebar-width); flex: 1; min-height: 100vh; display: flex; flex-direction: column; }
+
+    header {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 1.75rem 2.5rem 1.25rem;
+      border-bottom: 1px solid var(--glass-border);
+      background: rgba(7,1,20,0.6); backdrop-filter: blur(12px);
+      position: sticky; top: 0; z-index: 100;
+      flex-wrap: wrap; gap: 1rem;
+    }
+    .header-left h1 {
+      font-family: var(--font-heading); font-size: 1.6rem; font-weight: 800;
+      display: flex; align-items: center; gap: 0.65rem; letter-spacing: 0.5px;
+    }
+    .header-left h1 i { filter: drop-shadow(0 0 10px var(--neon-cyan)); }
+    .header-left p { font-size: 0.8rem; color: var(--text-secondary); margin-top: 0.2rem; letter-spacing: 0.3px; }
+    .text-secondary { color: var(--text-secondary); }
+
+    .echo-tabs { display: flex; gap: 0.75rem; }
+    .echo-tab-btn {
+      padding: 0.5rem 1.25rem;
+      border: 1px solid rgba(255,255,255,0.15); border-radius: 30px;
+      background: transparent; color: var(--text-secondary);
+      cursor: pointer; font-family: var(--font-body); font-size: 0.85rem; font-weight: 500;
+      transition: all 0.2s ease;
+    }
+    .echo-tab-btn.active { border-color: var(--neon-cyan); color: var(--neon-cyan); background: rgba(0,243,255,0.08); box-shadow: 0 0 15px rgba(0,243,255,0.2); }
+    .echo-tab-btn:hover:not(.active) { border-color: rgba(0,243,255,0.35); color: rgba(0,243,255,0.6); }
+
+    .content-area { flex: 1; padding: 2rem 2.5rem; max-width: 1400px; width: 100%; }
+
+    .echo-feed { display: grid; grid-template-columns: repeat(2, 1fr); gap: 1.5rem; padding: 1rem 0; }
+
+    .echo-card {
+      position: relative; aspect-ratio: 9/16; border-radius: 20px; overflow: hidden;
+      cursor: pointer;
+      animation: echoCardEnter 0.5s cubic-bezier(0.23,1,0.32,1) forwards; opacity: 0;
+      transition: transform 0.3s ease, box-shadow 0.3s ease;
+    }
+    .echo-card:hover { transform: translateY(-4px) scale(1.01); box-shadow: 0 20px 60px rgba(0,0,0,0.6), 0 0 30px rgba(0,243,255,0.1); }
+    @keyframes echoCardEnter {
+      0%   { opacity: 0; transform: translateY(30px) scale(0.95); }
+      100% { opacity: 1; transform: translateY(0) scale(1); }
+    }
+    .echo-card-bg { width: 100%; height: 100%; object-fit: cover; position: absolute; top: 0; left: 0; }
+    .echo-card-bg-fallback { width: 100%; height: 100%; position: absolute; top: 0; left: 0; }
+    .echo-card-overlay { position: absolute; inset: 0; background: linear-gradient(to top, rgba(0,0,0,0.92) 0%, rgba(0,0,0,0.5) 45%, transparent 100%); }
+    .echo-card-content { position: absolute; bottom: 0; left: 0; right: 0; padding: 1.25rem; }
+    .echo-username { font-size: 0.7rem; color: var(--neon-cyan); font-family: var(--font-heading); letter-spacing: 1px; margin-bottom: 0.25rem; text-transform: uppercase; }
+    .echo-achievement { font-size: 1rem; font-weight: 800; font-family: var(--font-heading); color: white; line-height: 1.2; text-shadow: 0 2px 8px rgba(0,0,0,0.8); }
+    .echo-avatar { position: absolute; top: 1rem; right: 1rem; width: 44px; height: 44px; border-radius: 50%; border: 2px solid var(--neon-cyan); object-fit: cover; box-shadow: 0 0 12px rgba(0,243,255,0.4); }
+    .synergy-badge-card {
+      position: absolute; top: 1rem; left: 1rem;
+      background: rgba(157,0,255,0.3); border: 1px solid var(--neon-purple);
+      border-radius: 8px; padding: 0.2rem 0.5rem; font-size: 0.75rem; color: white;
+      backdrop-filter: blur(4px); animation: synPulse 2s ease-in-out infinite; letter-spacing: 0.5px;
+    }
+    @keyframes synPulse { 0%,100% { box-shadow: 0 0 6px rgba(157,0,255,0.4); } 50% { box-shadow: 0 0 16px rgba(157,0,255,0.8); } }
+    .echo-like-btn {
+      position: absolute; bottom: 1rem; right: 1rem;
+      background: rgba(0,0,0,0.5); border: 1px solid rgba(255,255,255,0.15);
+      border-radius: 20px; padding: 0.3rem 0.75rem; color: white; cursor: pointer;
+      display: flex; align-items: center; gap: 0.4rem; font-size: 0.75rem;
+      backdrop-filter: blur(4px); transition: all 0.2s ease; z-index: 10; font-family: var(--font-body);
+    }
+    .echo-like-btn:hover { border-color: var(--neon-pink); color: var(--neon-pink); }
+    .echo-like-btn.liked { color: var(--neon-pink); border-color: var(--neon-pink); }
+    .echo-like-btn.liked i { filter: drop-shadow(0 0 6px var(--neon-pink)); }
+
+    .fab-btn {
+      position: fixed; bottom: 2rem; right: 2rem;
+      width: 60px; height: 60px;
+      background: var(--neon-cyan); border-radius: 50%; border: none; cursor: pointer;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 1.5rem; color: #070114;
+      box-shadow: 0 0 25px rgba(0,243,255,0.5); transition: all 0.3s ease; z-index: 500;
+    }
+    .fab-btn:hover { transform: scale(1.1) rotate(45deg); box-shadow: 0 0 40px rgba(0,243,255,0.8); }
+
+    .share-modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.85); z-index: 1000; align-items: center; justify-content: center; backdrop-filter: blur(6px); }
+    .share-modal-overlay.active { display: flex; }
+    .share-modal {
+      background: var(--bg-secondary); border: 1px solid rgba(157,0,255,0.3);
+      border-radius: 24px; padding: 2rem; width: min(480px,95vw);
+      max-height: 85vh; overflow-y: auto; position: relative;
+      animation: modalSlideIn 0.35s cubic-bezier(0.23,1,0.32,1) forwards;
+    }
+    @keyframes modalSlideIn { 0% { opacity:0; transform:translateY(20px) scale(0.97); } 100% { opacity:1; transform:translateY(0) scale(1); } }
+    .modal-close-btn {
+      position: absolute; top: 1.25rem; right: 1.25rem;
+      background: rgba(255,255,255,0.06); border: 1px solid var(--glass-border);
+      border-radius: 50%; width: 36px; height: 36px;
+      display: flex; align-items: center; justify-content: center;
+      cursor: pointer; color: var(--text-secondary); font-size: 0.9rem; transition: all 0.2s;
+    }
+    .modal-close-btn:hover { background: rgba(255,0,85,0.15); color: var(--neon-pink); border-color: var(--neon-pink); }
+    .modal-title { font-family: var(--font-heading); font-size: 1.35rem; font-weight: 800; margin-bottom: 0.25rem; padding-right: 2.5rem; }
+    .modal-subtitle { font-size: 0.8rem; color: var(--text-secondary); margin-bottom: 0.5rem; }
+
+    .badge-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem; margin: 1rem 0; }
+    .badge-btn {
+      padding: 1rem; border: 1px solid rgba(255,255,255,0.1); border-radius: 12px;
+      background: rgba(255,255,255,0.03); color: white; cursor: pointer;
+      text-align: left; transition: all 0.2s ease; font-family: var(--font-body);
+    }
+    .badge-btn:hover:not(.locked) { border-color: var(--neon-cyan); background: rgba(0,243,255,0.08); box-shadow: 0 0 15px rgba(0,243,255,0.15); }
+    .badge-btn.locked { opacity: 0.4; cursor: not-allowed; }
+    .badge-btn .badge-icon { font-size: 1.5rem; margin-bottom: 0.5rem; }
+    .badge-btn .badge-label { font-weight: 700; font-size: 0.85rem; color: white; }
+    .badge-btn .badge-desc { font-size: 0.7rem; color: var(--text-secondary); margin-top: 0.2rem; line-height: 1.4; }
+    .badge-btn .lock-icon { font-size: 0.75rem; color: rgba(255,255,255,0.3); margin-top: 0.3rem; }
+
+    .template-picker { display: flex; gap: 0.75rem; flex-wrap: wrap; margin: 1rem 0; }
+    .template-thumb {
+      width: 60px; height: 107px; border-radius: 8px;
+      border: 2px solid rgba(255,255,255,0.1); cursor: pointer; overflow: hidden;
+      transition: all 0.2s ease; background: var(--bg-secondary);
+      display: flex; flex-direction: column; align-items: center; justify-content: flex-end;
+      padding-bottom: 4px; position: relative;
+    }
+    .template-thumb:hover { border-color: rgba(0,243,255,0.5); transform: scale(1.05); }
+    .template-thumb.selected { border-color: var(--neon-cyan); box-shadow: 0 0 15px rgba(0,243,255,0.4); }
+    .template-thumb img { width: 100%; height: 100%; object-fit: cover; position: absolute; top: 0; left: 0; }
+    .template-thumb span { font-size: 0.55rem; color: white; font-weight: 700; text-align: center; position: relative; z-index: 2; background: rgba(0,0,0,0.7); padding: 1px 3px; border-radius: 3px; }
+
+    .publish-btn {
+      width: 100%; padding: 0.9rem;
+      background: linear-gradient(135deg, var(--neon-cyan), var(--neon-purple));
+      border: none; border-radius: 14px; color: white;
+      font-family: var(--font-heading); font-size: 0.95rem; font-weight: 700;
+      cursor: pointer; letter-spacing: 0.5px; transition: all 0.3s ease;
+      margin-top: 0.5rem; display: none;
+    }
+    .publish-btn:hover { transform: translateY(-2px); box-shadow: 0 8px 30px rgba(0,243,255,0.3); }
+    .publish-btn.visible { display: block; }
+
+    .step-divider { display: flex; align-items: center; gap: 0.75rem; margin: 1.25rem 0 0.5rem; }
+    .step-divider hr { flex: 1; border: none; border-top: 1px solid var(--glass-border); }
+    .step-divider span { font-size: 0.72rem; color: var(--text-secondary); white-space: nowrap; font-weight: 600; letter-spacing: 0.5px; }
+
+    .echo-skeleton {
+      aspect-ratio: 9/16; border-radius: 20px;
+      background: linear-gradient(90deg, rgba(255,255,255,0.03) 0%, rgba(255,255,255,0.08) 50%, rgba(255,255,255,0.03) 100%);
+      background-size: 200% 100%; animation: shimmer 1.5s infinite;
+    }
+    @keyframes shimmer { 0% { background-position: 200%; } 100% { background-position: -200%; } }
+
+    .echo-empty { text-align: center; padding: 4rem 2rem; color: var(--text-secondary); grid-column: 1/-1; }
+    .echo-empty i { font-size: 3rem; margin-bottom: 1rem; color: var(--neon-purple); opacity: 0.5; display: block; }
+    .echo-empty h3 { font-family: var(--font-heading); font-size: 1.1rem; margin-bottom: 0.5rem; color: rgba(255,255,255,0.6); }
+    .echo-empty p { font-size: 0.82rem; }
+
+    .toast {
+      position: fixed; bottom: 6rem; right: 2rem;
+      padding: 0.75rem 1.25rem;
+      background: var(--glass-bg); border: 1px solid var(--glass-border);
+      border-radius: 12px; backdrop-filter: blur(12px);
+      color: white; font-size: 0.85rem; font-family: var(--font-body);
+      z-index: 2000; opacity: 0; transform: translateY(10px);
+      transition: all 0.3s ease; pointer-events: none;
+    }
+    .toast.show { opacity: 1; transform: translateY(0); }
+    .toast.success { border-color: var(--neon-cyan); }
+    .toast.error   { border-color: var(--neon-pink); }
+
+    ::-webkit-scrollbar { width: 6px; }
+    ::-webkit-scrollbar-track { background: rgba(255,255,255,0.02); }
+    ::-webkit-scrollbar-thumb { background: rgba(0,243,255,0.2); border-radius: 3px; }
+    ::-webkit-scrollbar-thumb:hover { background: rgba(0,243,255,0.4); }
+
+    .tpl-naruto    { background: linear-gradient(160deg, #FF6B00 0%, #FF0000 60%, #1a0000 100%); }
+    .tpl-dbz       { background: linear-gradient(160deg, #FFD700 0%, #FF8C00 50%, #1a0a00 100%); }
+    .tpl-deathnote { background: linear-gradient(160deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%); }
+    .tpl-aot       { background: linear-gradient(160deg, #5c3d11 0%, #8B6914 50%, #2d1b00 100%); }
+    .tpl-mha       { background: linear-gradient(160deg, #00C853 0%, #1565C0 60%, #000d1a 100%); }
+    .tpl-jjk       { background: linear-gradient(160deg, #0d0d0d 0%, #3a0ca3 50%, #7209b7 100%); }
+    .tpl-hxh       { background: linear-gradient(160deg, #004d00 0%, #00a300 50%, #000d00 100%); }
+
+    @media (max-width: 900px) {
+      .main-wrapper { margin-left: 0; }
+      .sidebar { transform: translateX(-100%); z-index: 300; }
+      .sidebar.open { transform: translateX(0); }
+      .content-area { padding: 1.5rem; }
+      header { padding: 1.25rem 1.5rem; }
+      .header-left h1 { font-size: 1.3rem; }
+    }
+    @media (max-width: 768px) {
+      .echo-feed { grid-template-columns: 1fr; }
+      .echo-achievement { font-size: 0.95rem; }
+    }
+    @media (max-width: 360px) {
+      .echo-feed { grid-template-columns: 1fr; gap: 1rem; }
+      .badge-grid { grid-template-columns: 1fr; }
+      .fab-btn { width: 52px; height: 52px; font-size: 1.25rem; bottom: 1.25rem; right: 1.25rem; }
+    }
+  </style>
+</head>
+<body>
+
+  <nav class="sidebar" id="sidebar">
+    <div class="logo"><i class="fas fa-bolt"></i><span>MavX Mndset</span></div>
+    <ul class="nav-links">
+      <li class="nav-item"><a href="dashboard.html"   class="nav-link"><i class="fas fa-th-large"></i><span>Dashboard</span></a></li>
+      <li class="nav-item"><a href="timer.html"       class="nav-link"><i class="fas fa-stopwatch"></i><span>Study Timer</span></a></li>
+      <li class="nav-item"><a href="journal.html"     class="nav-link"><i class="fas fa-scroll"></i><span>Journal</span></a></li>
+      <li class="nav-item"><a href="modules.html"     class="nav-link"><i class="fas fa-book-open"></i><span>Library</span></a></li>
+      <li class="nav-item"><a href="recaps.html"      class="nav-link"><i class="fas fa-magic"></i><span>Recaps</span></a></li>
+      <li class="nav-item"><a href="leaderboard.html" class="nav-link"><i class="fas fa-trophy"></i><span>Leaderboard</span></a></li>
+      <li class="nav-item"><a href="teams.html"       class="nav-link"><i class="fas fa-shield-halved"></i><span>Clan Arena</span></a></li>
+      <li class="nav-item"><a href="echoes.html"      class="nav-link active"><i class="fas fa-images"></i><span>Echoes</span></a></li>
+      <li class="nav-item"><a href="synergy.html"     class="nav-link"><i class="fas fa-link"></i><span>Synergy</span></a></li>
+      <li class="nav-item admin-only-link" style="display:none;">
+        <a href="admin.html" class="nav-link" style="color:#ff3366;">
+          <i class="fas fa-user-shield"></i><span>Admin</span>
+        </a>
+      </li>
+    </ul>
+    <div class="sidebar-bottom">
+      <div class="avatar-preview">
+        <img src="" alt="avatar" class="avatar-circle" id="sidebarAvatar" />
+      </div>
+    </div>
+  </nav>
+
+  <div class="main-wrapper">
+    <header>
+      <div class="header-left">
+        <h1><i class="fas fa-images" style="color:var(--neon-cyan);"></i> MavX Echoes</h1>
+        <p class="text-secondary">Gallery of Greatness — milestone cards forged in discipline</p>
+      </div>
+      <div class="header-right">
+        <div class="echo-tabs">
+          <button class="echo-tab-btn active" data-tab="all" onclick="switchTab('all')">
+            <i class="fas fa-globe-americas"></i> All Echoes
+          </button>
+          <button class="echo-tab-btn" data-tab="mine" onclick="switchTab('mine')">
+            <i class="fas fa-user"></i> Your Echoes
+          </button>
+        </div>
+      </div>
+    </header>
+
+    <div class="content-area">
+      <div class="echo-feed" id="echoFeed"></div>
+    </div>
+  </div>
+
+  <button class="fab-btn" onclick="openShareModal()" title="Share an Echo">
+    <i class="fas fa-plus"></i>
+  </button>
+
+  <div class="share-modal-overlay" id="shareModalOverlay">
+    <div class="share-modal" id="shareModal">
+      <button class="modal-close-btn" onclick="closeShareModal()"><i class="fas fa-times"></i></button>
+      <h2 class="modal-title"><i class="fas fa-images" style="color:var(--neon-cyan);margin-right:0.4rem;"></i>Share an Echo</h2>
+      <p class="modal-subtitle">Choose your milestone to share</p>
+      <div id="stepBadge">
+        <div class="badge-grid" id="badgeGrid"></div>
+      </div>
+      <div id="stepTemplate" style="display:none;">
+        <div class="step-divider"><hr /><span>CHOOSE YOUR TEMPLATE</span><hr /></div>
+        <div class="template-picker" id="templatePicker"></div>
+      </div>
+      <button class="publish-btn" id="publishBtn" onclick="publishEcho()">
+        <i class="fas fa-rocket"></i> &nbsp;Publish to Vault
+      </button>
+    </div>
+  </div>
+
+  <div class="toast" id="toast"></div>
+
+  <script>
+    const _origFetch = window.fetch;
+    window.fetch = async (...args) => {
+      let [resource, config] = args;
+      config = config || {};
+      config.headers = config.headers || {};
+      const token = localStorage.getItem('primeedu_token');
+      if (token) config.headers['Authorization'] = `Bearer ${token}`;
+      const response = await _origFetch(resource, config);
+      if (response.status === 401
+          && !window.location.pathname.endsWith('login.html')
+          && !window.location.pathname.endsWith('index.html')) {
+        window.location.href = 'index.html';
+      }
+      return response;
+    };
+
+    const CHARACTERS = [
+      { id:'itachi',  img:'assets/avatars/itachi.webp',  fallback:'https://i.pinimg.com/736x/f5/0f/52/f50f52e51a8b1f6e24a07e30a8d08157.jpg' },
+      { id:'goku',    img:'assets/avatars/goku.webp',    fallback:'https://i.pinimg.com/736x/c4/11/c9/c411c9e40e6f4b3d6e2a1f0c5b8a7d2e.jpg' },
+      { id:'gojo',    img:'assets/avatars/gojo.webp',    fallback:'https://i.pinimg.com/736x/97/4a/5b/974a5b6a4e8b3c2d1f0e9a8b7c6d5e4f.jpg' },
+      { id:'sasuke',  img:'assets/avatars/sasuke.webp',  fallback:'https://i.pinimg.com/736x/4e/40/87/4e4087e01177d1c3ea5e7143e7284f9e.jpg' },
+      { id:'naruto',  img:'assets/avatars/naruto.webp',  fallback:'https://i.pinimg.com/736x/d0/b5/3b/d0b53bc5ddd3b25c55ea471fa30c64d0.jpg' },
+      { id:'kakashi', img:'assets/avatars/kakashi.webp', fallback:'https://i.pinimg.com/736x/2b/3c/4d/2b3c4d5e6f7a8b9c0d1e2f3a4b5c6d7e.jpg' },
+    ];
+
+    const TEMPLATES = [
+      { id:'naruto',    label:'Naruto',     cls:'tpl-naruto' },
+      { id:'dbz',       label:'DBZ',        cls:'tpl-dbz' },
+      { id:'deathnote', label:'Death Note', cls:'tpl-deathnote' },
+      { id:'aot',       label:'AoT',        cls:'tpl-aot' },
+      { id:'mha',       label:'MHA',        cls:'tpl-mha' },
+      { id:'jjk',       label:'JJK',        cls:'tpl-jjk' },
+      { id:'hxh',       label:'HxH',        cls:'tpl-hxh' },
+    ];
+
+    let currentTab        = 'all';
+    let currentUserEmail  = '';
+    let selectedMilestone = null;
+    let selectedTemplate  = null;
+
+    function getAvatarSrc(id)      { const c = CHARACTERS.find(x=>x.id===id); return c ? c.img : CHARACTERS[0].fallback; }
+    function getAvatarFallback(id) { const c = CHARACTERS.find(x=>x.id===id); return c ? c.fallback : CHARACTERS[0].fallback; }
+
+    function showToast(msg, type='success') {
+      const t = document.getElementById('toast');
+      t.textContent = msg;
+      t.className = `toast ${type} show`;
+      setTimeout(() => { t.className = `toast ${type}`; }, 3200);
+    }
+
+    async function loadProfile() {
+      try {
+        const res = await fetch(`${window.API_BASE_URL}/api/profile`);
+        if (!res.ok) return;
+        const data = await res.json();
+        const p = data.profile || data;
+        const av = document.getElementById('sidebarAvatar');
+        av.src = getAvatarSrc(p.avatar_id);
+        av.onerror = () => { av.src = getAvatarFallback(p.avatar_id); };
+        currentUserEmail = p.email || '';
+        if (p.is_admin) document.querySelectorAll('.admin-only-link').forEach(el => el.style.display = '');
+      } catch(e) { console.warn('Profile load failed:', e); }
+    }
+
+    function switchTab(tab) {
+      currentTab = tab;
+      document.querySelectorAll('.echo-tab-btn').forEach(b => b.classList.toggle('active', b.dataset.tab === tab));
+      loadEchoes(tab);
+    }
+
+    function showSkeletons(n=4) {
+      const f = document.getElementById('echoFeed');
+      f.innerHTML = '';
+      for (let i=0;i<n;i++) { const s=document.createElement('div'); s.className='echo-skeleton'; f.appendChild(s); }
+    }
+
+    async function loadEchoes(tab='all') {
+      showSkeletons(4);
+      try {
+        const res = await fetch(`${window.API_BASE_URL}/api/echoes?tab=${tab}`);
+        if (!res.ok) throw new Error('fetch failed');
+        const data = await res.json();
+        renderEchoes(Array.isArray(data) ? data : (data.echoes || []));
+      } catch(e) { console.error(e); renderEmpty(); }
+    }
+
+    function renderEchoes(echoes) {
+      const feed = document.getElementById('echoFeed');
+      feed.innerHTML = '';
+      if (!echoes || echoes.length === 0) { renderEmpty(); return; }
+      echoes.forEach((echo, idx) => feed.appendChild(buildEchoCard(echo, idx)));
+    }
+
+    function buildEchoCard(echo, idx) {
+      const card = document.createElement('div');
+      card.className = 'echo-card';
+      card.style.animationDelay = `${idx * 0.08}s`;
+      const isLiked = Array.isArray(echo.likes) && echo.likes.includes(currentUserEmail);
+      const likeCount = Array.isArray(echo.likes) ? echo.likes.length : (echo.likes_count || 0);
+      const imgUrl = `${window.API_BASE_URL}/api/echoes/card-image/${echo.id}`;
+      const tplCls = (TEMPLATES.find(t => t.id === echo.template_id) || TEMPLATES[0]).cls;
+      const avatarSrc = getAvatarSrc(echo.avatar_id);
+      const avatarFb  = getAvatarFallback(echo.avatar_id);
+      card.innerHTML = `
+        <img class="echo-card-bg" src="${imgUrl}" alt="Echo"
+          onerror="this.style.display='none';this.nextElementSibling.style.display='block';" />
+        <div class="echo-card-bg-fallback ${tplCls}" style="display:none;"></div>
+        <div class="echo-card-overlay"></div>
+        ${echo.has_synergy ? '<div class="synergy-badge-card">⚡∞ Synergy</div>' : ''}
+        <img class="echo-avatar" src="${avatarSrc}" alt="${echo.username_display||'Warrior'}" onerror="this.src='${avatarFb}'" />
+        <div class="echo-card-content">
+          <div class="echo-username">@${echo.username_display||'Warrior'}</div>
+          <div class="echo-achievement">${echo.achievement_phrase||echo.milestone_type||'Milestone Achieved'}</div>
+        </div>
+        <button class="echo-like-btn ${isLiked?'liked':''}" id="like-btn-${echo.id}"
+          onclick="likeEcho('${echo.id}',this);event.stopPropagation();" title="Like this Echo">
+          <i class="fas fa-heart"></i>
+          <span id="like-count-${echo.id}">${likeCount}</span>
+        </button>`;
+      return card;
+    }
+
+    function renderEmpty() {
+      document.getElementById('echoFeed').innerHTML = `
+        <div class="echo-empty">
+          <i class="fas fa-images"></i>
+          <h3>No Echoes Yet</h3>
+          <p>No echoes yet. Be the first to forge one!</p>
+        </div>`;
+    }
+
+    async function likeEcho(id, btn) {
+      try {
+        const res = await fetch(`${window.API_BASE_URL}/api/echoes/${id}/like`, { method:'POST', headers:{'Content-Type':'application/json'} });
+        if (!res.ok) throw new Error();
+        const data = await res.json();
+        const c = document.getElementById(`like-count-${id}`);
+        if (c) c.textContent = data.likes_count ?? (parseInt(c.textContent)+1);
+        btn.classList.toggle('liked', data.liked !== false);
+      } catch(e) {
+        btn.classList.toggle('liked');
+        const c = document.getElementById(`like-count-${id}`);
+        if (c) { const n=parseInt(c.textContent)||0; c.textContent=btn.classList.contains('liked')?n+1:Math.max(0,n-1); }
+      }
+    }
+
+    async function openShareModal() {
+      selectedMilestone = null; selectedTemplate = null;
+      document.getElementById('stepTemplate').style.display = 'none';
+      document.getElementById('publishBtn').classList.remove('visible');
+      document.getElementById('badgeGrid').innerHTML = `
+        <div style="grid-column:1/-1;text-align:center;color:var(--text-secondary);padding:2rem;">
+          <i class="fas fa-spinner fa-spin" style="font-size:1.5rem;margin-bottom:0.5rem;display:block;"></i>Loading milestones…
+        </div>`;
+      document.getElementById('shareModalOverlay').classList.add('active');
+      document.body.style.overflow = 'hidden';
+      try {
+        const res = await fetch(`${window.API_BASE_URL}/api/echoes/eligible`);
+        if (!res.ok) throw new Error();
+        const data = await res.json();
+        renderBadgeGrid(Array.isArray(data)?data:(data.badges||data.eligible||[]));
+      } catch(e) { renderFallbackBadges(); }
+    }
+
+    function closeShareModal() {
+      document.getElementById('shareModalOverlay').classList.remove('active');
+      document.body.style.overflow = '';
+    }
+
+    function renderBadgeGrid(badges) {
+      const grid = document.getElementById('badgeGrid');
+      if (!badges||badges.length===0) { renderFallbackBadges(); return; }
+      grid.innerHTML = badges.map(b => {
+        const locked = !b.eligible;
+        return `<button class="badge-btn ${locked?'locked':''}"
+          onclick="${locked?'':``selectBadge('${b.type}',this)``}"
+          data-type="${b.type}" ${locked?'disabled':''} title="${b.reason||''}">
+          <div class="badge-icon"><i class="${b.icon_class||'fas fa-star'}"></i></div>
+          <div class="badge-label">${b.label||b.type}</div>
+          <div class="badge-desc">${b.description||''}</div>
+          ${locked?`<div class="lock-icon"><i class="fas fa-lock"></i> ${b.reason||'Locked'}</div>`:''}
+        </button>`;
+      }).join('');
+    }
+
+    function renderFallbackBadges() {
+      renderBadgeGrid([
+        { type:'streak_7',  label:'7-Day Streak',   icon_class:'fas fa-fire',         description:'Journal 7 days in a row',   eligible:false, reason:'Keep journaling!' },
+        { type:'streak_30', label:'30-Day Streak',  icon_class:'fas fa-meteor',       description:'Journal 30 days in a row',  eligible:false, reason:'Keep journaling!' },
+        { type:'module_1',  label:'First Module',   icon_class:'fas fa-book-open',    description:'Complete your first module', eligible:false, reason:'Finish a module' },
+        { type:'hours_10',  label:'10 Study Hours', icon_class:'fas fa-stopwatch',    description:'Log 10+ total study hours', eligible:false, reason:'Study more!' },
+        { type:'clan_join', label:'Clan Member',    icon_class:'fas fa-shield-halved', description:'Join a clan',              eligible:false, reason:'Join a clan' },
+        { type:'synergy_1', label:'First Synergy',  icon_class:'fas fa-link',         description:'Link with a study partner', eligible:false, reason:'Connect on Synergy' },
+      ]);
+    }
+
+    function selectBadge(type, btn) {
+      selectedMilestone = type;
+      document.querySelectorAll('.badge-btn').forEach(b => { b.style.borderColor=''; b.style.background=''; });
+      btn.style.borderColor = 'var(--neon-cyan)';
+      btn.style.background  = 'rgba(0,243,255,0.1)';
+      document.getElementById('stepTemplate').style.display = 'block';
+      renderTemplatePicker();
+    }
+
+    function renderTemplatePicker() {
+      selectedTemplate = null;
+      document.getElementById('publishBtn').classList.remove('visible');
+      document.getElementById('templatePicker').innerHTML = TEMPLATES.map(t => `
+        <div class="template-thumb ${t.cls}" data-id="${t.id}" onclick="selectTemplate('${t.id}',this)" title="${t.label}">
+          <span>${t.label}</span>
+        </div>`).join('');
+    }
+
+    function selectTemplate(id, el) {
+      selectedTemplate = id;
+      document.querySelectorAll('.template-thumb').forEach(t => t.classList.remove('selected'));
+      el.classList.add('selected');
+      document.getElementById('publishBtn').classList.add('visible');
+    }
+
+    async function publishEcho() {
+      if (!selectedMilestone||!selectedTemplate) { showToast('Select a milestone and template first.','error'); return; }
+      const btn = document.getElementById('publishBtn');
+      btn.disabled = true;
+      btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> &nbsp;Publishing…';
+      try {
+        const res = await fetch(`${window.API_BASE_URL}/api/echoes/share`, {
+          method:'POST', headers:{'Content-Type':'application/json'},
+          body: JSON.stringify({ milestone_type:selectedMilestone, template_id:selectedTemplate })
+        });
+        if (!res.ok) { const e=await res.json().catch(()=>{}); throw new Error(e?.message||'Publish failed'); }
+        closeShareModal();
+        showToast('⚡ Echo forged and published to the Vault!','success');
+        setTimeout(() => loadEchoes(currentTab), 600);
+      } catch(e) {
+        console.error(e);
+        showToast(e.message||'Failed to publish echo.','error');
+      } finally {
+        btn.disabled = false;
+        btn.innerHTML = '<i class="fas fa-rocket"></i> &nbsp;Publish to Vault';
+      }
+    }
+
+    document.getElementById('shareModalOverlay').addEventListener('click', function(e){ if(e.target===this) closeShareModal(); });
+    document.addEventListener('keydown', e => { if(e.key==='Escape') closeShareModal(); });
+
+    (async function init(){
+      await loadProfile();
+      loadEchoes('all');
+    })();
+  </script>
+</body>
+</html>
