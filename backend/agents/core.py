@@ -101,7 +101,7 @@ class VisualizerAgent:
     def __init__(self):
         pass
 
-    def get_recap_visuals(self, sessions, tasks, user_balls=0) -> dict:
+    def get_recap_visuals(self, sessions, tasks, user_balls=0, journal_count=0, user_streak=0) -> dict:
         completed_sessions = [s for s in sessions if s.get('status') == 'completed']
         total_focus_minutes = 0
         for s in completed_sessions:
@@ -130,7 +130,7 @@ class VisualizerAgent:
                 except Exception:
                     pass
         
-        balls_earned = len(completed_sessions) * 45
+        total_focus_hours = total_focus_minutes / 60.0
         
         # Determine user role dynamically
         if len(completed_sessions) == 0:
@@ -192,17 +192,38 @@ class VisualizerAgent:
         if len(completed_sessions) == 0:
             reason = "You have completed 0 focus sessions so far. Start your first focus session today to build your streak!"
         else:
-            reason = f"You completed {len(completed_sessions)} focus sessions, logging {int(total_focus_minutes)} minutes of deep work. Excellent dedication."
+            reason = f"You completed {len(completed_sessions)} focus sessions, logging {int(round(total_focus_minutes))} minutes of deep work. Excellent dedication."
+
+        if len(completed_sessions) == 0:
+            rating_val = 0.0
+            tier = "TIER E"
+        else:
+            rating_val = min(10.0, 5.0 + (user_streak * 0.2) + (total_focus_minutes / 600.0))
+            if rating_val >= 9.5:
+                tier = "TIER S+"
+            elif rating_val >= 8.5:
+                tier = "TIER S"
+            elif rating_val >= 7.0:
+                tier = "TIER A"
+            elif rating_val >= 5.0:
+                tier = "TIER B"
+            else:
+                tier = "TIER C"
             
         return {
             "reason": reason,
             "image": "consistency_v2.png",
-            "highlight_stat": str(balls_earned),
+            "highlight_stat": str(user_balls),
             "label": "EARNED",
             "role": role,
             "role_title": role_title,
             "role_subtitle": role_subtitle,
             "role_image": role_image,
-            "role_desc": role_desc
+            "role_desc": role_desc,
+            "total_focus_minutes": int(round(total_focus_minutes)),
+            "total_focus_hours": int(round(total_focus_hours)),
+            "journal_count": journal_count,
+            "prime_rating": f"{rating_val:.1f}",
+            "prime_tier": tier
         }
 

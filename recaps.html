@@ -548,7 +548,7 @@
             } else {
                 const weeklyData = [
                     { title: "Weekly Grit", content: dynamicData.reason || 'You stayed disciplined and forged your mind daily.', type: 'chart', image: `${window.API_BASE_URL}/api/recap/graph/weekly_grit?token=${token}` },
-                    { title: "Dragon Balls", statValue: dynamicData.highlight_stat || '150', statLabel: dynamicData.label || 'EARNED', type: 'stat' }
+                    { title: "Dragon Balls", content: "Energy accumulated from focus sessions. Powering up your discipline.", statValue: dynamicData.highlight_stat || '0', statLabel: dynamicData.label || 'EARNED', type: 'stat' }
                 ];
                 weeklyData.forEach((d, i) => weeklyGrid.appendChild(createPoster(d, i)));
             }
@@ -559,10 +559,13 @@
                 applyLockOverlay('monthly-grid', 30, 'Monthly Mastery');
             } else {
                 const monthlyData = [
-                    { title: "Identity", html: `<div style="font-size:0.85rem;color:var(--neon-purple);font-family:var(--font-heading);border:1px solid var(--neon-purple);padding:0.4rem 0.8rem;border-radius:8px;margin-bottom:0.75rem;text-transform:uppercase;">${dynamicData.role_title || 'THE ALCHEMIST'}</div><p style="font-size:0.8rem;margin-bottom:0.5rem;">${dynamicData.role_subtitle || 'Surgical Precision.'}</p><div style="background-image:url('${dynamicData.role_image || 'assets/recap_chilling.jpg'}');height:90px;background-size:cover;background-position:center;border-radius:12px;width:100%;"></div>` },
+                    { 
+                        title: "Identity", 
+                        html: `<div style="font-size:0.85rem;color:var(--neon-purple);font-family:var(--font-heading);border:1px solid var(--neon-purple);padding:0.4rem 0.8rem;border-radius:8px;margin-bottom:0.75rem;text-transform:uppercase;">${dynamicData.role_title || 'THE ALCHEMIST'}</div><p style="font-size:0.8rem;margin-bottom:0.5rem;">${dynamicData.role_subtitle || 'Surgical Precision.'}</p><div style="position:relative;height:120px;border-radius:12px;overflow:hidden;width:100%;border:1px solid rgba(255,255,255,0.1);"><div style="background-image:url('${dynamicData.role_image || 'assets/recap_chilling.jpg'}');height:100%;width:100%;background-size:cover;background-position:center;filter:brightness(0.65);"></div><div style="position:absolute;bottom:0;left:0;right:0;padding:0.5rem;background:linear-gradient(0deg, rgba(0,0,0,0.8) 0%, transparent 100%);text-align:center;"><span style="font-size:0.7rem;color:white;font-weight:600;letter-spacing:1px;text-transform:uppercase;">${dynamicData.role_desc || 'Forge your discipline.'}</span></div></div>` 
+                    },
                     { title: "Consistency", content: "Unstoppable study grit.", type: 'chart', image: `${window.API_BASE_URL}/api/recap/graph/consistency_monthly?token=${token}` },
                     { title: "Knowledge", content: "Focus hours distributed by subject.", type: 'chart', image: `${window.API_BASE_URL}/api/recap/graph/knowledge_monthly?token=${token}` },
-                    { title: "Focus Master", statValue: "154", statLabel: "HOURS", type: 'stat' }
+                    { title: "Focus Master", content: "Total time spent in deep study this month.", statValue: dynamicData.total_focus_hours !== undefined ? dynamicData.total_focus_hours : '0', statLabel: "HOURS", type: 'stat' }
                 ];
                 monthlyData.forEach((d, i) => monthlyGrid.appendChild(createPoster(d, i)));
             }
@@ -574,11 +577,14 @@
             } else {
                 const yearlyData = [
                     { title: "Legacy", content: "Yearly consistency trend.", type: 'chart', image: `${window.API_BASE_URL}/api/recap/graph/legacy_yearly?token=${token}` },
-                    { title: "Chronos", statValue: "8,400", statLabel: "MINUTES", type: 'stat' },
+                    { title: "Chronos", content: "Total study minutes logged this year.", statValue: dynamicData.total_focus_minutes !== undefined ? Number(dynamicData.total_focus_minutes).toLocaleString() : '0', statLabel: "MINUTES", type: 'stat' },
                     { title: "Growth Mindset", content: "Subject breakdown for legacy work.", type: 'chart', image: `${window.API_BASE_URL}/api/recap/graph/growth_yearly?token=${token}` },
-                    { title: "The Scroll", statValue: "154", statLabel: "ENTRIES", type: 'stat' },
-                    { title: "Final Form", html: `<div style="color:#ff00ea;font-family:var(--font-heading);border:1px solid #ff00ea;padding:0.4rem 0.8rem;border-radius:8px;font-size:0.8rem;margin-bottom:0.75rem;text-transform:uppercase;">${dynamicData.role_title || 'ASCENDED WARRIOR'}</div><p style="font-size:0.8rem;margin-bottom:0.5rem;">${dynamicData.role_subtitle || 'Peak Form.'}</p><div style="background-image:url('${dynamicData.role_image || 'assets/recap_chilling.jpg'}');height:90px;background-size:cover;background-position:center;border-radius:12px;width:100%;"></div>` },
-                    { title: "Prime Rating", statValue: "9.8", statLabel: "TIER S+", type: 'stat' }
+                    { title: "The Scroll", content: "Reflective journal entries composed to track growth.", statValue: dynamicData.journal_count !== undefined ? dynamicData.journal_count : '0', statLabel: "ENTRIES", type: 'stat' },
+                    { 
+                        title: "Final Form", 
+                        html: `<div style="color:#ff00ea;font-family:var(--font-heading);border:1px solid #ff00ea;padding:0.4rem 0.8rem;border-radius:8px;font-size:0.8rem;margin-bottom:0.75rem;text-transform:uppercase;">${dynamicData.role_title || 'ASCENDED WARRIOR'}</div><p style="font-size:0.8rem;margin-bottom:0.5rem;">${dynamicData.role_subtitle || 'Peak Form.'}</p><div style="position:relative;height:120px;border-radius:12px;overflow:hidden;width:100%;border:1px solid rgba(255,255,255,0.1);"><div style="background-image:url('${dynamicData.role_image || 'assets/recap_chilling.jpg'}');height:100%;width:100%;background-size:cover;background-position:center;filter:brightness(0.65);"></div><div style="position:absolute;bottom:0;left:0;right:0;padding:0.5rem;background:linear-gradient(0deg, rgba(0,0,0,0.8) 0%, transparent 100%);text-align:center;"><span style="font-size:0.7rem;color:white;font-weight:600;letter-spacing:1px;text-transform:uppercase;">${dynamicData.role_desc || 'Forge your discipline.'}</span></div></div>` 
+                    },
+                    { title: "Prime Rating", content: "Your ultimate efficiency rating based on consistency.", statValue: dynamicData.prime_rating || '0.0', statLabel: dynamicData.prime_tier || 'TIER E', type: 'stat' }
                 ];
                 yearlyData.forEach((d, i) => yearlyGrid.appendChild(createPoster(d, i)));
             }
