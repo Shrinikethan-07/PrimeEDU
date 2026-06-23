@@ -1439,6 +1439,17 @@ def get_dynamic_recap():
     visuals = visual_agent.get_recap_visuals(sessions, tasks, user_balls=user.get('balls', 0))
     return jsonify(visuals)
 
+@app.route('/api/test_graph_error')
+def test_graph_error():
+    try:
+        categories = ["Physics", "Chemistry", "Maths", "Biology"]
+        values = [1.2, 2.3, 0.5, 4.0]
+        buf = generate_bar_graph(categories, values)
+        return jsonify({"status": "success", "message": "generate_bar_graph works!"})
+    except Exception as e:
+        import traceback
+        return jsonify({"status": "error", "message": str(e), "traceback": traceback.format_exc()})
+
 @app.route('/api/recap/graph/<graph_type>')
 def get_recap_graph(graph_type):
     db = load_db()
