@@ -336,6 +336,176 @@
       width: 0%;
       transition: width 0.1s linear;
     }
+
+    /* Echoes Vault Intro Screen */
+    #echoes-intro-overlay {
+      position: fixed;
+      inset: 0;
+      background: radial-gradient(circle at center, #190a36 0%, #070114 100%);
+      z-index: 9990;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      color: white;
+      text-align: center;
+      padding: 2rem;
+      font-family: var(--font-body);
+      transition: opacity 0.5s ease, visibility 0.5s ease;
+    }
+    #echoes-intro-overlay.hidden {
+      opacity: 0;
+      visibility: hidden;
+      pointer-events: none;
+    }
+    .intro-portal {
+      font-size: 4rem;
+      color: var(--neon-cyan);
+      margin-bottom: 1.5rem;
+      animation: floatPortal 3s ease-in-out infinite;
+      filter: drop-shadow(0 0 15px rgba(0, 243, 255, 0.6));
+    }
+    @keyframes floatPortal {
+      0% { transform: translateY(0px) rotate(0deg); }
+      50% { transform: translateY(-10px) rotate(5deg); }
+      100% { transform: translateY(0px) rotate(0deg); }
+    }
+    .intro-title {
+      font-family: var(--font-heading);
+      font-size: 2.2rem;
+      font-weight: 800;
+      letter-spacing: 3px;
+      text-transform: uppercase;
+      background: linear-gradient(135deg, var(--neon-cyan), var(--neon-purple));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      filter: drop-shadow(0 0 20px rgba(0, 243, 255, 0.2));
+      margin-bottom: 1rem;
+    }
+    .intro-desc {
+      font-size: 0.9rem;
+      color: var(--text-secondary);
+      max-width: 480px;
+      line-height: 1.5;
+      margin-bottom: 2rem;
+    }
+    .intro-enter-btn {
+      background: linear-gradient(135deg, var(--neon-cyan), var(--neon-purple));
+      border: none;
+      border-radius: 30px;
+      color: white;
+      font-family: var(--font-heading);
+      font-weight: 700;
+      font-size: 1rem;
+      padding: 0.9rem 2.2rem;
+      cursor: pointer;
+      box-shadow: 0 0 20px rgba(0, 243, 255, 0.4);
+      transition: all 0.3s ease;
+      letter-spacing: 1px;
+      opacity: 0.6;
+      pointer-events: none;
+    }
+    .intro-enter-btn.active {
+      opacity: 1;
+      pointer-events: auto;
+    }
+    .intro-enter-btn.active:hover {
+      transform: translateY(-2px) scale(1.03);
+      box-shadow: 0 0 35px rgba(0, 243, 255, 0.7), 0 0 20px rgba(157, 0, 255, 0.5);
+    }
+    .intro-status {
+      font-size: 0.75rem;
+      color: var(--neon-purple);
+      margin-top: 1rem;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+    }
+
+    /* User Row layout */
+    .echo-feed {
+      display: flex;
+      flex-direction: column;
+      gap: 1rem;
+      padding: 1rem 0;
+    }
+    .echo-user-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      background: var(--glass-bg);
+      border: 1px solid var(--glass-border);
+      border-radius: 16px;
+      padding: 1.25rem 1.5rem;
+      cursor: pointer;
+      transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
+      box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+    }
+    .echo-user-row:hover {
+      transform: translateY(-2px);
+      border-color: var(--neon-cyan);
+      box-shadow: 0 0 20px rgba(0, 243, 255, 0.15), inset 0 0 10px rgba(0, 243, 255, 0.05);
+    }
+    .echo-user-row-left {
+      display: flex;
+      align-items: center;
+      gap: 1.25rem;
+    }
+    .echo-user-avatar-wrapper {
+      position: relative;
+      width: 52px;
+      height: 52px;
+      border-radius: 50%;
+      padding: 2px;
+      background: linear-gradient(45deg, var(--neon-cyan), var(--neon-purple));
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .echo-user-avatar-wrapper img {
+      width: 100%;
+      height: 100%;
+      border-radius: 50%;
+      object-fit: cover;
+      border: 2px solid var(--bg-deep);
+    }
+    .echo-user-info {
+      display: flex;
+      flex-direction: column;
+      gap: 0.25rem;
+    }
+    .echo-user-name {
+      font-family: var(--font-heading);
+      font-size: 1.05rem;
+      font-weight: 700;
+      color: white;
+    }
+    .echo-user-meta {
+      font-size: 0.75rem;
+      color: var(--text-secondary);
+    }
+    .echo-user-row-right {
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+    }
+    .echo-user-play-btn {
+      width: 40px;
+      height: 40px;
+      border-radius: 50%;
+      background: rgba(0, 243, 255, 0.1);
+      border: 1px solid var(--neon-cyan);
+      color: var(--neon-cyan);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 0.95rem;
+      transition: all 0.2s;
+    }
+    .echo-user-row:hover .echo-user-play-btn {
+      background: var(--neon-cyan);
+      color: #070114;
+      box-shadow: 0 0 15px var(--neon-cyan);
+    }
   </style>
 </head>
 <body>
@@ -349,6 +519,15 @@
       <div class="loading-bar-fill"></div>
     </div>
     <div class="loading-screen-text" id="loading-text" style="font-family: var(--font-body); font-size: 0.9rem; color: var(--text-secondary); letter-spacing: 2px; text-transform: uppercase; text-align: center; padding: 0 1rem; line-height: 1.6;">Synchronizing Echo Cards...</div>
+  </div>
+
+  <!-- Echoes Intro Page Overlay -->
+  <div id="echoes-intro-overlay">
+    <div class="intro-portal"><i class="fas fa-images"></i></div>
+    <h2 class="intro-title">Echoes Vault</h2>
+    <p class="intro-desc">Enter the archives of destiny. Witness legendary focus sessions, milestone achievements, and the focus streak echoes of your clanmates. Forge your own legacy cards and let them echo through the arena.</p>
+    <button class="intro-enter-btn" id="introEnterBtn" onclick="enterVault()">Loading Archives...</button>
+    <div class="intro-status" id="introStatus">Synchronizing destiny records...</div>
   </div>
 
   <nav class="sidebar" id="sidebar">
@@ -439,8 +618,8 @@
       </div>
 
       <!-- Navigation tap areas (no arrows, invisible but responsive) -->
-      <div class="story-nav-tap-left" style="position: absolute; top: 0; bottom: 0; left: 0; width: 40%; z-index: 80; cursor: w-resize;"></div>
-      <div class="story-nav-tap-right" style="position: absolute; top: 0; bottom: 0; right: 0; width: 60%; z-index: 80; cursor: e-resize;"></div>
+      <div class="story-nav-tap-left" style="position: absolute; top: 0; bottom: 0; left: 0; width: 40%; z-index: 80; cursor: w-resize;" onclick="navigateStory(-1); event.stopPropagation();"></div>
+      <div class="story-nav-tap-right" style="position: absolute; top: 0; bottom: 0; right: 0; width: 60%; z-index: 80; cursor: e-resize;" onclick="navigateStory(1); event.stopPropagation();"></div>
 
       <!-- The Echo Card Image -->
       <img class="story-card-image" id="storyCardImage" src="" style="width: 100%; height: 100%; object-fit: cover; pointer-events: none;">
@@ -645,6 +824,50 @@
       });
     }
 
+    function enterVault() {
+      const overlay = document.getElementById('echoes-intro-overlay');
+      if (overlay) {
+        overlay.classList.add('hidden');
+        setTimeout(() => overlay.remove(), 600);
+      }
+    }
+
+    function buildUserRow(user, idx) {
+      const row = document.createElement('div');
+      row.className = 'echo-user-row';
+      row.style.animation = `echoCardEnter 0.5s cubic-bezier(0.23,1,0.32,1) forwards`;
+      row.style.animationDelay = `${idx * 0.08}s`;
+      row.style.opacity = '0';
+
+      row.onclick = () => startStoryPlayer(user.email);
+
+      const avatarSrc = getAvatarSrc(user.avatar);
+      const avatarFb = getAvatarFallback(user.avatar);
+      const echoCount = user.echoes.length;
+      
+      const latestEcho = user.echoes[0] || {};
+      const statusText = latestEcho.achievement_phrase || latestEcho.milestone_type || 'Milestone Achieved';
+
+      row.innerHTML = `
+        <div class="echo-user-row-left">
+          <div class="echo-user-avatar-wrapper">
+            <img src="${avatarSrc}" onerror="this.src='${avatarFb}'" alt="${user.username}" />
+          </div>
+          <div class="echo-user-info">
+            <span class="echo-user-name">@${user.username}</span>
+            <span class="echo-user-meta">${statusText}</span>
+          </div>
+        </div>
+        <div class="echo-user-row-right">
+          <span style="font-size: 0.8rem; color: var(--text-secondary); background: rgba(255,255,255,0.05); padding: 4px 10px; border-radius: 20px; border: 1px solid rgba(255,255,255,0.1);">${echoCount} Echo${echoCount > 1 ? 'es' : ''}</span>
+          <div class="echo-user-play-btn">
+            <i class="fas fa-play" style="margin-left: 2px;"></i>
+          </div>
+        </div>
+      `;
+      return row;
+    }
+
     async function loadEchoes(tab='all') {
       showSkeletons(4);
       try {
@@ -652,7 +875,19 @@
         if (!res.ok) throw new Error('fetch failed');
         const data = await res.json();
         renderEchoes(Array.isArray(data) ? data : (data.echoes || []));
-      } catch(e) { console.error(e); renderEmpty(); }
+      } catch(e) { 
+        console.error(e); 
+        renderEmpty(); 
+        const enterBtn = document.getElementById('introEnterBtn');
+        if (enterBtn) {
+          enterBtn.textContent = 'ENTER THE VAULT';
+          enterBtn.classList.add('active');
+        }
+        const statusEl = document.getElementById('introStatus');
+        if (statusEl) {
+          statusEl.textContent = 'Synchronization completed.';
+        }
+      }
     }
 
     function renderEchoes(echoes) {
@@ -661,13 +896,35 @@
       if (!echoes || echoes.length === 0) {
         renderStoriesRow({});
         renderEmpty();
+        
+        const enterBtn = document.getElementById('introEnterBtn');
+        if (enterBtn) {
+          enterBtn.textContent = 'ENTER THE VAULT';
+          enterBtn.classList.add('active');
+        }
+        const statusEl = document.getElementById('introStatus');
+        if (statusEl) {
+          statusEl.textContent = 'Vault is currently empty.';
+        }
         return;
       }
       
       allEchoesGrouped = groupEchoesByUser(echoes);
       renderStoriesRow(allEchoesGrouped);
       
-      echoes.forEach((echo, idx) => feed.appendChild(buildEchoCard(echo, idx)));
+      const users = Object.values(allEchoesGrouped);
+      users.forEach((user, idx) => feed.appendChild(buildUserRow(user, idx)));
+
+      const enterBtn = document.getElementById('introEnterBtn');
+      const statusEl = document.getElementById('introStatus');
+      if (enterBtn) {
+        enterBtn.textContent = 'ENTER THE VAULT';
+        enterBtn.classList.add('active');
+      }
+      if (statusEl) {
+        statusEl.textContent = 'All archives synchronized.';
+        statusEl.style.color = 'var(--neon-cyan)';
+      }
     }
 
     function buildEchoCard(echo, idx) {
@@ -823,16 +1080,10 @@
     }
     
     function handleViewerOverlayClick(e) {
-      if (e.target.closest('#storyDeleteBtn') || e.target.closest('.neon-btn')) return;
-      
+      // If click is on the overlay itself (outside the card), close the viewer
       const wrapper = document.getElementById('storyCardWrapper');
-      const clickX = e.clientX - wrapper.getBoundingClientRect().left;
-      const cardWidth = wrapper.offsetWidth;
-      
-      if (clickX < cardWidth * 0.40) {
-        navigateStory(-1);
-      } else {
-        navigateStory(1);
+      if (wrapper && !wrapper.contains(e.target) && !e.target.closest('.neon-btn')) {
+        closeStoryViewer();
       }
     }
     
@@ -1054,7 +1305,7 @@
       }
 
       await loadProfile();
-      await loadEchoes('all');
+      loadEchoes('all');
 
       clearTimeout(loadTimer);
       const loader = document.getElementById('loading-screen');

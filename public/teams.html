@@ -550,11 +550,13 @@
             // Setup sidebar avatar preview
             const name = localStorage.getItem('primeedu_leaderboard_name') || 'Warrior';
             const email = localStorage.getItem('primeedu_email') || '';
-            document.getElementById('sidebar-username').innerText = name;
-            document.getElementById('sidebar-email').innerText = email;
+            const sidebarUser = document.getElementById('sidebar-username');
+            if (sidebarUser) sidebarUser.innerText = name;
+            const sidebarEmail = document.getElementById('sidebar-email');
+            if (sidebarEmail) sidebarEmail.innerText = email;
             
             // Check Admin Access Casing
-            const _email = email.trim().toLowerCase();
+            const _email = (email || '').trim().toLowerCase();
             if(_email === 'buvanavel.m01@gmail.com') {
                 const adminLinks = document.querySelectorAll('.admin-only-link');
                 adminLinks.forEach(link => link.style.display = 'flex');
@@ -637,9 +639,9 @@
             document.getElementById('view-no-clan').style.display = 'none';
             document.getElementById('view-clan-active').style.display = 'block';
 
-            document.getElementById('clan-name-header').innerText = clanData.name.toUpperCase();
+            document.getElementById('clan-name-header').innerText = (clanData.name || '').toUpperCase();
             // Show leader name instead of email
-            const leaderDisplayName = clanData.leader_name || clanData.leader_email;
+            const leaderDisplayName = clanData.leader_name || clanData.leader_email || 'Commander';
             document.getElementById('clan-meta-text').innerHTML = `<i class="fas fa-crown" style="color: var(--neon-yellow);"></i> Commander: <strong>${leaderDisplayName}</strong>`;
             
             // Set terms textarea content
@@ -684,15 +686,18 @@
                 kakashi: 'assets/avatars/kakashi.webp'
             };
 
-            clanData.members.forEach(member => {
-                const isLeader = member.email.toLowerCase() === clanData.leader_email.toLowerCase();
+            const members = clanData.members || [];
+            members.forEach(member => {
+                const memberEmail = (member.email || '').trim().toLowerCase();
+                const leaderEmail = (clanData.leader_email || '').trim().toLowerCase();
+                const isLeader = memberEmail === leaderEmail;
                 const avatarPath = avatarMap[member.avatar] || 'assets/avatars/itachi.webp';
                 
                 const memberRow = document.createElement('div');
                 memberRow.className = `member-row ${isLeader ? 'leader-border' : ''}`;
                 
                 let dismissBtnHtml = '';
-                if (clanData.is_leader && member.email.toLowerCase() !== myEmail.toLowerCase()) {
+                if (clanData.is_leader && memberEmail !== (myEmail || '').trim().toLowerCase()) {
                     dismissBtnHtml = `
                     <button class="neon-btn" style="border-color: var(--neon-pink); color: var(--neon-pink); font-size: 0.65rem; padding: 0.25rem 0.5rem;" onclick="handleDismissMember('${member.email}')">
                         DISMISS
@@ -737,8 +742,10 @@
                 
                 const acceptedMembers = ch.accepted_members || [];
                 const acceptedCount = acceptedMembers.length;
-                const isCreator = ch.creator_email.toLowerCase() === myEmail.toLowerCase();
-                const isAcceptor = acceptedMembers.some(m => m.email.toLowerCase() === myEmail.toLowerCase());
+                const creatorEmail = (ch.creator_email || '').trim().toLowerCase();
+                const myCleanEmail = (myEmail || '').trim().toLowerCase();
+                const isCreator = creatorEmail === myCleanEmail;
+                const isAcceptor = acceptedMembers.some(m => (m.email || '').trim().toLowerCase() === myCleanEmail);
                 const isParticipant = isCreator || isAcceptor;
                 const isFull = acceptedCount >= 3;
                 
@@ -756,7 +763,7 @@
                     myStartTime = ch.creator_accepted_at ? new Date(ch.creator_accepted_at).getTime() : null;
                     myRewarded = ch.creator_rewarded || false;
                 } else if (isAcceptor) {
-                    const memberObj = acceptedMembers.find(m => m.email.toLowerCase() === myEmail.toLowerCase());
+                    const memberObj = acceptedMembers.find(m => (m.email || '').trim().toLowerCase() === myCleanEmail);
                     if (memberObj) {
                         myStartTime = new Date(memberObj.accepted_at).getTime();
                         myRewarded = memberObj.rewarded || false;
