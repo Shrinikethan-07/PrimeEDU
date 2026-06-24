@@ -76,7 +76,7 @@
     .echo-feed { display: grid; grid-template-columns: repeat(2, 1fr); gap: 1.5rem; padding: 1rem 0; }
 
     .echo-card {
-      position: relative; aspect-ratio: 9/16; border-radius: 20px; overflow: hidden;
+      position: relative; aspect-ratio: 1/1.4; border-radius: 20px; overflow: hidden;
       cursor: pointer;
       animation: echoCardEnter 0.5s cubic-bezier(0.23,1,0.32,1) forwards; opacity: 0;
       transition: transform 0.3s ease, box-shadow 0.3s ease;
@@ -270,9 +270,83 @@
       .badge-grid { grid-template-columns: 1fr; }
       .fab-btn { width: 52px; height: 52px; font-size: 1.25rem; bottom: 1.25rem; right: 1.25rem; }
     }
+    
+    /* Stories Row Styles */
+    .stories-row {
+      display: flex;
+      gap: 1.25rem;
+      padding: 0.5rem 0.25rem 1.5rem;
+      overflow-x: auto;
+      scrollbar-width: none;
+      border-bottom: 1px solid var(--glass-border);
+      margin-bottom: 1.5rem;
+    }
+    .stories-row::-webkit-scrollbar { display: none; }
+    .story-bubble {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 0.4rem;
+      cursor: pointer;
+      flex-shrink: 0;
+      transition: transform 0.2s;
+    }
+    .story-bubble:hover { transform: scale(1.05); }
+    .story-avatar-wrapper {
+      position: relative;
+      width: 64px;
+      height: 64px;
+      border-radius: 50%;
+      padding: 3px;
+      background: linear-gradient(45deg, var(--neon-cyan), var(--neon-purple));
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      box-shadow: 0 0 10px rgba(0, 243, 255, 0.2);
+    }
+    .story-avatar-wrapper img {
+      width: 100%;
+      height: 100%;
+      border-radius: 50%;
+      object-fit: cover;
+      border: 2px solid var(--bg-deep);
+    }
+    .story-bubble-name {
+      font-size: 0.72rem;
+      font-weight: 500;
+      color: var(--text-primary);
+      max-width: 75px;
+      text-overflow: ellipsis;
+      overflow: hidden;
+      white-space: nowrap;
+    }
+    
+    /* Progress indicators */
+    .story-progress-segment {
+      flex: 1;
+      height: 3px;
+      background: rgba(255, 255, 255, 0.25);
+      border-radius: 2px;
+      overflow: hidden;
+      position: relative;
+    }
+    .story-progress-fill {
+      height: 100%;
+      background: white;
+      width: 0%;
+      transition: width 0.1s linear;
+    }
   </style>
 </head>
 <body>
+  <!-- Wakeup Loading Screen -->
+  <div class="loading-screen-container" id="loading-screen" style="position: fixed; inset: 0; background: #070114; z-index: 99999; display: flex; flex-direction: column; align-items: center; justify-content: center; transition: opacity 0.5s ease, visibility 0.5s ease;">
+    <div class="loading-screen-logo" style="text-align: center; margin-bottom: 2rem;">
+      <i class="fas fa-bolt" style="font-size: 3.5rem; color: var(--neon-cyan); animation: pulse 1.5s infinite; filter: drop-shadow(0 0 15px var(--neon-cyan));"></i>
+      <h1 style="font-family: var(--font-heading); font-size: 2.2rem; font-weight: 800; letter-spacing: 4px; margin-top: 1rem; color: white;">MAVX MNDSET</h1>
+    </div>
+    <div class="loading-screen-text" id="loading-text" style="font-family: var(--font-body); font-size: 0.9rem; color: var(--text-secondary); letter-spacing: 2px; text-transform: uppercase; text-align: center; padding: 0 1rem; line-height: 1.6;">Synchronizing Echo Cards...</div>
+  </div>
 
   <nav class="sidebar" id="sidebar">
     <div class="logo"><i class="fas fa-bolt"></i><span>MavX Mndset</span></div>
@@ -325,6 +399,9 @@
     </header>
 
     <div class="content-area">
+      <!-- Story Bubbles Row -->
+      <div class="stories-row" id="storiesRow" style="display:none;"></div>
+      
       <div class="echo-feed" id="echoFeed"></div>
     </div>
   </div>
@@ -332,6 +409,40 @@
   <button class="fab-btn" onclick="openShareModal()" title="Share an Echo">
     <i class="fas fa-plus"></i>
   </button>
+
+  <!-- Immersive Story Viewer Modal -->
+  <div class="story-viewer-overlay" id="storyViewerOverlay" style="display: none; position: fixed; inset: 0; background: rgba(5, 2, 10, 0.96); z-index: 20000; align-items: center; justify-content: center; backdrop-filter: blur(10px);" onclick="handleViewerOverlayClick(event)">
+    <button class="neon-btn" style="position: absolute; top: 20px; right: 20px; width: 40px; height: 40px; border-radius: 50%; padding: 0; display: flex; align-items: center; justify-content: center; border-color: var(--neon-pink); color: var(--neon-pink); font-size: 1.25rem; z-index: 20010; cursor: pointer; background: rgba(0,0,0,0.5);" onclick="closeStoryViewer()"><i class="fas fa-times"></i></button>
+    
+    <div class="story-card-wrapper" id="storyCardWrapper" style="position: relative; width: min(450px, 92vw); aspect-ratio: 1 / 1.4; border-radius: 24px; overflow: hidden; display: flex; flex-direction: column; transition: box-shadow 0.3s ease;">
+      <!-- Glowing background aura is updated dynamically via style.boxShadow -->
+      
+      <!-- Progress Bar Indicators -->
+      <div class="story-progress-container" id="storyProgressContainer" style="position: absolute; top: 12px; left: 16px; right: 16px; display: flex; gap: 4px; z-index: 100;">
+        <!-- Filled dynamically -->
+      </div>
+      
+      <!-- Story Header: User details -->
+      <div class="story-header" style="position: absolute; top: 28px; left: 16px; right: 16px; display: flex; align-items: center; justify-content: space-between; z-index: 100;">
+        <div style="display: flex; align-items: center; gap: 8px;">
+          <img class="story-user-avatar" id="storyUserAvatar" src="" style="width: 36px; height: 36px; border-radius: 50%; border: 1.5px solid var(--neon-cyan); object-fit: cover;">
+          <span class="story-user-name" id="storyUserName" style="font-family: var(--font-heading); font-weight: 700; font-size: 0.85rem; color: white; text-shadow: 0 2px 4px rgba(0,0,0,0.8);">Username</span>
+        </div>
+        
+        <!-- Delete Button (shown if user's own card) -->
+        <button class="neon-btn" id="storyDeleteBtn" style="padding: 0.3rem 0.6rem; font-size: 0.65rem; border-color: var(--neon-pink); color: var(--neon-pink); background: rgba(255, 0, 85, 0.1); border-radius: 8px; display: none;" onclick="deleteActiveEcho(event)">
+          <i class="fas fa-trash-alt"></i> DELETE
+        </button>
+      </div>
+
+      <!-- Navigation tap areas (no arrows, invisible but responsive) -->
+      <div class="story-nav-tap-left" style="position: absolute; top: 0; bottom: 0; left: 0; width: 40%; z-index: 80; cursor: w-resize;"></div>
+      <div class="story-nav-tap-right" style="position: absolute; top: 0; bottom: 0; right: 0; width: 60%; z-index: 80; cursor: e-resize;"></div>
+
+      <!-- The Echo Card Image -->
+      <img class="story-card-image" id="storyCardImage" src="" style="width: 100%; height: 100%; object-fit: cover; pointer-events: none;">
+    </div>
+  </div>
 
   <div class="share-modal-overlay" id="shareModalOverlay">
     <div class="share-modal" id="shareModal" style="width: min(520px, 95vw);">
@@ -448,6 +559,61 @@
       for (let i=0;i<n;i++) { const s=document.createElement('div'); s.className='echo-skeleton'; f.appendChild(s); }
     }
 
+    let allEchoesGrouped = {};
+    let activeStoryUserEmail = null;
+    let activeStoryIndex = 0;
+    let storyAutoAdvanceTimer = null;
+    let storyProgressInterval = null;
+    let storyStartTime = 0;
+    const STORY_DURATION = 5000;
+
+    function groupEchoesByUser(echoes) {
+      const groups = {};
+      echoes.forEach(e => {
+        const email = (e.user_id || 'warrior').trim().toLowerCase();
+        if (!groups[email]) {
+          groups[email] = {
+            email: email,
+            username: e.username_display || 'Warrior',
+            avatar: e.avatar_id || 'itachi',
+            echoes: []
+          };
+        }
+        groups[email].echoes.push(e);
+      });
+      return groups;
+    }
+
+    function renderStoriesRow(grouped) {
+      const container = document.getElementById('storiesRow');
+      if (!container) return;
+      container.innerHTML = '';
+      
+      const users = Object.values(grouped);
+      if (users.length === 0) {
+        container.style.display = 'none';
+        return;
+      }
+      container.style.display = 'flex';
+      
+      users.forEach(u => {
+        const bubble = document.createElement('div');
+        bubble.className = 'story-bubble';
+        bubble.onclick = () => startStoryPlayer(u.email);
+        
+        const avatarSrc = getAvatarSrc(u.avatar);
+        const avatarFb = getAvatarFallback(u.avatar);
+        
+        bubble.innerHTML = `
+          <div class="story-avatar-wrapper">
+            <img src="${avatarSrc}" onerror="this.src='${avatarFb}'" alt="${u.username}">
+          </div>
+          <span class="story-bubble-name">${u.username}</span>
+        `;
+        container.appendChild(bubble);
+      });
+    }
+
     async function loadEchoes(tab='all') {
       showSkeletons(4);
       try {
@@ -461,7 +627,15 @@
     function renderEchoes(echoes) {
       const feed = document.getElementById('echoFeed');
       feed.innerHTML = '';
-      if (!echoes || echoes.length === 0) { renderEmpty(); return; }
+      if (!echoes || echoes.length === 0) {
+        renderStoriesRow({});
+        renderEmpty();
+        return;
+      }
+      
+      allEchoesGrouped = groupEchoesByUser(echoes);
+      renderStoriesRow(allEchoesGrouped);
+      
       echoes.forEach((echo, idx) => feed.appendChild(buildEchoCard(echo, idx)));
     }
 
@@ -473,19 +647,8 @@
       const likeCount = Array.isArray(echo.likes) ? echo.likes.length : (echo.likes_count || 0);
       const imgUrl = `${window.API_BASE_URL}/api/echoes/card-image/${echo.id}`;
       const tplCls = (TEMPLATES.find(t => t.id === echo.template_id) || TEMPLATES[0]).cls;
-      const avatarSrc = getAvatarSrc(echo.avatar_id);
-      const avatarFb  = getAvatarFallback(echo.avatar_id);
 
-      const STICKERS = {
-        'naruto':      'assets/echo_stickers/naruto.png',
-        'dbz':         'assets/echo_stickers/goku.png',
-        'deathnote':   'assets/echo_stickers/ryuk.png',
-        'onepiece':    'assets/echo_stickers/luffy.png',
-        'jjk':         'assets/echo_stickers/gojo.png',
-        'aot':         'assets/echo_stickers/eren.png',
-        'demonslayer': 'assets/echo_stickers/tanjirou.png'
-      };
-      const stickerSrc = STICKERS[echo.template_id] || STICKERS['naruto'];
+      card.onclick = () => startStoryPlayer(echo.user_id, echo.id);
 
       card.innerHTML = `
         <img class="echo-card-bg" src="${imgUrl}" alt="Echo"
@@ -493,8 +656,6 @@
         <div class="echo-card-bg-fallback ${tplCls}" style="display:none;"></div>
         <div class="echo-card-overlay"></div>
         ${echo.has_synergy ? '<div class="synergy-badge-card">⚡∞ Synergy</div>' : ''}
-        <img class="echo-avatar" src="${avatarSrc}" alt="${echo.username_display||'Warrior'}" onerror="this.src='${avatarFb}'" />
-        <img class="echo-character-sticker" src="${stickerSrc}" alt="chibi" />
         <div class="echo-card-content">
           <div class="echo-username">@${echo.username_display||'Warrior'}</div>
           <div class="echo-achievement">${echo.achievement_phrase||echo.milestone_type||'Milestone Achieved'}</div>
@@ -505,6 +666,166 @@
           <span id="like-count-${echo.id}">${likeCount}</span>
         </button>`;
       return card;
+    }
+
+    function startStoryPlayer(userEmail, startEchoId = null) {
+      const group = allEchoesGrouped[userEmail.toLowerCase()];
+      if (!group || group.echoes.length === 0) return;
+      
+      activeStoryUserEmail = userEmail.toLowerCase();
+      activeStoryIndex = 0;
+      
+      if (startEchoId) {
+        const found = group.echoes.findIndex(e => e.id === startEchoId);
+        if (found !== -1) activeStoryIndex = found;
+      }
+      
+      const overlay = document.getElementById('storyViewerOverlay');
+      overlay.style.display = 'flex';
+      document.body.style.overflow = 'hidden';
+      
+      showActiveStoryCard();
+    }
+    
+    function showActiveStoryCard() {
+      clearTimeout(storyAutoAdvanceTimer);
+      clearInterval(storyProgressInterval);
+      
+      const group = allEchoesGrouped[activeStoryUserEmail];
+      if (!group) { closeStoryViewer(); return; }
+      
+      const echoes = group.echoes;
+      if (activeStoryIndex < 0 || activeStoryIndex >= echoes.length) {
+        closeStoryViewer();
+        return;
+      }
+      
+      const echo = echoes[activeStoryIndex];
+      
+      document.getElementById('storyCardImage').src = `${window.API_BASE_URL}/api/echoes/card-image/${echo.id}`;
+      document.getElementById('storyUserName').textContent = echo.username_display || 'Warrior';
+      
+      const avSrc = getAvatarSrc(echo.avatar_id);
+      const avFb = getAvatarFallback(echo.avatar_id);
+      const avEl = document.getElementById('storyUserAvatar');
+      avEl.src = avSrc;
+      avEl.onerror = () => { avEl.src = avFb; };
+      
+      const cleanMyEmail = currentUserEmail.trim().toLowerCase();
+      const cleanCreatorEmail = (echo.user_id || '').trim().toLowerCase();
+      const isOwner = cleanCreatorEmail === cleanMyEmail || cleanMyEmail === 'buvanavel.m01@gmail.com';
+      document.getElementById('storyDeleteBtn').style.display = isOwner ? 'block' : 'none';
+      
+      const glowMap = {
+        'naruto': 'rgba(255, 106, 0, 0.65)',
+        'dbz': 'rgba(255, 240, 31, 0.65)',
+        'deathnote': 'rgba(255, 255, 255, 0.5)',
+        'onepiece': 'rgba(0, 243, 255, 0.65)',
+        'jjk': 'rgba(157, 0, 255, 0.65)',
+        'aot': 'rgba(255, 0, 85, 0.65)',
+        'demonslayer': 'rgba(0, 255, 170, 0.65)'
+      };
+      const glowColor = glowMap[echo.template_id] || 'rgba(0, 243, 255, 0.5)';
+      const wrapper = document.getElementById('storyCardWrapper');
+      wrapper.style.boxShadow = `0 0 50px ${glowColor}, 0 0 20px ${glowColor}`;
+      wrapper.style.border = `1px solid ${glowColor}`;
+      
+      const progressContainer = document.getElementById('storyProgressContainer');
+      progressContainer.innerHTML = '';
+      for (let i = 0; i < echoes.length; i++) {
+        const seg = document.createElement('div');
+        seg.className = 'story-progress-segment';
+        
+        const fill = document.createElement('div');
+        fill.className = 'story-progress-fill';
+        if (i < activeStoryIndex) {
+          fill.style.width = '100%';
+        } else if (i === activeStoryIndex) {
+          fill.id = 'active-progress-fill';
+        }
+        
+        seg.appendChild(fill);
+        progressContainer.appendChild(seg);
+      }
+      
+      storyStartTime = Date.now();
+      storyProgressInterval = setInterval(() => {
+        const elapsed = Date.now() - storyStartTime;
+        const pct = Math.min(100, (elapsed / STORY_DURATION) * 100);
+        const activeFill = document.getElementById('active-progress-fill');
+        if (activeFill) {
+          activeFill.style.width = `${pct}%`;
+        }
+      }, 50);
+      
+      storyAutoAdvanceTimer = setTimeout(() => {
+        navigateStory(1);
+      }, STORY_DURATION);
+    }
+    
+    function navigateStory(direction) {
+      activeStoryIndex += direction;
+      const group = allEchoesGrouped[activeStoryUserEmail];
+      if (!group) { closeStoryViewer(); return; }
+      
+      if (activeStoryIndex < 0) {
+        activeStoryIndex = 0;
+        showActiveStoryCard();
+      } else if (activeStoryIndex >= group.echoes.length) {
+        const emails = Object.keys(allEchoesGrouped);
+        const idx = emails.indexOf(activeStoryUserEmail);
+        if (idx !== -1 && idx + 1 < emails.length) {
+          startStoryPlayer(emails[idx + 1]);
+        } else {
+          closeStoryViewer();
+        }
+      } else {
+        showActiveStoryCard();
+      }
+    }
+    
+    function closeStoryViewer() {
+      clearTimeout(storyAutoAdvanceTimer);
+      clearInterval(storyProgressInterval);
+      document.getElementById('storyViewerOverlay').style.display = 'none';
+      document.body.style.overflow = '';
+    }
+    
+    function handleViewerOverlayClick(e) {
+      if (e.target.closest('#storyDeleteBtn') || e.target.closest('.neon-btn')) return;
+      
+      const wrapper = document.getElementById('storyCardWrapper');
+      const clickX = e.clientX - wrapper.getBoundingClientRect().left;
+      const cardWidth = wrapper.offsetWidth;
+      
+      if (clickX < cardWidth * 0.40) {
+        navigateStory(-1);
+      } else {
+        navigateStory(1);
+      }
+    }
+    
+    async function deleteActiveEcho(e) {
+      e.stopPropagation();
+      const group = allEchoesGrouped[activeStoryUserEmail];
+      if (!group) return;
+      const echo = group.echoes[activeStoryIndex];
+      if (!echo) return;
+      
+      if (!confirm('Are you sure you want to delete this Echo card?')) return;
+      
+      try {
+        const res = await fetch(`${window.API_BASE_URL}/api/echoes/${echo.id}`, {
+          method: 'DELETE'
+        });
+        if (!res.ok) throw new Error();
+        showToast('Echo deleted successfully.');
+        
+        closeStoryViewer();
+        setTimeout(() => loadEchoes(currentTab), 600);
+      } catch(err) {
+        showToast('Failed to delete echo.', 'error');
+      }
     }
 
     function renderEmpty() {
@@ -661,8 +982,23 @@
     document.addEventListener('keydown', e => { if(e.key==='Escape') closeShareModal(); });
 
     (async function init(){
+      const loadingText = document.getElementById('loading-text');
+      const loadTimer = setTimeout(() => {
+        if (loadingText) {
+          loadingText.innerHTML = `⚡ BACKEND IS AWAKENING...<br><span style="font-size:0.75rem; color:#ff0055; text-transform:none; margin-top:0.5rem; display:block;">Render Free Tier goes to sleep when idle. Reviving container, please stand by... (Takes 20-30s. Cost-free!)</span>`;
+        }
+      }, 2500);
+
       await loadProfile();
-      loadEchoes('all');
+      await loadEchoes('all');
+
+      clearTimeout(loadTimer);
+      const loader = document.getElementById('loading-screen');
+      if (loader) {
+        loader.style.opacity = '0';
+        loader.style.visibility = 'hidden';
+        setTimeout(() => loader.remove(), 600);
+      }
     })();
   </script>
 </body>

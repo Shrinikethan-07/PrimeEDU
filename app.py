@@ -21,6 +21,7 @@ CORS(app)
 
 DB_PATH = 'data/db.json'
 _DB_CACHE = None
+_DB_LAST_LOADED_TIME = 0.0
 db_lock = threading.RLock()
 
 def get_ist_now():
@@ -229,6 +230,7 @@ def get_conn():
                 g.db_conn = psycopg2.connect(DATABASE_URL)
             else:
                 g.db_conn = sqlite3.connect('data/primeedu.db')
+                g.db_conn.execute("PRAGMA journal_mode=WAL;")
         return g.db_conn
     else:
         if DATABASE_URL:
@@ -236,7 +238,9 @@ def get_conn():
         else:
             if not os.path.exists('data'):
                 os.makedirs('data')
-            return sqlite3.connect('data/primeedu.db')
+            conn = sqlite3.connect('data/primeedu.db')
+            conn.execute("PRAGMA journal_mode=WAL;")
+            return conn
 
 @app.teardown_appcontext
 def close_db_connection(exception):
@@ -317,19 +321,42 @@ def save_db_normalized(conn, new_db, old_db):
     cur.close()
 
 def load_db():
-    global _DB_CACHE
+    global _DB_CACHE, _DB_LAST_LOADED_TIME
     with db_lock:
         if has_app_context() and hasattr(g, 'db_cache'):
             return g.db_cache
             
-            # (Note: we use g.db_cache in request contexts for efficiency)
+        # Optimization: cache checks
+        db_path = 'data/primeedu.db'
+        mtime = 0.0
+        if os.path.exists(db_path):
+            mtime = os.path.getmtime(db_path)
+            
+        # Cache hits
+        if DATABASE_URL:
+            # Postgres cache expiration fallback: 5 seconds
+            if _DB_CACHE is not None and (time.time() - _DB_LAST_LOADED_TIME) < 5.0:
+                if has_app_context():
+                    g.original_db_cache = copy.deepcopy(_DB_CACHE)
+                    g.db_cache = _DB_CACHE
+                return _DB_CACHE
+        else:
+            # SQLite cache expiration based on file mtime
+            if _DB_CACHE is not None and mtime <= _DB_LAST_LOADED_TIME:
+                if has_app_context():
+                    g.original_db_cache = copy.deepcopy(_DB_CACHE)
+                    g.db_cache = _DB_CACHE
+                return _DB_CACHE
+                
         conn = get_conn()
         try:
             db_data = load_db_normalized(conn)
+            _DB_CACHE = db_data
+            _DB_LAST_LOADED_TIME = os.path.getmtime(db_path) if (not DATABASE_URL and os.path.exists(db_path)) else time.time()
+            
             if has_app_context():
                 g.original_db_cache = copy.deepcopy(db_data)
                 g.db_cache = db_data
-            _DB_CACHE = db_data
             
             # Prune and sanitize
             old_len_s = len(_DB_CACHE.get('sessions', []))
@@ -355,7 +382,7 @@ def load_db():
                 conn.close()
 
 def save_db(data):
-    global _DB_CACHE
+    global _DB_CACHE, _DB_LAST_LOADED_TIME
     with db_lock:
         conn = get_conn()
         try:
@@ -369,6 +396,13 @@ def save_db(data):
                 g.original_db_cache = copy.deepcopy(data)
                 g.db_cache = data
             _DB_CACHE = data
+            
+            # Update last loaded time
+            db_path = 'data/primeedu.db'
+            if not DATABASE_URL and os.path.exists(db_path):
+                _DB_LAST_LOADED_TIME = os.path.getmtime(db_path)
+            else:
+                _DB_LAST_LOADED_TIME = time.time()
         except Exception as e:
             print(f"[ERROR] Failed to save database: {e}")
         finally:
@@ -1529,6 +1563,42 @@ def generate_bar_graph(categories, values):
     buf.seek(0)
     return buf
 
+def get_user_active_dates(user, db):
+    from datetime import date
+    uid = user.get('email')
+    if not uid:
+        return set()
+    active_dates = set()
+    
+    creation_str = user.get('creation_date')
+    if creation_str:
+        ct = parse_ist_datetime(creation_str)
+        if ct:
+            active_dates.add(ct.date())
+            
+    for d_str in user.get('active_days', []):
+        try:
+            d = date.fromisoformat(d_str)
+            active_dates.add(d)
+        except Exception:
+            pass
+            
+    for s in db.get('sessions', []):
+        if s.get('user_id') == uid and s.get('status') in ('completed', 'early_exit'):
+            t = parse_ist_datetime(s.get('start_time'))
+            if t:
+                active_dates.add(t.date())
+                
+    for j in db.get('journal', []):
+        if j.get('user_id') == uid:
+            t = parse_ist_datetime(j.get('timestamp'))
+            if t:
+                active_dates.add(t.date())
+                
+    now_ist = get_ist_now()
+    active_dates.add(now_ist.date())
+    return active_dates
+
 @app.route('/api/recap/dynamic', methods=['GET'])
 def get_dynamic_recap():
     db = load_db()
@@ -1606,12 +1676,61 @@ def get_dynamic_recap():
     y_journals = [j for j in journal_entries if (t := parse_ist_datetime(j.get('timestamp'))) and y_start <= t <= y_end]
     y_balls = get_period_balls(y_sessions, y_tasks, y_journals)
     
+    # --- Calculate Dynamic Lock Rules ---
+    is_owner = (user.get('email') == 'buvanavel.m01@gmail.com')
+    active_dates = get_user_active_dates(user, db)
+    
+    # Active days in target week
+    w_start_d, w_end_d = w_start.date(), w_end.date()
+    active_days_in_week = sum(1 for d in active_dates if w_start_d <= d <= w_end_d)
+    
+    # Active days in target month
+    m_start_d, m_end_d = m_start.date(), m_end.date()
+    active_days_in_month = sum(1 for d in active_dates if m_start_d <= d <= m_end_d)
+    
+    user_streak = user.get('streak', 0)
+    
+    # Weekly locks:
+    # Current week is unlocked if user has streak >= 7.
+    # Past weeks are locked if offset > 0 and user logged in < 7 days in that specific week.
+    if is_owner:
+        weekly_locked = False
+        weekly_lock_reason = ""
+    else:
+        if weekly_offset == 0:
+            weekly_locked = user_streak < 7
+            weekly_lock_reason = f"Maintain a 7-day login streak to unlock current Weekly Insights (Current streak: {user_streak})."
+        else:
+            weekly_locked = active_days_in_week < 7
+            weekly_lock_reason = "This past week's Insights are locked because you did not log in for all 7 days during that week."
+            
+    # Monthly locks:
+    # Unlocked if active days in target month >= 25.
+    if is_owner:
+        monthly_locked = False
+        monthly_lock_reason = ""
+    else:
+        monthly_locked = active_days_in_month < 25
+        if monthly_offset == 0:
+            monthly_lock_reason = f"Log in for at least 25 days in this month to unlock Monthly Mastery (Current: {active_days_in_month}/25 days)."
+        else:
+            monthly_lock_reason = f"This past month's Mastery is locked because you logged in for only {active_days_in_month} days during that month (minimum 25 required)."
+            
+    # Yearly locks:
+    # Unlocked only once the year got over.
+    if is_owner:
+        yearly_locked = False
+        yearly_lock_reason = ""
+    else:
+        yearly_locked = yearly_offset == 0
+        yearly_lock_reason = "Yearly Legacy recaps unlock when the year ends and the new year begins."
+        
     weekly_visuals = visual_agent.get_recap_visuals(
         w_sessions, 
         w_tasks, 
         user_balls=w_balls,
         journal_count=len(w_journals),
-        user_streak=user.get('streak', 0) if weekly_offset == 0 else 0
+        user_streak=user_streak if weekly_offset == 0 else 0
     )
     
     monthly_visuals = visual_agent.get_recap_visuals(
@@ -1619,7 +1738,7 @@ def get_dynamic_recap():
         m_tasks, 
         user_balls=m_balls,
         journal_count=len(m_journals),
-        user_streak=user.get('streak', 0) if monthly_offset == 0 else 0
+        user_streak=user_streak if monthly_offset == 0 else 0
     )
     
     yearly_visuals = visual_agent.get_recap_visuals(
@@ -1627,13 +1746,19 @@ def get_dynamic_recap():
         y_tasks, 
         user_balls=y_balls,
         journal_count=len(y_journals),
-        user_streak=user.get('streak', 0) if yearly_offset == 0 else 0
+        user_streak=user_streak if yearly_offset == 0 else 0
     )
     
     return jsonify({
         "weekly": weekly_visuals,
         "monthly": monthly_visuals,
-        "yearly": yearly_visuals
+        "yearly": yearly_visuals,
+        "weekly_locked": weekly_locked,
+        "weekly_lock_reason": weekly_lock_reason,
+        "monthly_locked": monthly_locked,
+        "monthly_lock_reason": monthly_lock_reason,
+        "yearly_locked": yearly_locked,
+        "yearly_lock_reason": yearly_lock_reason
     })
 
 @app.route('/api/recap/graph/<graph_type>')
@@ -2527,8 +2652,8 @@ def generate_echo_card(echo_id, template_id, username, avatar_id, achievement_ph
         os.makedirs('assets/echoes', exist_ok=True)
         out_path = f'assets/echoes/{echo_id}.png'
 
-        # --- Canvas: 720x1280 (9:16) ---
-        W, H = 720, 1280
+        # --- Canvas: 720x1008 (1:1.4 aspect ratio) ---
+        W, H = 720, 1008
 
         # Load background template
         tmpl_path = ECHO_TEMPLATES.get(template_id, ECHO_TEMPLATES['naruto'])
@@ -2638,6 +2763,44 @@ def generate_echo_card(echo_id, template_id, username, avatar_id, achievement_ph
         tw_wm = bbox_wm[2] - bbox_wm[0]
         draw.text(((W - tw_wm) // 2, H - 50), wm, fill=(255, 255, 255, 80), font=font_wm)
 
+        # --- Torn-corner ripped paper background behind sticker ---
+        try:
+            poly_points = [
+                (W - 270, H),
+                (W - 250, H - 50),
+                (W - 225, H - 90),
+                (W - 230, H - 130),
+                (W - 195, H - 170),
+                (W - 155, H - 210),
+                (W - 165, H - 250),
+                (W - 115, H - 280),
+                (W - 80, H - 275),
+                (W - 40, H - 310),
+                (W, H - 315),
+                (W, H)
+            ]
+            
+            # Shift inner points slightly towards (W, H) to show a white border
+            inner_points = []
+            for x, y in poly_points[:-1]:
+                dx = W - x
+                dy = H - y
+                dist = (dx*dx + dy*dy)**0.5
+                if dist > 0:
+                    nx = x + (dx / dist) * 8
+                    ny = y + (dy / dist) * 8
+                else:
+                    nx, ny = x, y
+                inner_points.append((nx, ny))
+            inner_points.append((W, H))
+            
+            # Draw white ripped edge
+            draw.polygon(poly_points, fill=(255, 255, 255, 255))
+            # Draw inner dark void matching the card background
+            draw.polygon(inner_points, fill=(10, 5, 20, 255))
+        except Exception as te:
+            print(f"[TORN CORNER ERROR] {te}")
+
         # --- Chibi character sticker (bottom-right corner) ---
         sticker_map = {
             'naruto':      'assets/echo_stickers/naruto.png',
@@ -2657,9 +2820,9 @@ def generate_echo_card(echo_id, template_id, username, avatar_id, achievement_ph
                 st_h = int(st_img.height * (st_w / st_img.width))
                 st_img = st_img.resize((st_w, st_h), Image.LANCZOS)
                 
-                # Paste in bottom-right corner
-                st_x = W - st_w - 10
-                st_y = H - st_h - 120 # above watermark
+                # Paste in bottom-right corner inside the torn corner
+                st_x = W - st_w - 15
+                st_y = H - st_h - 45
                 canvas.paste(st_img, (st_x, st_y), st_img)
             except Exception as e:
                 print(f"[STICKER ERROR] {e}")
@@ -2862,6 +3025,11 @@ def share_echo():
         reason = elig.get(milestone_type, {}).get('reason', 'Not eligible')
         return jsonify({'status': 'error', 'message': f'Not eligible: {reason}'}), 403
 
+    # Check if user already has an active echo for this milestone_type
+    existing = [e for e in db.get('echoes', {}).values() if isinstance(e, dict) and e.get('user_id') == uid and e.get('milestone_type') == milestone_type]
+    if existing:
+        return jsonify({'status': 'error', 'message': 'You already have an active Echo card for this milestone. Delete it from the Vault first before republishing.'}), 400
+
     # Determine Synergy status
     partner_id = user.get('partner_id')
     has_synergy = bool(partner_id)
@@ -2927,10 +3095,36 @@ def like_echo(echo_id):
     return jsonify({'status': 'success', 'likes_count': len(likes), 'liked': liked})
 
 
+@app.route('/api/echoes/<echo_id>', methods=['DELETE'])
+def delete_echo(echo_id):
+    db = load_db()
+    user, uid = get_current_user(db)
+    if not user:
+        return jsonify({'status': 'error', 'message': 'Unauthorized'}), 401
+    
+    echoes = db.get('echoes', {})
+    echo = echoes.get(echo_id)
+    if not echo:
+        return jsonify({'status': 'error', 'message': 'Echo not found'}), 404
+        
+    if echo.get('user_id') != uid and user.get('email') != 'buvanavel.m01@gmail.com':
+        return jsonify({'status': 'error', 'message': 'Forbidden'}), 403
+        
+    card_path = echo.get('card_path')
+    if card_path and os.path.exists(card_path):
+        try:
+            os.remove(card_path)
+        except Exception:
+            pass
+            
+    del echoes[echo_id]
+    save_db(db)
+    return jsonify({'status': 'success', 'message': 'Echo deleted successfully'})
+
+
 @app.route('/api/echoes/card-image/<echo_id>', methods=['GET'])
 def serve_echo_card(echo_id):
     db = load_db()
-    cleanup_old_echoes(db)
     echo = db.get('echoes', {}).get(echo_id)
     if not echo:
         return jsonify({'status': 'error', 'message': 'Echo not found'}), 404

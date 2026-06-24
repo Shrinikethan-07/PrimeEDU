@@ -501,25 +501,47 @@
                 adminLinks.forEach(link => link.style.display = 'flex');
             }
 
-            // Sync user avatar
-            try {
-                const avatarRes = await fetch(window.API_BASE_URL + '/api/user/avatar');
-                if(avatarRes.ok) {
-                    const data = await avatarRes.json();
-                    const avatarMap = {
-                        itachi: 'assets/avatars/itachi.webp',
-                        goku: 'assets/avatars/goku.webp',
-                        gojo: 'assets/avatars/gojo.webp',
-                        sasuke: 'assets/avatars/sasuke.webp',
-                        naruto: 'assets/avatars/naruto.webp',
-                        kakashi: 'assets/avatars/kakashi.webp'
-                    };
-                    const path = avatarMap[data.avatar] || 'assets/avatars/itachi.webp';
-                    document.getElementById('sidebar-avatar').src = path;
+            // Setup loading screen timeout for slow Render spinup
+            const loadingText = document.querySelector('#loading-screen .loading-screen-text');
+            const loadTimer = setTimeout(() => {
+                if (loadingText) {
+                    loadingText.innerHTML = `⚡ BACKEND IS AWAKENING...<br><span style="font-size:0.75rem; color:#ff0055; text-transform:none; margin-top:0.5rem; display:block;">Render Free Tier goes to sleep when idle. Reviving container, please stand by... (Takes 20-30s. Cost-free!)</span>`;
                 }
-            } catch(e) {}
+            }, 2500);
 
-            await loadClanInfo();
+            // Fetch avatar and clan info in parallel to speed up load time
+            const avatarPromise = fetch(window.API_BASE_URL + '/api/user/avatar')
+                .then(res => res.ok ? res.json() : null)
+                .catch(() => null);
+                
+            const clanPromise = loadClanInfo();
+
+            // Wait for both to complete
+            const [avatarData] = await Promise.all([avatarPromise, clanPromise]);
+
+            if (avatarData && avatarData.avatar) {
+                const avatarMap = {
+                    itachi: 'assets/avatars/itachi.webp',
+                    goku: 'assets/avatars/goku.webp',
+                    gojo: 'assets/avatars/gojo.webp',
+                    sasuke: 'assets/avatars/sasuke.webp',
+                    naruto: 'assets/avatars/naruto.webp',
+                    kakashi: 'assets/avatars/kakashi.webp'
+                };
+                const path = avatarMap[avatarData.avatar] || 'assets/avatars/itachi.webp';
+                const sidebarAv = document.getElementById('sidebar-avatar');
+                if (sidebarAv) sidebarAv.src = path;
+            }
+
+            // Clear timer and hide loading screen
+            clearTimeout(loadTimer);
+            const loader = document.getElementById('loading-screen');
+            if (loader) {
+                setTimeout(() => {
+                    loader.style.opacity = '0';
+                    loader.style.visibility = 'hidden';
+                }, 1000);
+            }
         });
 
         // LOAD CLAN DATA FROM BACKEND
@@ -543,15 +565,6 @@
             } catch (err) {
                 console.error("Error loading clan info:", err);
                 renderNoClanView();
-            } finally {
-                // Hide loader
-                const loader = document.getElementById('loading-screen');
-                if (loader) {
-                    setTimeout(() => {
-                        loader.style.opacity = '0';
-                        loader.style.visibility = 'hidden';
-                    }, 1000);
-                }
             }
         }
 

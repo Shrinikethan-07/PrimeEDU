@@ -250,6 +250,15 @@
 </head>
 
 <body>
+    <!-- Wakeup Loading Screen -->
+    <div class="loading-screen-container" id="loading-screen" style="position: fixed; inset: 0; background: #070114; z-index: 99999; display: flex; flex-direction: column; align-items: center; justify-content: center; transition: opacity 0.5s ease, visibility 0.5s ease;">
+        <div class="loading-screen-logo" style="text-align: center; margin-bottom: 2rem;">
+            <i class="fas fa-bolt" style="font-size: 3.5rem; color: var(--neon-cyan); animation: pulse 1.5s infinite; filter: drop-shadow(0 0 15px var(--neon-cyan));"></i>
+            <h1 style="font-family: var(--font-heading); font-size: 2.2rem; font-weight: 800; letter-spacing: 4px; margin-top: 1rem; color: white;">MAVX MNDSET</h1>
+        </div>
+        <div class="loading-screen-text" id="loading-text" style="font-family: var(--font-body); font-size: 0.9rem; color: var(--text-secondary); letter-spacing: 2px; text-transform: uppercase; text-align: center; padding: 0 1rem; line-height: 1.6;">Synthesizing Recap Cards...</div>
+    </div>
+
     <div class="app-container">
         <nav class="sidebar">
             <div class="logo">
@@ -494,11 +503,10 @@
             poster.className = 'recap-poster';
             poster.style.animationDelay = `${index * 0.12}s`;
             poster.style.cursor = 'zoom-in';
+            poster.style.position = 'relative';
+            poster.style.overflow = 'hidden';
             
             const roleImage = data.roleImage || 'assets/recap_chilling.jpg';
-            poster.style.backgroundImage = `linear-gradient(180deg, rgba(13, 4, 26, 0.88) 0%, rgba(26, 10, 46, 0.94) 100%), url('${roleImage}')`;
-            poster.style.backgroundSize = 'cover';
-            poster.style.backgroundPosition = 'center';
             
             poster.addEventListener('click', function(e) {
                 if (e.target.closest('.share-menu-wrap')) return;
@@ -519,59 +527,67 @@
             }
 
             poster.innerHTML = `
-                ${lockBadgeHtml}
-                <div class="poster-header" style="display:flex;flex-direction:column;align-items:center;text-align:center;width:100%;">
-                    <h2 style="margin-bottom:0.4rem;">${data.title}</h2>
-                    <div style="display:flex;align-items:center;gap:0.5rem;">
-                        <img src="${char.img}" alt="Avatar" style="width:22px;height:22px;border-radius:50%;object-fit:cover;border:1.5px solid var(--neon-cyan);" onerror="this.src='${char.fallback}'">
-                        <span style="font-size:0.7rem;font-weight:600;color:var(--text-secondary);">${localStorage.getItem('primeedu_leaderboard_name') || 'Warrior'}</span>
+                <!-- Background Layer 1: Image -->
+                <div class="poster-bg-image" style="position:absolute; inset:0; background: url('${roleImage}') no-repeat center center; background-size: cover; z-index:1; width: 100%; height: 100%;"></div>
+                <!-- Background Layer 2: Gradient -->
+                <div class="poster-bg-gradient" style="position:absolute; inset:0; background: linear-gradient(180deg, rgba(13, 4, 26, 0.88) 0%, rgba(26, 10, 46, 0.94) 100%); z-index:2; width: 100%; height: 100%;"></div>
+                
+                <!-- Inner Content Container -->
+                <div class="poster-inner" style="position:relative; z-index:3; display:flex; flex-direction:column; height:100%; width:100%;">
+                    ${lockBadgeHtml}
+                    <div class="poster-header" style="display:flex;flex-direction:column;align-items:center;text-align:center;width:100%;">
+                        <h2 style="margin-bottom:0.4rem;">${data.title}</h2>
+                        <div style="display:flex;align-items:center;gap:0.5rem;">
+                            <img src="${char.img}" alt="Avatar" crossorigin="anonymous" style="width:22px;height:22px;border-radius:50%;object-fit:cover;border:1.5px solid var(--neon-cyan);" onerror="this.src='${char.fallback}'">
+                            <span style="font-size:0.7rem;font-weight:600;color:var(--text-secondary);">${localStorage.getItem('primeedu_leaderboard_name') || 'Warrior'}</span>
+                        </div>
                     </div>
-                </div>
 
-                <div class="poster-content" style="display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;flex:1;padding:0.25rem 0;">
-                    ${data.html || `<p style="font-size:0.8rem;color:rgba(255,255,255,0.9);margin-bottom:0.4rem;">${data.content || ''}</p>`}
+                    <div class="poster-content" style="display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;flex:1;padding:0.25rem 0;">
+                        ${data.html || `<p style="font-size:0.8rem;color:rgba(255,255,255,0.9);margin-bottom:0.4rem;">${data.content || ''}</p>`}
 
-                    ${data.type === 'chart' ? `
-                        <div class="growth-chart-box" style="width:100%;">
-                            <img src="${data.image || (data.chartType === 'bar' ? 'focus_bars.png' : 'consistency_v2.png')}" class="blended-graph" alt="Graph">
+                        ${data.type === 'chart' ? `
+                            <div class="growth-chart-box" style="width:100%;">
+                                <img src="${data.image}" crossorigin="anonymous" class="blended-graph" alt="Graph">
+                            </div>
+                        ` : ''}
+
+                        ${data.type === 'stat' ? `
+                            <div class="vibrant-stat-circle">
+                                <span style="font-size:1.6rem;font-weight:800;color:#fff;">${data.statValue}</span>
+                                <span style="font-size:0.55rem;color:rgba(255,255,255,0.65);text-transform:uppercase;">${data.statLabel}</span>
+                            </div>
+                        ` : ''}
+                    </div>
+
+                    <div style="position:absolute;bottom:50px;right:16px;font-size:0.55rem;opacity:0.4;font-family:var(--font-heading);color:var(--neon-cyan);letter-spacing:1px;">MAVXMNDSET.AI</div>
+
+                    <div class="share-menu-wrap">
+                        <button class="share-main-btn" onclick="toggleShareMenu(this)">
+                            <i class="fas fa-share-alt"></i> Share to Universe
+                        </button>
+                        <div class="share-dropdown" id="${dropdownId}">
+                            <button class="share-option" onclick="shareViaWhatsApp('${escapedTitle}','${escapedContent}')">
+                                <span class="opt-icon opt-wa"><i class="fab fa-whatsapp"></i></span>
+                                Share on WhatsApp
+                            </button>
+                            <button class="share-option" onclick="shareViaInsta('${escapedTitle}')">
+                                <span class="opt-icon opt-insta"><i class="fab fa-instagram"></i></span>
+                                Copy for Instagram
+                            </button>
+                            <button class="share-option" onclick="shareViaTwitter('${escapedTitle}','${escapedContent}')">
+                                <span class="opt-icon opt-tw"><i class="fab fa-twitter"></i></span>
+                                Share on X / Twitter
+                            </button>
+                            <button class="share-option" onclick="copyShareLink('${escapedTitle}','${escapedContent}')">
+                                <span class="opt-icon opt-copy"><i class="fas fa-link"></i></span>
+                                Copy Link
+                            </button>
+                            <button class="share-option" onclick="downloadPoster(this)">
+                                <span class="opt-icon opt-copy" style="background: rgba(255,42,133,0.2); border-color: rgba(255,42,133,0.3); color: #ff2a85;"><i class="fas fa-download"></i></span>
+                                Download Image
+                            </button>
                         </div>
-                    ` : ''}
-
-                    ${data.type === 'stat' ? `
-                        <div class="vibrant-stat-circle">
-                            <span style="font-size:1.6rem;font-weight:800;color:#fff;">${data.statValue}</span>
-                            <span style="font-size:0.55rem;color:rgba(255,255,255,0.65);text-transform:uppercase;">${data.statLabel}</span>
-                        </div>
-                    ` : ''}
-                </div>
-
-                <div style="position:absolute;bottom:50px;right:16px;font-size:0.55rem;opacity:0.4;font-family:var(--font-heading);color:var(--neon-cyan);letter-spacing:1px;">MAVXMNDSET.AI</div>
-
-                <div class="share-menu-wrap">
-                    <button class="share-main-btn" onclick="toggleShareMenu(this)">
-                        <i class="fas fa-share-alt"></i> Share to Universe
-                    </button>
-                    <div class="share-dropdown" id="${dropdownId}">
-                        <button class="share-option" onclick="shareViaWhatsApp('${escapedTitle}','${escapedContent}')">
-                            <span class="opt-icon opt-wa"><i class="fab fa-whatsapp"></i></span>
-                            Share on WhatsApp
-                        </button>
-                        <button class="share-option" onclick="shareViaInsta('${escapedTitle}')">
-                            <span class="opt-icon opt-insta"><i class="fab fa-instagram"></i></span>
-                            Copy for Instagram
-                        </button>
-                        <button class="share-option" onclick="shareViaTwitter('${escapedTitle}','${escapedContent}')">
-                            <span class="opt-icon opt-tw"><i class="fab fa-twitter"></i></span>
-                            Share on X / Twitter
-                        </button>
-                        <button class="share-option" onclick="copyShareLink('${escapedTitle}','${escapedContent}')">
-                            <span class="opt-icon opt-copy"><i class="fas fa-link"></i></span>
-                            Copy Link
-                        </button>
-                        <button class="share-option" onclick="downloadPoster(this)">
-                            <span class="opt-icon opt-copy" style="background: rgba(255,42,133,0.2); border-color: rgba(255,42,133,0.3); color: #ff2a85;"><i class="fas fa-download"></i></span>
-                            Download Image
-                        </button>
                     </div>
                 </div>
             `;
@@ -583,7 +599,12 @@
             const shareWrap = poster.querySelector('.share-menu-wrap');
             shareWrap.style.display = 'none'; // Hide UI
             
-            html2canvas(poster, { backgroundColor: '#0d041a', scale: 2 }).then(canvas => {
+            html2canvas(poster, { 
+                backgroundColor: '#0d041a', 
+                scale: 2,
+                useCORS: true,
+                allowTaint: false
+            }).then(canvas => {
                 shareWrap.style.display = 'block'; // Restore UI
                 const link = document.createElement('a');
                 link.download = 'MavX_Mndset_Recap.png';
@@ -683,6 +704,14 @@
 
         // ═══ INIT RECAPS ═══
         async function initRecaps() {
+            // Setup loading screen timeout for slow Render spinup
+            const loadingText = document.getElementById('loading-text');
+            const loadTimer = setTimeout(() => {
+                if (loadingText) {
+                    loadingText.innerHTML = `⚡ BACKEND IS AWAKENING...<br><span style="font-size:0.75rem; color:#ff0055; text-transform:none; margin-top:0.5rem; display:block;">Render Free Tier goes to sleep when idle. Reviving container, please stand by... (Takes 20-30s. Cost-free!)</span>`;
+                }
+            }, 2500);
+
             let accountAgeDays = 1;
             const token = localStorage.getItem('primeedu_token');
             try {
@@ -696,19 +725,27 @@
 
             populateSelects();
             await updateRecapsData();
+
+            // Dismiss loader
+            clearTimeout(loadTimer);
+            const loader = document.getElementById('loading-screen');
+            if (loader) {
+                loader.style.opacity = '0';
+                loader.style.visibility = 'hidden';
+                setTimeout(() => loader.remove(), 600);
+            }
         }
 
-        function applyLockOverlay(gridId, requiredDays, periodName) {
+        function applyLockOverlay(gridId, requiredDays, periodName, customMsg) {
             const grid = document.getElementById(gridId);
             grid.style.position = 'relative';
             grid.innerHTML = '';
             grid.style.gridTemplateColumns = '1fr';
             
-            const daysLeft = requiredDays - (window.ACCOUNT_AGE_DAYS || 1);
             const lockCard = document.createElement('div');
             lockCard.style.cssText = `
-                background: linear-gradient(135deg, #121212 0%, #1f1f1f 100%);
-                border: 1px solid #333;
+                background: linear-gradient(135deg, #120422 0%, #1c0a32 100%);
+                border: 1px solid rgba(255, 0, 85, 0.25);
                 border-radius: 20px;
                 padding: 3rem 2rem;
                 text-align: center;
@@ -721,15 +758,27 @@
                 overflow: hidden;
             `;
             
-            lockCard.innerHTML = `
-                <div style="position: absolute; top: 0; left: 0; right: 0; height: 3px; background: linear-gradient(90deg, transparent, #555, transparent);"></div>
-                <i class="fas fa-lock" style="font-size: 3.5rem; color: #666; margin-bottom: 1.5rem; text-shadow: 0 4px 10px rgba(0,0,0,0.5);"></i>
-                <h3 style="color: #eee; font-family: var(--font-heading); font-size: 1.4rem; letter-spacing: 2px; text-transform: uppercase;">${periodName} Locked</h3>
-                <p style="color: #999; font-size: 0.95rem; margin-top: 0.5rem;">You are currently on <strong>Day ${window.ACCOUNT_AGE_DAYS || 1}</strong>.</p>
-                <div style="margin-top: 1.5rem; background: rgba(0,0,0,0.4); border: 1px solid #222; padding: 0.8rem 1.5rem; border-radius: 12px;">
-                    <span style="color: #ccc; font-size: 0.9rem;">Wait <strong style="color: white; font-size: 1.1rem;">${daysLeft}</strong> more days to unlock.</span>
-                </div>
-            `;
+            if (customMsg) {
+                lockCard.innerHTML = `
+                    <div style="position: absolute; top: 0; left: 0; right: 0; height: 3px; background: linear-gradient(90deg, transparent, #ff0055, transparent);"></div>
+                    <i class="fas fa-lock" style="font-size: 3.5rem; color: #ff0055; margin-bottom: 1.5rem; text-shadow: 0 4px 15px rgba(255,0,85,0.4);"></i>
+                    <h3 style="color: #eee; font-family: var(--font-heading); font-size: 1.4rem; letter-spacing: 2px; text-transform: uppercase;">${periodName} Locked</h3>
+                    <div style="margin-top: 1.5rem; background: rgba(255,0,85,0.06); border: 1px solid rgba(255,0,85,0.2); padding: 0.8rem 1.5rem; border-radius: 12px; max-width: 450px; margin: 0 auto;">
+                        <span style="color: #ccc; font-size: 0.9rem; line-height: 1.5;">${customMsg}</span>
+                    </div>
+                `;
+            } else {
+                const daysLeft = requiredDays - (window.ACCOUNT_AGE_DAYS || 1);
+                lockCard.innerHTML = `
+                    <div style="position: absolute; top: 0; left: 0; right: 0; height: 3px; background: linear-gradient(90deg, transparent, #555, transparent);"></div>
+                    <i class="fas fa-lock" style="font-size: 3.5rem; color: #666; margin-bottom: 1.5rem; text-shadow: 0 4px 10px rgba(0,0,0,0.5);"></i>
+                    <h3 style="color: #eee; font-family: var(--font-heading); font-size: 1.4rem; letter-spacing: 2px; text-transform: uppercase;">${periodName} Locked</h3>
+                    <p style="color: #999; font-size: 0.95rem; margin-top: 0.5rem;">You are currently on <strong>Day ${window.ACCOUNT_AGE_DAYS || 1}</strong>.</p>
+                    <div style="margin-top: 1.5rem; background: rgba(0,0,0,0.4); border: 1px solid #222; padding: 0.8rem 1.5rem; border-radius: 12px;">
+                        <span style="color: #ccc; font-size: 0.9rem;">Wait <strong style="color: white; font-size: 1.1rem;">${daysLeft}</strong> more days to unlock.</span>
+                    </div>
+                `;
+            }
             grid.appendChild(lockCard);
         }
 
@@ -755,6 +804,9 @@
             if (accountAgeDays < 7) {
                 document.getElementById('weekly-period-select').style.display = 'none';
                 applyLockOverlay('weekly-grid', 7, 'Weekly Insights');
+            } else if (dynamicData.weekly_locked) {
+                document.getElementById('weekly-period-select').style.display = 'block';
+                applyLockOverlay('weekly-grid', 0, 'Weekly Insights', dynamicData.weekly_lock_reason);
             } else {
                 document.getElementById('weekly-period-select').style.display = 'block';
                 const weeklyData = [
@@ -764,7 +816,7 @@
                         type: 'chart', 
                         image: `${window.API_BASE_URL}/api/recap/graph/weekly_grit?token=${token}&offset=${currentWeeklyOffset}`,
                         roleImage: dynamicData.weekly?.role_image,
-                        locked: currentWeeklyOffset > 0
+                        locked: false
                     },
                     { 
                         title: "Dragon Balls", 
@@ -775,7 +827,7 @@
                         statLabel: dynamicData.weekly?.label || 'EARNED', 
                         type: 'stat',
                         roleImage: dynamicData.weekly?.role_image,
-                        locked: currentWeeklyOffset > 0
+                        locked: false
                     }
                 ];
                 weeklyGrid.style.gridTemplateColumns = '';
@@ -788,6 +840,9 @@
             if (accountAgeDays < 30) {
                 document.getElementById('monthly-period-select').style.display = 'none';
                 applyLockOverlay('monthly-grid', 30, 'Monthly Mastery');
+            } else if (dynamicData.monthly_locked) {
+                document.getElementById('monthly-period-select').style.display = 'block';
+                applyLockOverlay('monthly-grid', 0, 'Monthly Mastery', dynamicData.monthly_lock_reason);
             } else {
                 document.getElementById('monthly-period-select').style.display = 'block';
                 const mRoleTitle = dynamicData.monthly?.role_title || 'THE ALCHEMIST';
@@ -820,7 +875,7 @@
                             </div>
                         `,
                         roleImage: mRoleImage,
-                        locked: currentMonthlyOffset > 0
+                        locked: false
                     },
                     { 
                         title: "Consistency", 
@@ -828,7 +883,7 @@
                         type: 'chart', 
                         image: `${window.API_BASE_URL}/api/recap/graph/consistency_monthly?token=${token}&offset=${currentMonthlyOffset}`,
                         roleImage: mRoleImage,
-                        locked: currentMonthlyOffset > 0
+                        locked: false
                     },
                     { 
                         title: "Knowledge", 
@@ -836,7 +891,7 @@
                         type: 'chart', 
                         image: `${window.API_BASE_URL}/api/recap/graph/knowledge_monthly?token=${token}&offset=${currentMonthlyOffset}`,
                         roleImage: mRoleImage,
-                        locked: currentMonthlyOffset > 0
+                        locked: false
                     },
                     { 
                         title: "Focus Master", 
@@ -847,7 +902,7 @@
                         statLabel: "HOURS", 
                         type: 'stat',
                         roleImage: mRoleImage,
-                        locked: currentMonthlyOffset > 0
+                        locked: false
                     }
                 ];
                 monthlyGrid.style.gridTemplateColumns = '';
@@ -860,6 +915,9 @@
             if (accountAgeDays < 365) {
                 document.getElementById('yearly-period-select').style.display = 'none';
                 applyLockOverlay('yearly-grid', 365, 'Yearly Legacy');
+            } else if (dynamicData.yearly_locked) {
+                document.getElementById('yearly-period-select').style.display = 'block';
+                applyLockOverlay('yearly-grid', 0, 'Yearly Legacy', dynamicData.yearly_lock_reason);
             } else {
                 document.getElementById('yearly-period-select').style.display = 'block';
                 const yRoleTitle = dynamicData.yearly?.role_title || 'ASCENDED WARRIOR';
@@ -874,7 +932,7 @@
                         type: 'chart', 
                         image: `${window.API_BASE_URL}/api/recap/graph/legacy_yearly?token=${token}&offset=${currentYearlyOffset}`,
                         roleImage: yRoleImage,
-                        locked: currentYearlyOffset > 0
+                        locked: false
                     },
                     { 
                         title: "Chronos", 
@@ -885,7 +943,7 @@
                         statLabel: "MINUTES", 
                         type: 'stat',
                         roleImage: yRoleImage,
-                        locked: currentYearlyOffset > 0
+                        locked: false
                     },
                     { 
                         title: "Growth Mindset", 
@@ -893,7 +951,7 @@
                         type: 'chart', 
                         image: `${window.API_BASE_URL}/api/recap/graph/growth_yearly?token=${token}&offset=${currentYearlyOffset}`,
                         roleImage: yRoleImage,
-                        locked: currentYearlyOffset > 0
+                        locked: false
                     },
                     { 
                         title: "The Scroll", 
@@ -904,7 +962,7 @@
                         statLabel: "ENTRIES", 
                         type: 'stat',
                         roleImage: yRoleImage,
-                        locked: currentYearlyOffset > 0
+                        locked: false
                     },
                     { 
                         title: "Final Form", 
@@ -930,7 +988,7 @@
                             </div>
                         `,
                         roleImage: yRoleImage,
-                        locked: currentYearlyOffset > 0
+                        locked: false
                     },
                     { 
                         title: "Prime Rating", 
@@ -939,7 +997,7 @@
                         statLabel: dynamicData.yearly?.prime_tier || 'TIER E', 
                         type: 'stat',
                         roleImage: yRoleImage,
-                        locked: currentYearlyOffset > 0
+                        locked: false
                     }
                 ];
                 yearlyGrid.style.gridTemplateColumns = '';
