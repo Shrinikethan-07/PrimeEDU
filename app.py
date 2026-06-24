@@ -20,6 +20,13 @@ from backend.agents.core import FocusForgeAgent, DisciplineAgent, JournalEntry, 
 app = Flask(__name__, static_folder='.', template_folder='.')
 CORS(app)
 
+@app.after_request
+def add_header(response):
+    response.headers['Cache-Control'] = 'no-cache, no-store, must-revalidate, public, max-age=0'
+    response.headers['Pragma'] = 'no-cache'
+    response.headers['Expires'] = '0'
+    return response
+
 DB_PATH = 'data/db.json'
 _DB_CACHE = None
 _DB_LAST_LOADED_TIME = 0.0
@@ -1712,7 +1719,10 @@ def get_dynamic_recap():
     y_balls = get_period_balls(y_sessions, y_tasks, y_journals)
     
     # --- Calculate Dynamic Lock Rules ---
-    is_owner = (user.get('email') == 'buvanavel.m01@gmail.com')
+    created = parse_ist_datetime(user.get('creation_date', get_ist_iso())) or get_ist_now()
+    created_date = created.date()
+    account_age_days = (ist_now.date() - created_date).days + 1
+    
     active_dates = get_user_active_dates(user, db)
     
     # Active days in target week
@@ -1726,39 +1736,56 @@ def get_dynamic_recap():
     user_streak = user.get('streak', 0)
     
     # Weekly locks:
-    # Current week is unlocked if user has streak >= 7.
-    # Past weeks are locked if offset > 0 and user logged in < 7 days in that specific week.
-    if is_owner:
-        weekly_locked = False
-        weekly_lock_reason = ""
-    else:
-        if weekly_offset == 0:
+    if created_date > w_end_d:
+        weekly_locked = True
+        weekly_lock_reason = "This past week's Insights are locked because your account did not exist during this period."
+    elif weekly_offset == 0:
+        if account_age_days < 7:
+            weekly_locked = False
+            weekly_lock_reason = ""
+        else:
             weekly_locked = user_streak < 7
             weekly_lock_reason = f"Maintain a 7-day login streak to unlock current Weekly Insights (Current streak: {user_streak})."
+    else:
+        if w_start_d <= created_date <= w_end_d:
+            days_possible = (w_end_d - created_date).days + 1
+            weekly_locked = active_days_in_week < days_possible
+            weekly_lock_reason = f"This past week's Insights are locked because you logged in for only {active_days_in_week}/{days_possible} days since your registration in that week."
         else:
             weekly_locked = active_days_in_week < 7
             weekly_lock_reason = "This past week's Insights are locked because you did not log in for all 7 days during that week."
             
     # Monthly locks:
-    # Unlocked if active days in target month >= 25.
-    if is_owner:
-        monthly_locked = False
-        monthly_lock_reason = ""
-    else:
-        monthly_locked = active_days_in_month < 25
-        if monthly_offset == 0:
-            monthly_lock_reason = f"Log in for at least 25 days in this month to unlock Monthly Mastery (Current: {active_days_in_month}/25 days)."
+    if created_date > m_end_d:
+        monthly_locked = True
+        monthly_lock_reason = "This past month's Mastery is locked because your account did not exist during this period."
+    elif monthly_offset == 0:
+        if account_age_days < 25:
+            monthly_locked = False
+            monthly_lock_reason = ""
         else:
+            monthly_locked = active_days_in_month < 25
+            monthly_lock_reason = f"Log in for at least 25 days in this month to unlock Monthly Mastery (Current: {active_days_in_month}/25 days)."
+    else:
+        if m_start_d <= created_date <= m_end_d:
+            days_possible = (m_end_d - created_date).days + 1
+            required_days = max(1, int(days_possible * 0.8))
+            monthly_locked = active_days_in_month < required_days
+            monthly_lock_reason = f"This past month's Mastery is locked because you logged in for only {active_days_in_month}/{required_days} days since your registration in that month."
+        else:
+            monthly_locked = active_days_in_month < 25
             monthly_lock_reason = f"This past month's Mastery is locked because you logged in for only {active_days_in_month} days during that month (minimum 25 required)."
             
     # Yearly locks:
-    # Unlocked only once the year got over.
-    if is_owner:
+    if created_date > y_end.date():
+        yearly_locked = True
+        yearly_lock_reason = "This past year's Legacy is locked because your account did not exist during this period."
+    elif yearly_offset == 0:
+        yearly_locked = True
+        yearly_lock_reason = "Yearly Legacy recaps unlock when the year ends and the new year begins."
+    else:
         yearly_locked = False
         yearly_lock_reason = ""
-    else:
-        yearly_locked = yearly_offset == 0
-        yearly_lock_reason = "Yearly Legacy recaps unlock when the year ends and the new year begins."
         
     weekly_visuals = visual_agent.get_recap_visuals(
         w_sessions, 

@@ -462,6 +462,29 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // ═══════════════ MANUAL MISSIONS (TASKS) ═══════════════
     let manualTasks = safeParse('primeedu_manual_tasks', []);
+    
+    // Day Change Task Reset & Alert
+    const todayStr = new Date().toLocaleDateString();
+    const lastTasksDate = localStorage.getItem('primeedu_tasks_date');
+    if (lastTasksDate && lastTasksDate !== todayStr) {
+        const uncompleted = manualTasks.filter(t => !t.completed);
+        if (uncompleted.length > 0) {
+            const taskNames = uncompleted.map(t => `• ${t.text}`).join('\n');
+            setTimeout(() => {
+                if (typeof window.customAlert === 'function') {
+                    window.customAlert("Unfinished Missions ⚔️", `Warrior, you failed to complete yesterday's tasks:\n\n${taskNames}\n\nStay focused and conquer your goals today!`);
+                } else {
+                    alert(`Warrior, you failed to complete yesterday's tasks:\n\n${taskNames}`);
+                }
+            }, 2000);
+        }
+        manualTasks = [];
+        localStorage.setItem('primeedu_manual_tasks', JSON.stringify([]));
+        localStorage.setItem('primeedu_tasks_date', todayStr);
+        setTimeout(() => { saveTasks(); }, 1000);
+    } else {
+        localStorage.setItem('primeedu_tasks_date', todayStr);
+    }
 
     window.addManualTask = () => {
         const text = dom.taskInput.value.trim();
