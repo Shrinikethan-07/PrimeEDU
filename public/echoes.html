@@ -623,6 +623,12 @@
 
       <!-- The Echo Card Image -->
       <img class="story-card-image" id="storyCardImage" src="" style="width: 100%; height: 100%; object-fit: cover; pointer-events: none;">
+
+      <!-- Floating Like Button inside Story Viewer -->
+      <button class="echo-like-btn" id="storyLikeBtn" style="position: absolute; bottom: 1.25rem; right: 1.25rem; z-index: 100; background: rgba(0,0,0,0.6); border: 1px solid rgba(255,255,255,0.2); border-radius: 20px; padding: 0.4rem 0.9rem; color: white; cursor: pointer; display: flex; align-items: center; gap: 0.4rem; font-size: 0.8rem; backdrop-filter: blur(4px); transition: all 0.2s ease;" onclick="likeActiveEcho(event)">
+        <i class="fas fa-heart"></i>
+        <span id="storyLikeCount">0</span>
+      </button>
     </div>
   </div>
 
@@ -1003,6 +1009,17 @@
       const cleanCreatorEmail = (echo.user_id || '').trim().toLowerCase();
       const isOwner = cleanCreatorEmail === cleanMyEmail || cleanMyEmail === 'buvanavel.m01@gmail.com';
       document.getElementById('storyDeleteBtn').style.display = isOwner ? 'block' : 'none';
+
+      // Setup floating like button for active echo
+      const isLiked = Array.isArray(echo.likes) && echo.likes.includes(cleanMyEmail);
+      const likeCount = Array.isArray(echo.likes) ? echo.likes.length : (echo.likes_count || 0);
+      const storyLikeBtn = document.getElementById('storyLikeBtn');
+      const storyLikeCount = document.getElementById('storyLikeCount');
+      if (storyLikeBtn && storyLikeCount) {
+        storyLikeBtn.className = `echo-like-btn ${isLiked ? 'liked' : ''}`;
+        storyLikeCount.textContent = likeCount;
+        storyLikeBtn.setAttribute('data-echo-id', echo.id);
+      }
       
       const glowMap = {
         'naruto': 'rgba(255, 106, 0, 0.65)',
@@ -1131,6 +1148,43 @@
         btn.classList.toggle('liked');
         const c = document.getElementById(`like-count-${id}`);
         if (c) { const n=parseInt(c.textContent)||0; c.textContent=btn.classList.contains('liked')?n+1:Math.max(0,n-1); }
+      }
+    }
+
+    async function likeActiveEcho(e) {
+      if (e) e.stopPropagation();
+      const storyLikeBtn = document.getElementById('storyLikeBtn');
+      if (!storyLikeBtn) return;
+      const echoId = storyLikeBtn.getAttribute('data-echo-id');
+      if (!echoId) return;
+
+      const group = allEchoesGrouped[activeStoryUserEmail];
+      if (!group) return;
+      const echo = group.echoes[activeStoryIndex];
+      if (!echo) return;
+
+      const cleanMyEmail = currentUserEmail.trim().toLowerCase();
+
+      try {
+        const res = await fetch(`${window.API_BASE_URL}/api/echoes/${echoId}/like`, { method:'POST', headers:{'Content-Type':'application/json'} });
+        if (!res.ok) throw new Error();
+        const data = await res.json();
+        
+        const isLiked = data.liked !== false;
+        storyLikeBtn.classList.toggle('liked', isLiked);
+        
+        const count = data.likes_count ?? (isLiked ? ((echo.likes || []).length + 1) : Math.max(0, (echo.likes || []).length - 1));
+        document.getElementById('storyLikeCount').textContent = count;
+        
+        if (!echo.likes) echo.likes = [];
+        if (isLiked) {
+          if (!echo.likes.includes(cleanMyEmail)) echo.likes.push(cleanMyEmail);
+        } else {
+          echo.likes = echo.likes.filter(email => email.trim().toLowerCase() !== cleanMyEmail);
+        }
+        echo.likes_count = count;
+      } catch(err) {
+        console.error("Failed to like active echo:", err);
       }
     }
 
