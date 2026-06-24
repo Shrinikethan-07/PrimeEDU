@@ -365,6 +365,14 @@ document.addEventListener('DOMContentLoaded', () => {
                 document.getElementById('user-greeting').innerText = `Ascended Warrior ${user.leaderboard_name}`;
             }
             
+            // Check if streak was broken and display notification
+            if (user.streak_broken_notif) {
+                const lostVal = user.lost_streak_value || 0;
+                window.customAlert("Streak Broken ⚡", `You missed a day! Your study streak of ${lostVal} days has been reset to 0.`);
+                fetch(window.API_BASE_URL + '/api/user/clear_streak_notif', { method: 'POST' }).catch(() => {});
+                user.streak_broken_notif = false;
+            }
+            
             // Hide the fullscreen loading screen
             const loadingScreen = document.getElementById('loading-screen');
             if (loadingScreen) {

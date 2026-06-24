@@ -1,248 +1,569 @@
 <!DOCTYPE html>
 <html lang="en">
-
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>MavX Mndset | Exam Warrior v4</title>
-    <meta name="description" content="MavX Mndset - Your premium JEE exam preparation dashboard with syllabus tracking, focus timer, and daily missions.">
-    <link rel="stylesheet" href="style.css">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@700;800&family=Poppins:wght@400;500;600&family=Inter:wght@400;600&display=swap" rel="stylesheet">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>MavX Mndset | Next-Gen Study Gamification</title>
+  <meta name="description" content="MavX Mndset turns your study sessions into a competitive RPG. Earn anime personas, climb leaderboards, build clans, and unlock Dragon Balls through real focus. Awaken your inner warrior.">
+  <meta name="keywords" content="study gamification, MavX Mndset, anime study app, focus timer, leaderboard, clan arena, Dragon Ball study">
+  <meta property="og:title" content="MavX Mndset | Next-Gen Study Gamification">
+  <meta property="og:description" content="Turn your study grind into a competitive RPG. Earn anime personas, battle clans, and build unstoppable discipline with MavX Mndset.">
+  <meta property="og:type" content="website">
 
-<script>
-  const isLocal = window.location.hostname === 'localhost' || 
-                  window.location.hostname === '127.0.0.1' || 
-                  window.location.protocol === 'file:' || 
-                  window.location.hostname === '';
-  window.API_BASE_URL = isLocal ? 'http://127.0.0.1:5000' : 'https://primeedu.onrender.com';
-</script>
+  <!-- Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800;900&family=Inter:wght@300;400;500;600&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+  <!-- Isolated Landing CSS — does NOT affect login.html or app styles -->
+  <link rel="stylesheet" href="landing-style.css?v=2">
+
+  <!-- Inline Auth-Guard: If already logged in, skip landing & go to dashboard -->
+  <script>
+    (function () {
+      try {
+        var token = localStorage.getItem('primeedu_token');
+        if (token) {
+          var isLocal = window.location.hostname === 'localhost' ||
+                        window.location.hostname === '127.0.0.1' ||
+                        window.location.protocol === 'file:' ||
+                        window.location.hostname === '';
+          var apiBase = isLocal ? 'http://127.0.0.1:5000' : 'https://primeedu.onrender.com';
+          fetch(apiBase + '/api/user/profile', {
+            headers: { 'Authorization': 'Bearer ' + token }
+          }).then(function (res) {
+            if (res.ok) { window.location.replace('dashboard.html'); }
+          }).catch(function () {
+            window.location.replace('dashboard.html');
+          });
+        }
+      } catch (e) { /* Silently fail — show landing page */ }
+    })();
+  </script>
 </head>
+<body class="landing-page">
 
-<body>
-    <!-- Anime Slash Overlay -->
-    <div class="slash-overlay" id="slash-overlay" style="display: none;">
-        <div class="slash-scene">
-            <div class="slash-character" id="slash-char-img"></div>
-            <div class="slash-target">
-                <div class="slash-hurdle-text">HURDLE</div>
-            </div>
-            <div class="slash-effect"></div>
-        </div>
+  <!-- ── Particle Canvas ── -->
+  <canvas id="l-particles" style="position:fixed;inset:0;z-index:0;pointer-events:none;opacity:0.65;" aria-hidden="true"></canvas>
+
+  <!-- ── Background Watermarks & Doodles ── -->
+  <div class="l-watermarks" aria-hidden="true">
+    <span class="l-wm" style="top:8%;left:3%;transform:rotate(-15deg)">focus</span>
+    <span class="l-wm" style="top:22%;right:2%;transform:rotate(10deg)">precision</span>
+    <span class="l-wm" style="top:45%;left:1%;transform:rotate(-8deg)">discipline</span>
+    <span class="l-wm" style="top:60%;right:3%;transform:rotate(12deg)">synergy</span>
+    <span class="l-wm" style="top:78%;left:4%;transform:rotate(-6deg)">consistency</span>
+    <span class="l-wm" style="top:33%;left:45%;transform:rotate(20deg);font-size:5rem;">focus</span>
+    <span class="l-wm" style="top:70%;left:35%;transform:rotate(-14deg)">mastery</span>
+    <span class="l-wm" style="top:12%;left:55%;transform:rotate(5deg)">discipline</span>
+    <!-- SVG doodle shapes -->
+    <svg class="l-doodle" style="top:15%;left:8%;width:120px;" viewBox="0 0 100 100" fill="none" stroke="currentColor" stroke-width="1.5">
+      <polygon points="50,5 95,30 95,70 50,95 5,70 5,30"/>
+    </svg>
+    <svg class="l-doodle" style="top:40%;right:6%;width:90px;" viewBox="0 0 100 100" fill="none" stroke="currentColor" stroke-width="1.5">
+      <circle cx="50" cy="50" r="45"/>
+      <circle cx="50" cy="50" r="30"/>
+      <circle cx="50" cy="50" r="15"/>
+    </svg>
+    <svg class="l-doodle" style="top:65%;left:10%;width:80px;" viewBox="0 0 100 100" fill="none" stroke="currentColor" stroke-width="1.5">
+      <line x1="10" y1="50" x2="90" y2="50"/>
+      <line x1="50" y1="10" x2="50" y2="90"/>
+      <line x1="20" y1="20" x2="80" y2="80"/>
+      <line x1="80" y1="20" x2="20" y2="80"/>
+    </svg>
+    <svg class="l-doodle" style="top:25%;right:8%;width:100px;" viewBox="0 0 100 100" fill="none" stroke="currentColor" stroke-width="1.5">
+      <path d="M50 10 L90 40 L75 80 L25 80 L10 40 Z"/>
+    </svg>
+    <svg class="l-doodle" style="top:80%;right:10%;width:70px;" viewBox="0 0 100 100" fill="none" stroke="currentColor" stroke-width="1.5">
+      <rect x="10" y="10" width="80" height="80" rx="10"/>
+      <rect x="25" y="25" width="50" height="50" rx="6"/>
+    </svg>
+  </div>
+
+  <!-- ════════════════════════════════════════════
+       NAVIGATION
+  ════════════════════════════════════════════ -->
+  <nav class="l-nav" id="l-nav" role="navigation" aria-label="Main navigation">
+    <div class="l-container">
+      <div class="l-nav__inner">
+
+        <!-- Brand — Neon Logo -->
+        <a href="index.html" class="l-nav__brand" aria-label="MavX Mndset Home">
+          <img src="assets/mavx_logo_nav.png?v=2" alt="MavX Mndset Logo" class="l-nav__logo-img">
+          <span class="l-nav__brand-text">MavX&nbsp;<span>Mndset</span></span>
+        </a>
+
+        <!-- Desktop Links -->
+        <ul class="l-nav__links" role="list">
+          <li><a href="#features" id="nav-features">Features</a></li>
+          <li><a href="#faq" id="nav-faq">FAQ</a></li>
+          <li><a href="#about" id="nav-about">Philosophy</a></li>
+        </ul>
+
+        <!-- Desktop CTA -->
+        <a href="login.html" class="l-nav__cta" id="nav-awaken-btn">Awaken →</a>
+
+        <!-- Hamburger (mobile) -->
+        <button class="l-nav__hamburger" id="l-hamburger" aria-label="Toggle menu" aria-expanded="false" aria-controls="l-mobile-menu">
+          <span></span>
+          <span></span>
+          <span></span>
+        </button>
+
+      </div>
     </div>
+  </nav>
 
-    <!-- Avatar Selection Modal -->
-    <div class="modal-overlay" id="char-modal" style="display: none;">
-        <div class="modal-content avatar-modal-content">
-            <div class="avatar-modal-header">
-                <h2><i class="fas fa-user-ninja"></i> CHOOSE YOUR WARRIOR</h2>
-                <p style="color:var(--text-secondary);font-size:0.8rem;margin-top:0.5rem;">Your avatar represents your spirit on the battlefield</p>
+  <!-- Mobile Menu -->
+  <div class="l-nav__mobile-menu" id="l-mobile-menu" role="menu">
+    <a href="#features" role="menuitem">Features</a>
+    <a href="#faq" role="menuitem">FAQ</a>
+    <a href="#about" role="menuitem">Philosophy</a>
+    <a href="login.html" class="l-nav__cta" role="menuitem" id="mobile-awaken-btn">⚡ Awaken Now</a>
+  </div>
+
+  <!-- ════════════════════════════════════════════
+       HERO SECTION — CENTERED LAYOUT
+  ════════════════════════════════════════════ -->
+  <section class="l-hero" id="hero" aria-labelledby="hero-headline">
+    <div class="l-container">
+      <div class="l-hero__center">
+
+        <!-- Notion-style Overlapping Avatars -->
+        <div class="l-hero__avatars" aria-label="Warriors currently using MavX Mndset">
+          <img src="assets/avatars/itachi.webp"  alt="Warrior avatar" class="l-hero__avatar" style="--av-color:#8B5CF6;">
+          <img src="assets/avatars/sasuke.webp"  alt="Warrior avatar" class="l-hero__avatar" style="--av-color:#06B6D4;">
+          <img src="assets/avatars/naruto.webp"  alt="Warrior avatar" class="l-hero__avatar" style="--av-color:#EAB308;">
+          <img src="assets/avatars/kakashi.webp" alt="Warrior avatar" class="l-hero__avatar" style="--av-color:#EC4899;">
+          <img src="assets/avatars/itachi.webp"  alt="Warrior avatar" class="l-hero__avatar" style="--av-color:#22D3EE;">
+          <img src="assets/avatars/sasuke.webp"  alt="Warrior avatar" class="l-hero__avatar" style="--av-color:#A78BFA;">
+          <img src="assets/avatars/naruto.webp"  alt="Warrior avatar" class="l-hero__avatar" style="--av-color:#F472B6;">
+          <span class="l-hero__avatar-label">Join 1,200+ warriors already grinding</span>
+        </div>
+
+        <!-- Badge -->
+        <div class="l-hero__badge" aria-label="New platform">
+          MavX Mndset Platform
+        </div>
+
+        <!-- Main Headline -->
+        <h1 class="l-hero__headline" id="hero-headline">
+          MavX Mndset:<br>
+          <span class="grad">Next-Gen Study</span><br>
+          Gamification.
+        </h1>
+
+        <!-- Sub Headline -->
+        <p class="l-hero__subheadline">
+          Focus is a weapon. We built the training ground.<br>
+          Transform every study hour into XP, earn anime personas, and rise through the ranks — because mastery isn't luck, it's war.
+        </p>
+
+        <!-- CTA Actions -->
+        <div class="l-hero__actions">
+          <a href="login.html" class="l-btn-primary" id="hero-cta-primary">
+            Enter the Neural Interface
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/>
+            </svg>
+          </a>
+          <a href="#features" class="l-btn-ghost" id="hero-explore-btn">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <circle cx="12" cy="12" r="10"/><polyline points="12 8 16 12 12 16"/><line x1="8" y1="12" x2="16" y2="12"/>
+            </svg>
+            Explore Features
+          </a>
+        </div>
+
+        <!-- Stats Row -->
+        <div class="l-hero__stats" aria-label="Platform statistics">
+          <div class="l-hero__stat">
+            <span class="l-hero__stat-num"><span>∞</span></span>
+            <span class="l-hero__stat-label">Focus Sessions</span>
+          </div>
+          <div class="l-hero__stat-divider" aria-hidden="true"></div>
+          <div class="l-hero__stat">
+            <span class="l-hero__stat-num"><span>7</span> Systems</span>
+            <span class="l-hero__stat-label">Deep Gamification Layers</span>
+          </div>
+          <div class="l-hero__stat-divider" aria-hidden="true"></div>
+          <div class="l-hero__stat">
+            <span class="l-hero__stat-num"><span>0</span> Excuses</span>
+            <span class="l-hero__stat-label">Warrior Mindset Only</span>
+          </div>
+        </div>
+
+        <!-- Centered Carousel Below -->
+        <div class="l-hero__carousel-wrap">
+          <div class="l-hero__glow-ring" aria-hidden="true"></div>
+          <div class="l-hero__glow-ring l-hero__glow-ring--2" aria-hidden="true"></div>
+
+          <div class="l-carousel" id="l-carousel" role="region" aria-label="Feature preview slideshow" aria-roledescription="carousel">
+
+            <!-- Slides Track -->
+            <div class="l-carousel__slides" id="l-carousel-slides" aria-live="polite">
+
+              <!-- Slide 1: Forged Destiny / Dashboard -->
+              <div class="l-carousel__slide" role="group" aria-label="Slide 1 of 4: Forged Destiny Matrix" aria-roledescription="slide">
+                <img src="assets/slide_destiny.png" alt="MavX Mndset Forged Destiny Matrix dashboard with missions, syllabus tracker and neural focus timer" loading="eager">
+                <div class="l-slide__label">
+                  <span class="l-slide__label-dot" style="background:#8B5CF6;box-shadow:0 0 6px #8B5CF6;" aria-hidden="true"></span>
+                  Forged Destiny Matrix
+                </div>
+              </div>
+
+              <!-- Slide 2: Neural Focus Timer -->
+              <div class="l-carousel__slide" role="group" aria-label="Slide 2 of 4: Neural Focus Timer" aria-roledescription="slide">
+                <img src="assets/slide_timer_new.png" alt="MavX Mndset Neural Focus Timer with live warrior leaderboard and flip-clock countdown" loading="lazy">
+                <div class="l-slide__label">
+                  <span class="l-slide__label-dot" style="background:var(--cyan-bright);box-shadow:0 0 6px var(--cyan-bright);" aria-hidden="true"></span>
+                  Neural Focus Timer
+                </div>
+              </div>
+
+              <!-- Slide 3: Reflective Journal -->
+              <div class="l-carousel__slide" role="group" aria-label="Slide 3 of 4: Reflective Journal" aria-roledescription="slide">
+                <img src="assets/slide_journal.png" alt="MavX Mndset Reflective Journal with saved entries and AI Recap" loading="lazy">
+                <div class="l-slide__label">
+                  <span class="l-slide__label-dot" style="background:var(--pink);box-shadow:0 0 6px var(--pink);" aria-hidden="true"></span>
+                  Reflective Journal
+                </div>
+              </div>
+
+              <!-- Slide 4: Weekly Insights -->
+              <div class="l-carousel__slide" role="group" aria-label="Slide 4 of 4: Weekly Insights" aria-roledescription="slide">
+                <img src="assets/slide_insights.png" alt="MavX Mndset Weekly Insights with study hours chart and warrior persona" loading="lazy">
+                <div class="l-slide__label">
+                  <span class="l-slide__label-dot" style="background:#EAB308;box-shadow:0 0 6px #EAB308;" aria-hidden="true"></span>
+                  Weekly Insights
+                </div>
+              </div>
+
             </div>
-            <div class="char-grid" id="char-grid"></div>
-            <button class="neon-btn" style="margin-top: 2rem; width: 100%;"
-                onclick="document.getElementById('char-modal').style.display='none'">
-                <i class="fas fa-check"></i> CONFIRM WARRIOR
+
+            <!-- Dot Indicators only — no arrows -->
+            <div class="l-carousel__dots" id="l-carousel-dots" role="tablist" aria-label="Slide indicators"></div>
+
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </section>
+
+  <div class="l-divider" role="separator"></div>
+
+  <!-- ════════════════════════════════════════════
+       FEATURES GRID
+  ════════════════════════════════════════════ -->
+  <section class="l-features" id="features" aria-labelledby="features-heading">
+    <div class="l-container">
+
+      <header class="l-section-header">
+        <p class="l-section-tag" aria-hidden="true">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="12" r="10"/></svg>
+          The Arsenal
+        </p>
+        <h2 class="l-section-title" id="features-heading">
+          Every Weapon You Need<br>to Win the War on Laziness.
+        </h2>
+        <p class="l-section-subtitle">
+          Built for students who refuse to be average. Each feature is a tool forged for maximum discipline.
+        </p>
+      </header>
+
+      <div class="l-features__grid" role="list">
+
+        <!-- Card 1: AI Recap Cards -->
+        <article class="l-feat-card l-feat-card--neon-violet" role="listitem" aria-label="AI Recap Cards feature">
+          <div class="l-feat-card__icon l-feat-card__icon--violet" aria-hidden="true">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/>
+            </svg>
+          </div>
+          <p class="l-feat-card__tag">AI-Powered</p>
+          <h3 class="l-feat-card__title">Dynamic Recap Cards</h3>
+          <p class="l-feat-card__body">Earn unique anime personas based on your real study habits. Your effort becomes your identity.</p>
+          <div class="l-feat-card__glow" style="background:var(--violet);" aria-hidden="true"></div>
+          <div class="l-feat-card__border-glow" aria-hidden="true"></div>
+        </article>
+
+        <!-- Card 2: Leaderboards -->
+        <article class="l-feat-card l-feat-card--neon-gold" role="listitem" aria-label="Leaderboards feature">
+          <div class="l-feat-card__icon l-feat-card__icon--gold" aria-hidden="true">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <polyline points="22 17 13.5 8.5 8.5 13.5 2 7"/><polyline points="16 17 22 17 22 11"/>
+            </svg>
+          </div>
+          <p class="l-feat-card__tag">Competitive</p>
+          <h3 class="l-feat-card__title">Global Leaderboards</h3>
+          <p class="l-feat-card__body">Compete and climb ranks on weekly, monthly, or yearly scales. Supremacy is earned, never given.</p>
+          <div class="l-feat-card__glow" style="background:#EAB308;" aria-hidden="true"></div>
+          <div class="l-feat-card__border-glow" aria-hidden="true"></div>
+        </article>
+
+        <!-- Card 3: Clan Arena -->
+        <article class="l-feat-card l-feat-card--neon-cyan" role="listitem" aria-label="Clan Arena feature">
+          <div class="l-feat-card__icon l-feat-card__icon--cyan" aria-hidden="true">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/>
+              <path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>
+            </svg>
+          </div>
+          <p class="l-feat-card__tag">Social</p>
+          <h3 class="l-feat-card__title">Clan Arena</h3>
+          <p class="l-feat-card__body">Form squads, build synergy, and hold your team accountable. No warrior fights alone.</p>
+          <div class="l-feat-card__glow" style="background:var(--cyan);" aria-hidden="true"></div>
+          <div class="l-feat-card__border-glow" aria-hidden="true"></div>
+        </article>
+
+        <!-- Card 4: Dragon Ball Progression (wide) -->
+        <article class="l-feat-card l-feat-card--wide l-feat-card--neon-pink" role="listitem" aria-label="Dragon Ball Progression feature" style="display:flex;gap:2rem;align-items:center;flex-wrap:wrap;">
+          <div style="flex:1;min-width:180px;">
+            <div class="l-feat-card__icon l-feat-card__icon--pink" aria-hidden="true" style="margin-bottom:1rem;">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="12" cy="12" r="10"/><path d="M12 8v4l3 3"/>
+              </svg>
+            </div>
+            <p class="l-feat-card__tag">Progression</p>
+            <h3 class="l-feat-card__title">Dragon Ball Discipline</h3>
+            <p class="l-feat-card__body">Unlock Dragon Balls and build unstoppable discipline streaks. Each one earned, never gifted — your consistency is the power source.</p>
+          </div>
+          <!-- Decorative XP Bar visualization -->
+          <div style="flex:1;min-width:200px;" aria-hidden="true">
+            <div style="background:rgba(255,255,255,0.04);border:1px solid rgba(236,72,153,0.2);border-radius:12px;padding:1rem 1.25rem;">
+              <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0.6rem;">
+                <span style="font-size:0.75rem;color:var(--text-muted);font-weight:600;letter-spacing:0.5px;text-transform:uppercase;">Dragon Ball XP</span>
+                <span style="font-size:0.75rem;color:var(--pink);font-weight:700;">7 / 7</span>
+              </div>
+              <div style="display:flex;gap:6px;margin-bottom:0.75rem;">
+                <div style="width:22px;height:22px;border-radius:50%;background:radial-gradient(circle at 35% 35%, #f97316, #dc2626);box-shadow:0 0 8px rgba(249,115,22,0.6);"></div>
+                <div style="width:22px;height:22px;border-radius:50%;background:radial-gradient(circle at 35% 35%, #f97316, #dc2626);box-shadow:0 0 8px rgba(249,115,22,0.6);"></div>
+                <div style="width:22px;height:22px;border-radius:50%;background:radial-gradient(circle at 35% 35%, #f97316, #dc2626);box-shadow:0 0 8px rgba(249,115,22,0.6);"></div>
+                <div style="width:22px;height:22px;border-radius:50%;background:radial-gradient(circle at 35% 35%, #f97316, #dc2626);box-shadow:0 0 8px rgba(249,115,22,0.6);"></div>
+                <div style="width:22px;height:22px;border-radius:50%;background:radial-gradient(circle at 35% 35%, #f97316, #dc2626);box-shadow:0 0 8px rgba(249,115,22,0.6);"></div>
+                <div style="width:22px;height:22px;border-radius:50%;background:radial-gradient(circle at 35% 35%, rgba(249,115,22,0.4), rgba(220,38,38,0.3));border:1px solid rgba(249,115,22,0.3);"></div>
+                <div style="width:22px;height:22px;border-radius:50%;background:radial-gradient(circle at 35% 35%, rgba(249,115,22,0.4), rgba(220,38,38,0.3));border:1px solid rgba(249,115,22,0.3);"></div>
+              </div>
+              <div style="background:rgba(0,0,0,0.3);border-radius:100px;height:6px;overflow:hidden;">
+                <div style="width:71%;height:100%;background:linear-gradient(90deg,var(--violet),var(--pink));border-radius:100px;box-shadow:0 0 8px var(--pink);"></div>
+              </div>
+              <div style="display:flex;justify-content:space-between;margin-top:0.5rem;">
+                <span style="font-size:0.7rem;color:var(--text-muted);">Streak: 18 days</span>
+                <span style="font-size:0.7rem;color:var(--violet-bright);">+450 XP today</span>
+              </div>
+            </div>
+          </div>
+          <div class="l-feat-card__glow" style="background:var(--pink);" aria-hidden="true"></div>
+          <div class="l-feat-card__border-glow" aria-hidden="true"></div>
+        </article>
+
+        <!-- Card 5: Synergy -->
+        <article class="l-feat-card l-feat-card--neon-violet" role="listitem" aria-label="Synergy System feature">
+          <div class="l-feat-card__icon l-feat-card__icon--violet" aria-hidden="true">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <polyline points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/>
+            </svg>
+          </div>
+          <p class="l-feat-card__tag">Team Power</p>
+          <h3 class="l-feat-card__title">Synergy System</h3>
+          <p class="l-feat-card__body">Team-wide focus multipliers that reward collective grind. Your clan's energy is your edge.</p>
+          <div class="l-feat-card__glow" style="background:var(--violet);" aria-hidden="true"></div>
+          <div class="l-feat-card__border-glow" aria-hidden="true"></div>
+        </article>
+
+        <!-- Card 6: MavX Echoes -->
+        <article class="l-feat-card l-feat-card--neon-cyan" role="listitem" aria-label="MavX Echoes feature">
+          <div class="l-feat-card__icon l-feat-card__icon--cyan" aria-hidden="true">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+            </svg>
+          </div>
+          <p class="l-feat-card__tag">Social Layer</p>
+          <h3 class="l-feat-card__title">MavX Echoes</h3>
+          <p class="l-feat-card__body">Share your daily victories as shareable story cards. Let your progress speak louder than words.</p>
+          <div class="l-feat-card__glow" style="background:var(--cyan);" aria-hidden="true"></div>
+          <div class="l-feat-card__border-glow" aria-hidden="true"></div>
+        </article>
+
+      </div>
+    </div>
+  </section>
+
+  <div class="l-divider" role="separator"></div>
+
+  <!-- ════════════════════════════════════════════
+       FAQ & PHILOSOPHY
+  ════════════════════════════════════════════ -->
+  <section class="l-faq" id="faq" aria-labelledby="faq-heading" id="about">
+    <div class="l-container">
+
+      <header class="l-section-header">
+        <p class="l-section-tag" aria-hidden="true">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="12" r="10"/></svg>
+          Philosophy
+        </p>
+        <h2 class="l-section-title" id="faq-heading">
+          Questions the Weak Ask.<br>
+          <span class="l-text-grad">Answers for the Warrior.</span>
+        </h2>
+        <p class="l-section-subtitle">Everything you need to know about why MavX Mndset exists and who it's for.</p>
+      </header>
+
+      <div class="l-faq__inner">
+        <div class="l-accordion" role="list" aria-label="Frequently asked questions">
+
+          <!-- Item 1 -->
+          <div class="l-accordion__item" role="listitem" id="faq-item-1">
+            <button class="l-accordion__trigger" aria-expanded="false" aria-controls="faq-answer-1" id="faq-trigger-1">
+              <span>Who is this app for?</span>
+              <svg class="l-accordion__chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <polyline points="6 9 12 15 18 9"/>
+              </svg>
             </button>
+            <div class="l-accordion__body" id="faq-answer-1" role="region" aria-labelledby="faq-trigger-1">
+              <p class="l-accordion__answer">Students and warriors looking to gamify their focus and master their discipline. If you've ever opened YouTube instead of your textbook — this app is your intervention. MavX Mndset is built for those who choose to fight for their potential.</p>
+            </div>
+          </div>
+
+          <!-- Item 2 -->
+          <div class="l-accordion__item" role="listitem" id="faq-item-2">
+            <button class="l-accordion__trigger" aria-expanded="false" aria-controls="faq-answer-2" id="faq-trigger-2">
+              <span>How can it transform your life?</span>
+              <svg class="l-accordion__chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <polyline points="6 9 12 15 18 9"/>
+              </svg>
+            </button>
+            <div class="l-accordion__body" id="faq-answer-2" role="region" aria-labelledby="faq-trigger-2">
+              <p class="l-accordion__answer">By turning grueling study hours into a measurable, rewarding RPG game where your effort translates directly to power. You don't just study — you level up. Every focused session earns XP, every streak builds a legend, and every Dragon Ball collected is proof of your will.</p>
+            </div>
+          </div>
+
+          <!-- Item 3 -->
+          <div class="l-accordion__item" role="listitem" id="faq-item-3">
+            <button class="l-accordion__trigger" aria-expanded="false" aria-controls="faq-answer-3" id="faq-trigger-3">
+              <span>How do you socialize your improvements?</span>
+              <svg class="l-accordion__chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <polyline points="6 9 12 15 18 9"/>
+              </svg>
+            </button>
+            <div class="l-accordion__body" id="faq-answer-3" role="region" aria-labelledby="faq-trigger-3">
+              <p class="l-accordion__answer">Through shareable streak instants and exportable, dynamically generated AI Recap Cards. Each card is a snapshot of your week — your persona, your hours logged, your rank. Post it. Share it. Let your grind be seen.</p>
+            </div>
+          </div>
+
+          <!-- Item 4 -->
+          <div class="l-accordion__item" role="listitem" id="faq-item-4">
+            <button class="l-accordion__trigger" aria-expanded="false" aria-controls="faq-answer-4" id="faq-trigger-4">
+              <span>How does the app foster a social environment?</span>
+              <svg class="l-accordion__chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <polyline points="6 9 12 15 18 9"/>
+              </svg>
+            </button>
+            <div class="l-accordion__body" id="faq-answer-4" role="region" aria-labelledby="faq-trigger-4">
+              <p class="l-accordion__answer">By introducing the Clan Arena and Synergy systems built for ultimate team accountability. Your clan rises or falls together. Synergy multipliers reward collective focus. When the whole squad is locked in, everyone wins — and your combined XP tells the story.</p>
+            </div>
+          </div>
+
         </div>
+      </div>
+
     </div>
+  </section>
 
-    <div class="app-container">
-        <nav class="sidebar">
-            <div class="logo">
-                <i class="fas fa-bolt"></i>
-                <span>MavX Mndset</span>
-            </div>
-                        <ul class="nav-links">
-                <li class="nav-item"><a href="index.html" class="nav-link active"><i class="fas fa-th-large"></i><span>Dashboard</span></a></li>
-                <li class="nav-item"><a href="timer.html" class="nav-link"><i class="fas fa-stopwatch"></i><span>Study Timer</span></a></li>
-                <li class="nav-item"><a href="journal.html" class="nav-link"><i class="fas fa-scroll"></i><span>Journal</span></a></li>
-                <li class="nav-item"><a href="modules.html" class="nav-link"><i class="fas fa-book-open"></i><span>Library</span></a></li>
-                <li class="nav-item"><a href="recaps.html" class="nav-link"><i class="fas fa-magic"></i><span>Recaps</span></a></li>
-                <li class="nav-item"><a href="leaderboard.html" class="nav-link"><i class="fas fa-trophy"></i><span>Leaderboard</span></a></li>
-            </ul>
-            <div class="sidebar-bottom">
-                <button class="neon-btn" style="width:100%; font-size:0.8rem; padding:0.5rem; margin-bottom:1rem; border-color:rgba(255,255,255,0.2); color:white;" onclick="document.getElementById('settings-modal').style.display='flex'">
-                    <i class="fas fa-cog"></i> SETTINGS
-                </button>
-                <div class="avatar-preview" onclick="openCharacterSelect()" style="cursor:pointer;" title="Click to change avatar">
-                    <img src="" alt="avatar" class="avatar-circle">
-                    <div class="avatar-change-hint"><i class="fas fa-pen"></i></div>
-                </div>
-                <button class="neon-btn" style="width:100%; font-size:0.7rem; padding:0.4rem;" onclick="openCharacterSelect()">
-                    <i class="fas fa-user-ninja"></i> Change Avatar
-                </button>
-            </div>
-        </nav>
+  <div class="l-divider" role="separator"></div>
 
-        <main class="main-content">
-            <header>
-                <div class="header-left">
-                    <div style="display:flex; align-items:center; gap:1rem;">
-                        <div class="header-avatar-wrap" onclick="openCharacterSelect()" style="cursor:pointer;" title="Change avatar">
-                            <img src="" alt="avatar" id="header-avatar" class="avatar-circle" style="width:52px;height:52px;">
-                            <div class="avatar-hover-ring"></div>
-                        </div>
-                        <div>
-                            <h1 id="user-greeting"></h1>
-                            <div class="quote-slider-box" id="quote-slider">
-                                <p class="quote-text" id="active-quote">"Consistency is the art of showing up."</p>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-                <div class="user-stats">
-                    <div class="stat-card">
-                        <i class="fas fa-fire" style="color: #ed8936;"></i>
-                        <span class="stat-value">12</span>
-                        <span class="stat-label">Day Streak</span>
-                    </div>
-                    <div class="stat-card">
-                        <div class="dragon-ball-icon">
-                            <div class="star-container">
-                                <span class="star star-1">★</span>
-                                <span class="star star-2">★</span>
-                                <span class="star star-3">★</span>
-                                <span class="star star-4">★</span>
-                            </div>
-                        </div>
-                        <span class="stat-value" id="ball-count">750</span>
-                        <span class="stat-label">Dragon Balls</span>
-                    </div>
-                </div>
-            </header>
+  <!-- ════════════════════════════════════════════
+       FINAL CTA BANNER
+  ════════════════════════════════════════════ -->
+  <section class="l-cta-banner" aria-labelledby="cta-heading">
+    <div class="l-container">
+      <div class="l-cta-banner__inner">
+        <div class="l-cta-banner__content">
 
-            <div class="dashboard-grid">
-                <!-- MAJOR SIDE (67%) -->
-                <div class="major-side">
-                    <div class="card dream-hub-card" style="padding: 2rem; height: 100%; display: flex; flex-direction: column;">
-                        <div class="section-title" style="font-size: 1.5rem; text-align: center;"><i class="fas fa-meteor"></i> FORGED DESTINY MATRIX</div>
-                        <p class="text-secondary" style="margin-bottom: 1rem; font-size: 1rem; text-align: center;">Forge your ultimate destiny. Up to 4 non-overlapping targets.</p>
-                        
-                        <div id="destiny-creation-area" style="background: rgba(0,0,0,0.2); padding: 1rem; border-radius: 12px; margin-bottom: 1rem;">
-                            <input type="text" id="dream-input" placeholder="Name your destiny..." style="width:100%; background:rgba(255,255,255,0.05); border:1px solid var(--glass-border); padding:0.8rem; color:white; border-radius:8px; font-size:1.1rem; margin-bottom:1rem; outline:none;">
-                            <label style="color:var(--synth-pink); font-size:0.8rem; margin-bottom:0.5rem; display:block;">Absolute Target Time</label>
-                            <input type="datetime-local" id="dream-deadline" style="width:100%; background:rgba(255,255,255,0.05); border:1px solid var(--glass-border); padding:0.8rem; color:white; border-radius:8px; font-size:1rem; outline:none; margin-bottom: 1rem;">
-                            <button class="neon-btn" id="forge-btn" style="width:100%; padding: 1rem; font-size: 1.1rem;" onclick="saveDream(this)">FORGE DESTINY</button>
-                        </div>
+          <p class="l-cta-banner__eyebrow" aria-hidden="true">
+            <svg width="10" height="10" viewBox="0 0 24 24" fill="currentColor"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+            Your Destiny Awaits
+          </p>
 
-                        <div id="active-destinies" style="flex: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 1rem;">
-                            <!-- Dynamically populated vision boards -->
-                        </div>
-                    </div>
-                </div>
+          <h2 class="l-cta-banner__title" id="cta-heading">
+            Stop Surviving.<br>
+            Start <span class="grad">Dominating.</span>
+          </h2>
 
-                <!-- MINOR SIDE (33%) — 3 stacked sections -->
-                <div class="minor-side">
+          <p class="l-cta-banner__sub">
+            Every warrior who ever conquered their studies started exactly where you are — unsure, distracted, and scrolling. The difference is a single decision.
+          </p>
 
-                    <!-- SECTION 1: DAILY MISSIONS -->
-                    <div class="minor-section">
-                        <div class="section-title" style="font-size: 0.9rem;"><i class="fas fa-list-check"></i> DAILY MISSIONS</div>
-                        <div class="task-input-box" style="margin-bottom: 1rem; display: flex; gap: 0.5rem;">
-                            <input type="text" id="task-input" placeholder="New mission..."
-                                style="flex:1; background:rgba(255,255,255,0.05); border:1px solid var(--glass-border); padding:0.4rem 0.75rem; color:white; border-radius:10px; font-family:var(--font-body); font-size:0.8rem; outline:none;"
-                                onkeydown="if(event.key==='Enter') addManualTask()">
-                            <button class="neon-btn" style="padding: 0.4rem 0.8rem; font-size: 0.7rem;" onclick="addManualTask()">ADD</button>
-                        </div>
-                        <div id="minor-tasks-list" style="max-height:180px; overflow-y:auto;"></div>
-                    </div>
+          <div class="l-cta-banner__actions">
+            <a href="login.html" class="l-btn-primary" id="footer-cta-primary" style="font-size:1.05rem;padding:1rem 2.25rem;">
+              Awaken Now
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/>
+              </svg>
+            </a>
+            <span style="font-size:0.82rem;color:var(--text-muted);">Free to start. No credit card required.</span>
+          </div>
 
-                    <!-- SECTION 2: SYLLABUS TRACKER -->
-                    <div class="minor-section syllabus-minor-section">
-                        <div class="section-title" style="font-size: 0.9rem;"><i class="fas fa-book"></i> SYLLABUS TRACKER</div>
-                        <div id="jee-syllabus-accordion" class="jee-accordion"></div>
-                    </div>
-
-                    <!-- SECTION 3: NEURAL FOCUS -->
-                    <div class="minor-section">
-                        <div class="section-title" style="font-size: 0.9rem;"><i class="fas fa-bolt"></i> NEURAL FOCUS</div>
-                        <div class="focus-circle-container">
-                            <div class="focus-now-circle" id="focus-toggle" onclick="startFocusClick()">
-                                <i class="fas fa-brain" style="font-size: 2rem; margin-bottom: 0.5rem;"></i>
-                                <span style="font-size: 0.7rem; letter-spacing:2px;">FOCUS NOW</span>
-                            </div>
-                        </div>
-                        <div id="focus-timer-overlay" style="text-align: center; margin-top: 1rem; color: var(--neon-cyan); display: none;">
-                            <h2 id="minor-timer-display">00:00</h2>
-                            <p style="font-size: 0.6rem; color: var(--neon-pink);">CANCEL = -50 BALLS</p>
-                        </div>
-                    </div>
-
-                </div>
-            </div>
-        </main>
-    </div>
-
-    <!-- Flashcard Modal -->
-    <div class="modal-overlay" id="flashcard-modal" style="display: none;">
-        <div class="modal-content" style="max-width: 500px;">
-            <h3 id="fc-topic-title" style="color: var(--neon-cyan); margin-bottom: 1.5rem;">Topic Flashcard</h3>
-            <div class="flashcard-scene">
-                <div class="flashcard" id="flashcard-obj" onclick="this.classList.toggle('flipped')">
-                    <div class="flashcard-front">
-                        <p id="fc-question">Click to flip...</p>
-                        <span style="font-size: 0.7rem; color: #444; margin-top: 2rem;">REVEAL ANSWER</span>
-                    </div>
-                    <div class="flashcard-back">
-                        <p id="fc-answer">Answer here.</p>
-                        <span style="font-size: 0.7rem; color: #444; margin-top: 2rem;">BACK TO QUESTION</span>
-                    </div>
-                </div>
-            </div>
-            <div class="leitner-actions">
-                <button class="neon-btn" style="border-color: #ff4d4d; color: #ff4d4d;" onclick="handleLeitner('hard')">HARD</button>
-                <button class="neon-btn" style="border-color: #ffcc00; color: #ffcc00;" onclick="handleLeitner('med')">MEDIUM</button>
-                <button class="neon-btn" style="border-color: #4ade80; color: #4ade80;" onclick="handleLeitner('easy')">EASY</button>
-            </div>
-            <button class="neon-btn" style="margin-top: 2rem; width: 100%; border-color: var(--text-secondary); color: var(--text-secondary);"
-                onclick="document.getElementById('flashcard-modal').style.display='none'">CLOSE</button>
         </div>
+      </div>
     </div>
+  </section>
 
-    <!-- Settings Modal -->
-    <div class="modal-overlay" id="settings-modal" style="display: none; z-index: 9998;">
-        <div class="modal-content" style="max-width: 450px;">
-            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 2rem; border-bottom: 1px solid rgba(0,243,255,0.15); padding-bottom: 1rem;">
-                <h3 style="color: var(--neon-cyan);"><i class="fas fa-cog"></i> SYSTEM SETTINGS</h3>
-                <i class="fas fa-times" style="color:var(--text-secondary); cursor:pointer;" onclick="document.getElementById('settings-modal').style.display='none'"></i>
-            </div>
-            
-            <div class="input-group" style="margin-bottom: 1.5rem;">
-                <label style="color:var(--synth-pink); font-size:0.8rem; margin-bottom:0.5rem; display:block;">Rename Warrior Handle</label>
-                <div style="display:flex; gap:0.5rem;">
-                    <input type="text" id="settings-rename-input" placeholder="New handle..." style="flex:1; background:rgba(255,255,255,0.05); border:1px solid var(--glass-border); padding:0.8rem; color:white; border-radius:8px; font-size:1rem; outline:none;">
-                    <button class="neon-btn" style="padding: 0 1.5rem;" onclick="handleSettingsRename()">SAVE</button>
-                </div>
-            </div>
+  <!-- ════════════════════════════════════════════
+       FOOTER
+  ════════════════════════════════════════════ -->
+  <footer class="l-footer" aria-label="Site footer">
+    <div class="l-container">
 
-            <div style="margin-top: 2rem; display:flex; flex-direction:column; gap: 1rem;">
-                <button class="neon-btn" style="width: 100%; border-color: rgba(255,255,255,0.2); color: white;" onclick="handleLogout()">
-                    <i class="fas fa-sign-out-alt"></i> LOG OUT (THIS DEVICE)
-                </button>
-                
-                <button class="neon-btn" style="width: 100%; border-color: var(--neon-pink); color: var(--neon-pink);" onclick="handleLogoutAll()">
-                    <i class="fas fa-shield-alt"></i> LOG OUT ALL OTHER DEVICES
-                </button>
-            </div>
+      <div class="l-footer__inner">
+
+        <!-- Col 1: Branding -->
+        <div class="l-footer__brand-col">
+          <div class="l-footer__brand">
+            <img src="assets/mavx_logo_nav.png?v=2" alt="MavX Mndset" class="l-footer__logo-img">
+            <span class="l-footer__brand-name">MavX Mndset</span>
+          </div>
+          <p class="l-footer__tagline">MavX Mndset — Where discipline becomes data, and focus becomes your superpower. Built for warriors who refuse to settle.</p>
         </div>
-    </div>
 
-    <!-- Global Confirmation Modal -->
-    <div class="modal-overlay" id="confirm-modal" style="display: none; z-index: 9999;">
-        <div class="modal-content" style="max-width: 400px; text-align: center; border: 1px solid var(--neon-pink); box-shadow: 0 0 30px rgba(255,42,133,0.3);">
-            <i class="fas fa-exclamation-triangle" style="font-size: 3rem; color: var(--neon-pink); margin-bottom: 1rem;"></i>
-            <h3 style="color: white; margin-bottom: 0.5rem; font-family: var(--font-heading);">Better think twice</h3>
-            <p id="confirm-msg" style="color: var(--text-secondary); font-size: 0.9rem; margin-bottom: 1.5rem;"></p>
-            <div style="display: flex; gap: 1rem;">
-                <button class="neon-btn" style="flex: 1; border-color: rgba(255,255,255,0.2); color: white;" onclick="closeConfirmModal()">CANCEL</button>
-                <button class="neon-btn" style="flex: 1; border-color: var(--neon-pink); color: var(--neon-pink);" id="confirm-yes-btn">PROCEED</button>
-            </div>
+        <!-- Col 2: Community -->
+        <div>
+          <h3 class="l-footer__col-title">Community</h3>
+          <ul class="l-footer__links">
+            <li><a href="mailto:contact@mavxmndset.com" id="footer-contact-link">Contact Us</a></li>
+            <li><a href="#" id="footer-discord-link">Discord Community</a></li>
+            <li><a href="#" id="footer-twitter-link">Twitter / X</a></li>
+          </ul>
         </div>
-    </div>
 
-    <script src="data-syllabus.js"></script>
-    <script src="app.js"></script>
+        <!-- Col 3: Legal -->
+        <div>
+          <h3 class="l-footer__col-title">Legal</h3>
+          <ul class="l-footer__links">
+            <li><a href="#" id="footer-privacy-link">Privacy Policy</a></li>
+            <li><a href="#" id="footer-terms-link">Terms of Service</a></li>
+          </ul>
+        </div>
+
+      </div>
+
+      <div class="l-footer__bottom">
+        <p class="l-footer__copy">
+          &copy; 2026 <span>MavX Mndset</span>. All rights reserved. Built for the relentless.
+        </p>
+        <ul class="l-footer__bottom-links">
+          <li><a href="#" id="footer-bottom-privacy">Privacy</a></li>
+          <li><a href="#" id="footer-bottom-terms">Terms</a></li>
+          <li><a href="login.html" id="footer-bottom-login">Login</a></li>
+        </ul>
+      </div>
+
+    </div>
+  </footer>
+
+  <!-- Isolated Landing JS -->
+  <script src="landing-script.js?v=2" defer></script>
+
 </body>
-
 </html>

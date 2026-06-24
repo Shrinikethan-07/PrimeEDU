@@ -342,8 +342,11 @@
   <!-- Wakeup Loading Screen -->
   <div class="loading-screen-container" id="loading-screen" style="position: fixed; inset: 0; background: #070114; z-index: 99999; display: flex; flex-direction: column; align-items: center; justify-content: center; transition: opacity 0.5s ease, visibility 0.5s ease;">
     <div class="loading-screen-logo" style="text-align: center; margin-bottom: 2rem;">
-      <i class="fas fa-bolt" style="font-size: 3.5rem; color: var(--neon-cyan); animation: pulse 1.5s infinite; filter: drop-shadow(0 0 15px var(--neon-cyan));"></i>
+      <i class="fas fa-bolt" style="font-size: 3.5rem; color: var(--neon-cyan); animation: pulseSlow 1.5s infinite; filter: drop-shadow(0 0 15px var(--neon-cyan));"></i>
       <h1 style="font-family: var(--font-heading); font-size: 2.2rem; font-weight: 800; letter-spacing: 4px; margin-top: 1rem; color: white;">MAVX MNDSET</h1>
+    </div>
+    <div class="loading-bar-wrapper">
+      <div class="loading-bar-fill"></div>
     </div>
     <div class="loading-screen-text" id="loading-text" style="font-family: var(--font-body); font-size: 0.9rem; color: var(--text-secondary); letter-spacing: 2px; text-transform: uppercase; text-align: center; padding: 0 1rem; line-height: 1.6;">Synchronizing Echo Cards...</div>
   </div>
@@ -476,10 +479,38 @@
       let [resource, config] = args;
       config = config || {};
       config.headers = config.headers || {};
+      
       const token = localStorage.getItem('primeedu_token');
       if (token) config.headers['Authorization'] = `Bearer ${token}`;
-      const response = await _origFetch(resource, config);
-      if (response.status === 401
+      
+      const isApiCall = typeof resource === 'string' && (resource.includes('/api/') || resource.startsWith('/api') || resource.includes('onrender.com'));
+      const isGet = !config.method || config.method.toUpperCase() === 'GET';
+      
+      let response;
+      if (isApiCall && isGet) {
+        let lastError = null;
+        let delay = 1000;
+        const maxRetries = 10;
+        for (let attempt = 0; attempt < maxRetries; attempt++) {
+          try {
+            response = await _origFetch(resource, config);
+            if (response.ok || (response.status !== 500 && response.status !== 502 && response.status !== 503 && response.status !== 504)) {
+              break;
+            }
+            console.warn(`API error ${response.status}. Retrying in ${delay}ms...`);
+          } catch (err) {
+            lastError = err;
+            console.warn(`API network error: ${err.message}. Retrying in ${delay}ms...`);
+          }
+          await new Promise(r => setTimeout(r, delay));
+          delay = Math.min(delay * 1.5, 5000);
+        }
+        if (!response && lastError) throw lastError;
+      } else {
+        response = await _origFetch(resource, config);
+      }
+      
+      if (response && response.status === 401
           && !window.location.pathname.endsWith('login.html')
           && !window.location.pathname.endsWith('index.html')) {
         window.location.href = 'index.html';
@@ -900,12 +931,12 @@
 
     function renderFallbackBadges() {
       renderBadgeGrid([
-        { type:'streak_7',  label:'7-Day Streak',   icon:'🔥',         phrase:'7-Day Consistency Streak',   eligible:false, reason:'Keep journaling!' },
-        { type:'streak_30', label:'30-Day Streak',  icon:'💎',       phrase:'30-Day Warrior Streak',  eligible:false, reason:'Keep journaling!' },
-        { type:'module_1',  label:'First Module',   icon:'📚',    phrase:'Complete your first module', eligible:false, reason:'Finish a module' },
-        { type:'hours_10',  label:'10 Study Hours', icon:'⏱️',    phrase:'Log 10+ total study hours', eligible:false, reason:'Study more!' },
-        { type:'clan_join', label:'Clan Member',    icon:'🛡️', phrase:'Join a clan',              eligible:false, reason:'Join a clan' },
-        { type:'synergy_1', label:'First Synergy',  icon:'🔗',         phrase:'Link with a study partner', eligible:false, reason:'Connect on Synergy' },
+        { type:'initiation',    label:'Initiation Echo',        icon:'🔥', phrase:'Joined the MavX Mndset',            eligible:true,  reason:'' },
+        { type:'streak_7',      label:'7-Day Streak',           icon:'⚡', phrase:'7-Day Consistency Streak',        eligible:false, reason:'Journal for 7 days with a streak' },
+        { type:'streak_30',     label:'30-Day Streak',          icon:'💎', phrase:'30-Day Warrior Streak',            eligible:false, reason:'Journal for 30 days with a streak' },
+        { type:'leaderboard_1', label:'Leaderboard #1',         icon:'👑', phrase:'Ranked #1 on Leaderboard',          eligible:false, reason:'Reach #1 on Leaderboard first' },
+        { type:'pomodoro_5',    label:'5-Session Day',          icon:'🎯', phrase:'5 Focus Sessions in One Day',      eligible:false, reason:'Complete 5 focus sessions in a day' },
+        { type:'journal_7',     label:'7-Day Journal Streak',   icon:'📜', phrase:'7-Day Journal Streak',              eligible:false, reason:'Write journal entries for 7 days' },
       ]);
     }
 
@@ -988,6 +1019,39 @@
           loadingText.innerHTML = `⚡ BACKEND IS AWAKENING...<br><span style="font-size:0.75rem; color:#ff0055; text-transform:none; margin-top:0.5rem; display:block;">Render Free Tier goes to sleep when idle. Reviving container, please stand by... (Takes 20-30s. Cost-free!)</span>`;
         }
       }, 2500);
+
+      // Add motivational quotes rotation to the loading screen
+      const quotes = [
+          "\"Discipline is the bridge between goals and accomplishment.\" — Jim Rohn",
+          "\"Do not pray for an easy life, pray for the strength to endure a difficult one.\" — Bruce Lee",
+          "\"We are what we repeatedly do. Excellence, then, is not an act, but a habit.\" — Aristotle",
+          "\"It does not matter how slowly you go as long as you do not stop.\" — Confucius",
+          "\"If you want to be the best, you have to do things that other people aren't willing to do.\" — Michael Phelps",
+          "\"The secret of getting ahead is getting started.\" — Mark Twain",
+          "\"A person who never made a mistake never tried anything new.\" — Albert Einstein",
+          "\"It's not that I'm so smart, it's just that I stay with problems longer.\" — Albert Einstein",
+          "\"He who has a why to live can bear almost any how.\" — Friedrich Nietzsche",
+          "\"The individual who says it cannot be done should not interrupt the one doing it.\" — Chinese Proverb"
+      ];
+      const quoteEl = document.createElement('div');
+      quoteEl.style.cssText = "font-family: var(--font-body); font-size: 0.8rem; color: var(--neon-purple); text-align: center; margin-top: 1.5rem; max-width: 400px; padding: 0 1rem; font-style: italic; opacity: 0.8; transition: opacity 0.5s; line-height: 1.4;";
+      quoteEl.id = "loading-quote";
+      quoteEl.textContent = quotes[Math.floor(Math.random() * quotes.length)];
+      const loaderContainer = document.getElementById('loading-screen');
+      if (loaderContainer) {
+          loaderContainer.appendChild(quoteEl);
+          const quoteInterval = setInterval(() => {
+              if (!document.getElementById('loading-screen')) {
+                  clearInterval(quoteInterval);
+                  return;
+              }
+              quoteEl.style.opacity = 0;
+              setTimeout(() => {
+                  quoteEl.textContent = quotes[Math.floor(Math.random() * quotes.length)];
+                  quoteEl.style.opacity = 0.8;
+              }, 500);
+          }, 4000);
+      }
 
       await loadProfile();
       await loadEchoes('all');

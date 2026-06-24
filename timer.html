@@ -286,7 +286,7 @@
     </div>
 
     <script>
-        // AUTH INTERCEPTOR
+        // AUTH INTERCEPTOR WITH COLD START RESILIENCE
         const originalFetch = window.fetch;
         window.fetch = async (...args) => {
             let [resource, config] = args;
@@ -298,8 +298,34 @@
                 config.headers['Authorization'] = `Bearer ${token}`;
             }
             
-            const response = await originalFetch(resource, config);
-            if (response.status === 401 && !window.location.pathname.endsWith('index.html')) {
+            const isApiCall = typeof resource === 'string' && (resource.includes('/api/') || resource.startsWith('/api') || resource.includes('onrender.com'));
+            const isGet = !config.method || config.method.toUpperCase() === 'GET';
+            
+            let response;
+            if (isApiCall && isGet) {
+                let lastError = null;
+                let delay = 1000;
+                const maxRetries = 10;
+                for (let attempt = 0; attempt < maxRetries; attempt++) {
+                    try {
+                        response = await originalFetch(resource, config);
+                        if (response.ok || (response.status !== 500 && response.status !== 502 && response.status !== 503 && response.status !== 504)) {
+                            break;
+                        }
+                        console.warn(`API error ${response.status}. Retrying in ${delay}ms...`);
+                    } catch (err) {
+                        lastError = err;
+                        console.warn(`API network error: ${err.message}. Retrying in ${delay}ms...`);
+                    }
+                    await new Promise(r => setTimeout(r, delay));
+                    delay = Math.min(delay * 1.5, 5000);
+                }
+                if (!response && lastError) throw lastError;
+            } else {
+                response = await originalFetch(resource, config);
+            }
+            
+            if (response && response.status === 401 && !window.location.pathname.endsWith('index.html')) {
                 window.location.href = 'index.html';
             }
             return response;
@@ -667,7 +693,11 @@
                 const res = await fetch(window.API_BASE_URL + '/api/sessions/active', {
                     headers: { 'Authorization': 'Bearer ' + token }
                 });
-                if (!res.ok) return;
+                if (!res.ok) {
+                    document.getElementById('live-warriors-text').innerText = 'Warriors are resting...';
+                    document.getElementById('live-warriors-avatars').innerHTML = '';
+                    return;
+                }
                 const data = await res.json();
                 
                 const countText = data.count === 1 ? '1 Warrior focusing right now' : `${data.count} Warriors focusing right now`;
@@ -701,6 +731,8 @@
                 });
             } catch (e) {
                 console.error("Failed to load active warriors", e);
+                document.getElementById('live-warriors-text').innerText = 'Failed to load active warriors.';
+                document.getElementById('live-warriors-avatars').innerHTML = '';
             }
         }
 

@@ -1,428 +1,569 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>MavX Mndset | Authentication</title>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@700;800&family=Poppins:wght@400;500;600&family=Inter:wght@400;600&display=swap" rel="stylesheet">
-    <style>
-        :root {
-            --synth-purple: #8b5cf6;
-            --synth-pink: #ff2a85;
-            --synth-blue: #0ea5e9;
-            --glass-bg: rgba(15, 23, 42, 0.65);
-            --glass-border: rgba(255, 255, 255, 0.15);
-            --text-main: #f8fafc;
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>MavX Mndset | Next-Gen Study Gamification</title>
+  <meta name="description" content="MavX Mndset turns your study sessions into a competitive RPG. Earn anime personas, climb leaderboards, build clans, and unlock Dragon Balls through real focus. Awaken your inner warrior.">
+  <meta name="keywords" content="study gamification, MavX Mndset, anime study app, focus timer, leaderboard, clan arena, Dragon Ball study">
+  <meta property="og:title" content="MavX Mndset | Next-Gen Study Gamification">
+  <meta property="og:description" content="Turn your study grind into a competitive RPG. Earn anime personas, battle clans, and build unstoppable discipline with MavX Mndset.">
+  <meta property="og:type" content="website">
+
+  <!-- Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800;900&family=Inter:wght@300;400;500;600&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+  <!-- Isolated Landing CSS — does NOT affect login.html or app styles -->
+  <link rel="stylesheet" href="landing-style.css?v=2">
+
+  <!-- Inline Auth-Guard: If already logged in, skip landing & go to dashboard -->
+  <script>
+    (function () {
+      try {
+        var token = localStorage.getItem('primeedu_token');
+        if (token) {
+          var isLocal = window.location.hostname === 'localhost' ||
+                        window.location.hostname === '127.0.0.1' ||
+                        window.location.protocol === 'file:' ||
+                        window.location.hostname === '';
+          var apiBase = isLocal ? 'http://127.0.0.1:5000' : 'https://primeedu.onrender.com';
+          fetch(apiBase + '/api/user/profile', {
+            headers: { 'Authorization': 'Bearer ' + token }
+          }).then(function (res) {
+            if (res.ok) { window.location.replace('dashboard.html'); }
+          }).catch(function () {
+            window.location.replace('dashboard.html');
+          });
         }
-
-        * { margin: 0; padding: 0; box-sizing: border-box; }
-        body {
-            font-family: 'Poppins', sans-serif;
-            height: 100vh;
-            width: 100vw;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            background: url('assets/login-bg.png') center/cover no-repeat;
-            background-color: #0f172a;
-            overflow: hidden;
-            position: relative;
-        }
-
-        body::before {
-            content: '';
-            position: absolute;
-            inset: 0;
-            background: linear-gradient(135deg, rgba(23,0,48,0.4) 0%, rgba(14,0,33,0.7) 100%);
-            z-index: 1;
-        }
-
-        .login-card {
-            position: relative;
-            z-index: 2;
-            width: 100%;
-            max-width: 440px;
-            padding: 2.5rem;
-            background: var(--glass-bg);
-            backdrop-filter: blur(16px);
-            -webkit-backdrop-filter: blur(16px);
-            border: 1px solid var(--glass-border);
-            border-radius: 24px;
-            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5), 0 0 40px rgba(139, 92, 246, 0.15);
-            text-align: center;
-            animation: float 6s ease-in-out infinite;
-        }
-
-        @keyframes float {
-            0% { transform: translateY(0px); }
-            50% { transform: translateY(-10px); }
-            100% { transform: translateY(0px); }
-        }
-
-        .logo-wrap {
-            margin-bottom: 1.5rem;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            gap: 0.5rem;
-        }
-
-        .logo-wrap i { font-size: 2.5rem; color: var(--synth-pink); filter: drop-shadow(0 0 10px var(--synth-pink)); }
-        .logo-wrap h1 { font-family: 'Montserrat', sans-serif; font-size: 2rem; font-weight: 800; color: var(--text-main); letter-spacing: -1px; text-transform: uppercase; }
-        .subtitle { color: #cbd5e1; font-size: 0.9rem; margin-bottom: 2rem; line-height: 1.5; }
-
-        .input-group { margin-bottom: 1rem; text-align: left; position: relative; }
-        .input-group label { display: block; color: var(--synth-pink); font-size: 0.75rem; font-weight: 600; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 0.5rem; }
-        .input-group input { width: 100%; padding: 0.8rem 1.25rem; padding-left: 2.5rem; background: rgba(0, 0, 0, 0.2); border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 12px; color: white; font-family: 'Inter', sans-serif; font-size: 1rem; transition: all 0.3s ease; }
-        .input-group input:focus { outline: none; border-color: var(--synth-purple); box-shadow: 0 0 15px rgba(139, 92, 246, 0.3); background: rgba(0, 0, 0, 0.4); }
-        .input-group input::placeholder { color: #64748b; }
-        .input-icon { position: absolute; left: 1rem; top: 2.1rem; color: #94a3b8; font-size: 0.9rem; }
-
-        .btn-enter { width: 100%; padding: 1rem; margin-top: 1rem; background: linear-gradient(135deg, var(--synth-purple) 0%, var(--synth-pink) 100%); border: none; border-radius: 12px; color: white; font-family: 'Montserrat', sans-serif; font-weight: 700; font-size: 1rem; letter-spacing: 1px; cursor: pointer; transition: all 0.3s ease; box-shadow: 0 4px 15px rgba(255, 42, 133, 0.4); position: relative; overflow: hidden; }
-        .btn-enter:hover { transform: translateY(-2px); box-shadow: 0 8px 25px rgba(255, 42, 133, 0.6); }
-
-        .loader { display: none; position: absolute; inset: 0; background: var(--glass-bg); backdrop-filter: blur(10px); border-radius: 24px; z-index: 10; flex-direction: column; align-items: center; justify-content: center; }
-        .spinner { width: 40px; height: 40px; border: 3px solid rgba(255,255,255,0.1); border-top-color: var(--synth-pink); border-radius: 50%; animation: spin 1s linear infinite; }
-        @keyframes spin { to { transform: rotate(360deg); } }
-
-        .form-view { display: none; }
-        .form-view.active { display: block; animation: fadeIn 0.4s ease; }
-        @keyframes fadeIn { from { opacity: 0; transform: scale(0.95); } to { opacity: 1; transform: scale(1); } }
-        
-        .switch-link { color: #0ea5e9; font-size: 0.8rem; text-decoration: underline; cursor: pointer; margin-top: 1.5rem; display: inline-block; }
-        .switch-link:hover { color: #fff; }
-    </style>
-<script>
-  const isLocal = window.location.hostname === 'localhost' || 
-                  window.location.hostname === '127.0.0.1' || 
-                  window.location.protocol === 'file:' || 
-                  window.location.hostname === '';
-  window.API_BASE_URL = isLocal ? 'http://127.0.0.1:5000' : 'https://primeedu.onrender.com';
-</script>
+      } catch (e) { /* Silently fail — show landing page */ }
+    })();
+  </script>
 </head>
-<body>
+<body class="landing-page">
 
-    <!-- Custom Alert Modal -->
-    <div id="alert-modal" style="display: none; position: absolute; inset: 0; background: rgba(15, 23, 42, 0.85); backdrop-filter: blur(10px); z-index: 9999; flex-direction: column; align-items: center; justify-content: center;">
-        <div style="max-width: 400px; text-align: center; border: 1px solid var(--synth-blue); box-shadow: 0 0 30px rgba(14, 165, 233, 0.3); background: rgba(15, 23, 42, 0.9); padding: 2.5rem; border-radius: 24px;">
-            <i class="fas fa-info-circle" style="font-size: 3rem; color: var(--synth-blue); margin-bottom: 1rem;"></i>
-            <h3 style="color: white; margin-bottom: 0.5rem; font-family: 'Montserrat', sans-serif;">System Notification</h3>
-            <p id="alert-msg" style="color: #cbd5e1; font-size: 0.9rem; margin-bottom: 1.5rem;"></p>
-            <button class="btn-enter" style="background: linear-gradient(135deg, var(--synth-blue) 0%, #2563eb 100%); box-shadow: 0 4px 15px rgba(14, 165, 233, 0.4);" onclick="document.getElementById('alert-modal').style.display='none'">UNDERSTOOD</button>
-        </div>
+  <!-- ── Particle Canvas ── -->
+  <canvas id="l-particles" style="position:fixed;inset:0;z-index:0;pointer-events:none;opacity:0.65;" aria-hidden="true"></canvas>
+
+  <!-- ── Background Watermarks & Doodles ── -->
+  <div class="l-watermarks" aria-hidden="true">
+    <span class="l-wm" style="top:8%;left:3%;transform:rotate(-15deg)">focus</span>
+    <span class="l-wm" style="top:22%;right:2%;transform:rotate(10deg)">precision</span>
+    <span class="l-wm" style="top:45%;left:1%;transform:rotate(-8deg)">discipline</span>
+    <span class="l-wm" style="top:60%;right:3%;transform:rotate(12deg)">synergy</span>
+    <span class="l-wm" style="top:78%;left:4%;transform:rotate(-6deg)">consistency</span>
+    <span class="l-wm" style="top:33%;left:45%;transform:rotate(20deg);font-size:5rem;">focus</span>
+    <span class="l-wm" style="top:70%;left:35%;transform:rotate(-14deg)">mastery</span>
+    <span class="l-wm" style="top:12%;left:55%;transform:rotate(5deg)">discipline</span>
+    <!-- SVG doodle shapes -->
+    <svg class="l-doodle" style="top:15%;left:8%;width:120px;" viewBox="0 0 100 100" fill="none" stroke="currentColor" stroke-width="1.5">
+      <polygon points="50,5 95,30 95,70 50,95 5,70 5,30"/>
+    </svg>
+    <svg class="l-doodle" style="top:40%;right:6%;width:90px;" viewBox="0 0 100 100" fill="none" stroke="currentColor" stroke-width="1.5">
+      <circle cx="50" cy="50" r="45"/>
+      <circle cx="50" cy="50" r="30"/>
+      <circle cx="50" cy="50" r="15"/>
+    </svg>
+    <svg class="l-doodle" style="top:65%;left:10%;width:80px;" viewBox="0 0 100 100" fill="none" stroke="currentColor" stroke-width="1.5">
+      <line x1="10" y1="50" x2="90" y2="50"/>
+      <line x1="50" y1="10" x2="50" y2="90"/>
+      <line x1="20" y1="20" x2="80" y2="80"/>
+      <line x1="80" y1="20" x2="20" y2="80"/>
+    </svg>
+    <svg class="l-doodle" style="top:25%;right:8%;width:100px;" viewBox="0 0 100 100" fill="none" stroke="currentColor" stroke-width="1.5">
+      <path d="M50 10 L90 40 L75 80 L25 80 L10 40 Z"/>
+    </svg>
+    <svg class="l-doodle" style="top:80%;right:10%;width:70px;" viewBox="0 0 100 100" fill="none" stroke="currentColor" stroke-width="1.5">
+      <rect x="10" y="10" width="80" height="80" rx="10"/>
+      <rect x="25" y="25" width="50" height="50" rx="6"/>
+    </svg>
+  </div>
+
+  <!-- ════════════════════════════════════════════
+       NAVIGATION
+  ════════════════════════════════════════════ -->
+  <nav class="l-nav" id="l-nav" role="navigation" aria-label="Main navigation">
+    <div class="l-container">
+      <div class="l-nav__inner">
+
+        <!-- Brand — Neon Logo -->
+        <a href="index.html" class="l-nav__brand" aria-label="MavX Mndset Home">
+          <img src="assets/mavx_logo_nav.png?v=2" alt="MavX Mndset Logo" class="l-nav__logo-img">
+          <span class="l-nav__brand-text">MavX&nbsp;<span>Mndset</span></span>
+        </a>
+
+        <!-- Desktop Links -->
+        <ul class="l-nav__links" role="list">
+          <li><a href="#features" id="nav-features">Features</a></li>
+          <li><a href="#faq" id="nav-faq">FAQ</a></li>
+          <li><a href="#about" id="nav-about">Philosophy</a></li>
+        </ul>
+
+        <!-- Desktop CTA -->
+        <a href="login.html" class="l-nav__cta" id="nav-awaken-btn">Awaken →</a>
+
+        <!-- Hamburger (mobile) -->
+        <button class="l-nav__hamburger" id="l-hamburger" aria-label="Toggle menu" aria-expanded="false" aria-controls="l-mobile-menu">
+          <span></span>
+          <span></span>
+          <span></span>
+        </button>
+
+      </div>
     </div>
+  </nav>
 
-    <div class="login-card">
-        <div class="loader" id="loader" style="display: none; position: absolute; inset: 0; background: var(--glass-bg); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); z-index: 100; flex-direction: column; align-items: center; justify-content: center; border-radius: 24px;">
-            <div class="logo-wrap" style="animation: pulseSlow 2s ease-in-out infinite; margin-bottom: 1.5rem;">
-                <i class="fas fa-bolt" style="font-size: 3rem; color: var(--synth-pink); filter: drop-shadow(0 0 15px var(--synth-pink));"></i>
-                <h1 style="font-family: 'Montserrat', sans-serif; font-size: 2.2rem; font-weight: 800; color: white;">MavX Mndset</h1>
+  <!-- Mobile Menu -->
+  <div class="l-nav__mobile-menu" id="l-mobile-menu" role="menu">
+    <a href="#features" role="menuitem">Features</a>
+    <a href="#faq" role="menuitem">FAQ</a>
+    <a href="#about" role="menuitem">Philosophy</a>
+    <a href="login.html" class="l-nav__cta" role="menuitem" id="mobile-awaken-btn">⚡ Awaken Now</a>
+  </div>
+
+  <!-- ════════════════════════════════════════════
+       HERO SECTION — CENTERED LAYOUT
+  ════════════════════════════════════════════ -->
+  <section class="l-hero" id="hero" aria-labelledby="hero-headline">
+    <div class="l-container">
+      <div class="l-hero__center">
+
+        <!-- Notion-style Overlapping Avatars -->
+        <div class="l-hero__avatars" aria-label="Warriors currently using MavX Mndset">
+          <img src="assets/avatars/itachi.webp"  alt="Warrior avatar" class="l-hero__avatar" style="--av-color:#8B5CF6;">
+          <img src="assets/avatars/sasuke.webp"  alt="Warrior avatar" class="l-hero__avatar" style="--av-color:#06B6D4;">
+          <img src="assets/avatars/naruto.webp"  alt="Warrior avatar" class="l-hero__avatar" style="--av-color:#EAB308;">
+          <img src="assets/avatars/kakashi.webp" alt="Warrior avatar" class="l-hero__avatar" style="--av-color:#EC4899;">
+          <img src="assets/avatars/itachi.webp"  alt="Warrior avatar" class="l-hero__avatar" style="--av-color:#22D3EE;">
+          <img src="assets/avatars/sasuke.webp"  alt="Warrior avatar" class="l-hero__avatar" style="--av-color:#A78BFA;">
+          <img src="assets/avatars/naruto.webp"  alt="Warrior avatar" class="l-hero__avatar" style="--av-color:#F472B6;">
+          <span class="l-hero__avatar-label">Join 1,200+ warriors already grinding</span>
+        </div>
+
+        <!-- Badge -->
+        <div class="l-hero__badge" aria-label="New platform">
+          MavX Mndset Platform
+        </div>
+
+        <!-- Main Headline -->
+        <h1 class="l-hero__headline" id="hero-headline">
+          MavX Mndset:<br>
+          <span class="grad">Next-Gen Study</span><br>
+          Gamification.
+        </h1>
+
+        <!-- Sub Headline -->
+        <p class="l-hero__subheadline">
+          Focus is a weapon. We built the training ground.<br>
+          Transform every study hour into XP, earn anime personas, and rise through the ranks — because mastery isn't luck, it's war.
+        </p>
+
+        <!-- CTA Actions -->
+        <div class="l-hero__actions">
+          <a href="login.html" class="l-btn-primary" id="hero-cta-primary">
+            Enter the Neural Interface
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/>
+            </svg>
+          </a>
+          <a href="#features" class="l-btn-ghost" id="hero-explore-btn">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <circle cx="12" cy="12" r="10"/><polyline points="12 8 16 12 12 16"/><line x1="8" y1="12" x2="16" y2="12"/>
+            </svg>
+            Explore Features
+          </a>
+        </div>
+
+        <!-- Stats Row -->
+        <div class="l-hero__stats" aria-label="Platform statistics">
+          <div class="l-hero__stat">
+            <span class="l-hero__stat-num"><span>∞</span></span>
+            <span class="l-hero__stat-label">Focus Sessions</span>
+          </div>
+          <div class="l-hero__stat-divider" aria-hidden="true"></div>
+          <div class="l-hero__stat">
+            <span class="l-hero__stat-num"><span>7</span> Systems</span>
+            <span class="l-hero__stat-label">Deep Gamification Layers</span>
+          </div>
+          <div class="l-hero__stat-divider" aria-hidden="true"></div>
+          <div class="l-hero__stat">
+            <span class="l-hero__stat-num"><span>0</span> Excuses</span>
+            <span class="l-hero__stat-label">Warrior Mindset Only</span>
+          </div>
+        </div>
+
+        <!-- Centered Carousel Below -->
+        <div class="l-hero__carousel-wrap">
+          <div class="l-hero__glow-ring" aria-hidden="true"></div>
+          <div class="l-hero__glow-ring l-hero__glow-ring--2" aria-hidden="true"></div>
+
+          <div class="l-carousel" id="l-carousel" role="region" aria-label="Feature preview slideshow" aria-roledescription="carousel">
+
+            <!-- Slides Track -->
+            <div class="l-carousel__slides" id="l-carousel-slides" aria-live="polite">
+
+              <!-- Slide 1: Forged Destiny / Dashboard -->
+              <div class="l-carousel__slide" role="group" aria-label="Slide 1 of 4: Forged Destiny Matrix" aria-roledescription="slide">
+                <img src="assets/slide_destiny.png" alt="MavX Mndset Forged Destiny Matrix dashboard with missions, syllabus tracker and neural focus timer" loading="eager">
+                <div class="l-slide__label">
+                  <span class="l-slide__label-dot" style="background:#8B5CF6;box-shadow:0 0 6px #8B5CF6;" aria-hidden="true"></span>
+                  Forged Destiny Matrix
+                </div>
+              </div>
+
+              <!-- Slide 2: Neural Focus Timer -->
+              <div class="l-carousel__slide" role="group" aria-label="Slide 2 of 4: Neural Focus Timer" aria-roledescription="slide">
+                <img src="assets/slide_timer_new.png" alt="MavX Mndset Neural Focus Timer with live warrior leaderboard and flip-clock countdown" loading="lazy">
+                <div class="l-slide__label">
+                  <span class="l-slide__label-dot" style="background:var(--cyan-bright);box-shadow:0 0 6px var(--cyan-bright);" aria-hidden="true"></span>
+                  Neural Focus Timer
+                </div>
+              </div>
+
+              <!-- Slide 3: Reflective Journal -->
+              <div class="l-carousel__slide" role="group" aria-label="Slide 3 of 4: Reflective Journal" aria-roledescription="slide">
+                <img src="assets/slide_journal.png" alt="MavX Mndset Reflective Journal with saved entries and AI Recap" loading="lazy">
+                <div class="l-slide__label">
+                  <span class="l-slide__label-dot" style="background:var(--pink);box-shadow:0 0 6px var(--pink);" aria-hidden="true"></span>
+                  Reflective Journal
+                </div>
+              </div>
+
+              <!-- Slide 4: Weekly Insights -->
+              <div class="l-carousel__slide" role="group" aria-label="Slide 4 of 4: Weekly Insights" aria-roledescription="slide">
+                <img src="assets/slide_insights.png" alt="MavX Mndset Weekly Insights with study hours chart and warrior persona" loading="lazy">
+                <div class="l-slide__label">
+                  <span class="l-slide__label-dot" style="background:#EAB308;box-shadow:0 0 6px #EAB308;" aria-hidden="true"></span>
+                  Weekly Insights
+                </div>
+              </div>
+
             </div>
-            <div class="loading-bar-wrapper" style="width: 200px; height: 4px; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); border-radius: 10px; overflow: hidden; margin-bottom: 1rem;">
-                <div id="login-loader-bar" style="width: 0%; height: 100%; background: linear-gradient(90deg, var(--synth-purple), var(--synth-pink)); border-radius: 10px; box-shadow: 0 0 8px var(--synth-pink); transition: width 0.3s ease;"></div>
-            </div>
-            <p style="color: var(--text-main); font-size: 0.75rem; letter-spacing: 2px; text-transform: uppercase; opacity: 0.8;" id="loader-msg">Authenticating...</p>
+
+            <!-- Dot Indicators only — no arrows -->
+            <div class="l-carousel__dots" id="l-carousel-dots" role="tablist" aria-label="Slide indicators"></div>
+
+          </div>
         </div>
 
-        <div class="logo-wrap">
-            <i class="fas fa-bolt"></i>
-            <h1>MavX Mndset</h1>
-        </div>
-        
-        <p class="subtitle" id="subtitle-txt">Secure Access Gateway.</p>
-
-        <!-- LOGIN FORM -->
-        <div class="form-view active" id="view-login">
-            <form onsubmit="handleLogin(event)">
-                <div class="input-group">
-                    <label>Google Email ID</label>
-                    <i class="fas fa-envelope input-icon"></i>
-                    <input type="email" id="login-email" placeholder="example@gmail.com" required>
-                </div>
-                <div class="input-group">
-                    <label>Password</label>
-                    <i class="fas fa-lock input-icon"></i>
-                    <input type="password" id="login-pass" placeholder="Enter password" required>
-                </div>
-                <div style="text-align: right; margin-top: -0.5rem;">
-                    <span class="switch-link" style="font-size:0.7rem; margin-top:0;" onclick="switchView('view-otp-req')">Forgot Password?</span>
-                </div>
-                <button type="submit" class="btn-enter">AWAKEN <i class="fas fa-arrow-right" style="margin-left: 0.5rem;"></i></button>
-            </form>
-            <span class="switch-link" onclick="switchView('view-register')">New warrior? Forge your destiny here.</span>
-        </div>
-
-        <!-- REGISTER FORM -->
-        <div class="form-view" id="view-register">
-            <form onsubmit="handleRegisterSubmit(event)">
-                <div class="input-group">
-                    <label>Warrior Name</label>
-                    <i class="fas fa-user input-icon"></i>
-                    <input type="text" id="reg-name" placeholder="Enter your display name" required>
-                </div>
-                <div class="input-group">
-                    <label>Google Email ID</label>
-                    <i class="fas fa-envelope input-icon"></i>
-                    <input type="email" id="reg-email" placeholder="example@gmail.com" required>
-                </div>
-                <div class="input-group">
-                    <label>Password</label>
-                    <i class="fas fa-lock input-icon"></i>
-                    <input type="password" id="reg-pass" placeholder="Create a password" required>
-                </div>
-                <button type="submit" id="reg-btn" class="btn-enter">SEND VERIFICATION OTP</button>
-            </form>
-            <span class="switch-link" onclick="switchView('view-login')">Already a warrior? Log in.</span>
-        </div>
-
-        <!-- REGISTER OTP FORM -->
-        <div class="form-view" id="view-register-otp">
-            <form onsubmit="handleRegisterOtpVerify(event)">
-                <div class="input-group">
-                    <label>Verification OTP</label>
-                    <i class="fas fa-key input-icon"></i>
-                    <input type="text" id="reg-verification-otp" placeholder="Enter 4-Digit OTP" required>
-                </div>
-                <button type="submit" class="btn-enter">VERIFY & REGISTER <i class="fas fa-user-plus" style="margin-left: 0.5rem;"></i></button>
-            </form>
-            <span class="switch-link" onclick="switchView('view-register')">Go Back / Change Details</span>
-        </div>
-
-        <!-- OTP REQUEST FORM -->
-        <div class="form-view" id="view-otp-req">
-            <form onsubmit="handleOtpReq(event)">
-                <div class="input-group">
-                    <label>Registered Google Email</label>
-                    <i class="fas fa-envelope input-icon"></i>
-                    <input type="email" id="reset-email" placeholder="example@gmail.com" required>
-                </div>
-                <button type="submit" class="btn-enter">SEND OTP</button>
-            </form>
-            <span class="switch-link" onclick="switchView('view-login')">Back to Login</span>
-        </div>
-
-        <!-- OTP VERIFY FORM -->
-        <div class="form-view" id="view-otp-verify">
-            <form onsubmit="handleOtpVerify(event)">
-                <div class="input-group">
-                    <label>4-Digit OTP</label>
-                    <i class="fas fa-key input-icon"></i>
-                    <input type="text" id="reset-otp" placeholder="Enter 4-Digit OTP" required>
-                </div>
-                <div class="input-group">
-                    <label>New Password</label>
-                    <i class="fas fa-lock input-icon"></i>
-                    <input type="password" id="reset-new-pass" placeholder="Create a new password" required>
-                </div>
-                <button type="submit" class="btn-enter">RESET PASSWORD</button>
-            </form>
-            <span class="switch-link" onclick="switchView('view-login')">Cancel</span>
-        </div>
+      </div>
     </div>
+  </section>
 
-    <script>
-        let isOtpSent = false;
-        function switchView(viewId) {
-            document.querySelectorAll('.form-view').forEach(el => el.classList.remove('active'));
-            document.getElementById(viewId).classList.add('active');
-            const sub = document.getElementById('subtitle-txt');
-            if(viewId === 'view-login') sub.innerText = "Log in to synchronize your progress and access the neural interface.";
-            if(viewId === 'view-register') {
-                sub.innerText = "Forge a new path. Your journey to mastery begins here.";
-                isOtpSent = false;
-                document.getElementById('reg-verification-otp').required = false;
-                document.getElementById('reg-verification-otp').value = '';
-            }
-            if(viewId === 'view-register-otp') {
-                const emailVal = document.getElementById('reg-email').value;
-                sub.innerText = "Verify your email. A 4-digit OTP has been sent to " + emailVal + ".";
-                document.getElementById('reg-verification-otp').required = true;
-            }
-            if(viewId === 'view-otp-req') sub.innerText = "Enter your email address to receive a recovery OTP.";
-            if(viewId === 'view-otp-verify') sub.innerText = "Enter the OTP sent to your email to reset your password.";
-        }
-        
-        // Initial setup
-        switchView('view-login');
+  <div class="l-divider" role="separator"></div>
 
-        function showLoad(msg) {
-            document.getElementById('loader-msg').innerText = msg;
-            const loader = document.getElementById('loader');
-            loader.style.display = 'flex';
-            const bar = document.getElementById('login-loader-bar');
-            bar.style.width = '0%';
-            setTimeout(() => {
-                bar.style.width = '40%';
-            }, 50);
-            setTimeout(() => {
-                bar.style.width = '85%';
-            }, 500);
-        }
-        function hideLoad() {
-            const bar = document.getElementById('login-loader-bar');
-            if (bar) bar.style.width = '100%';
-            setTimeout(() => {
-                document.getElementById('loader').style.display = 'none';
-            }, 200);
-        }
-        
-        function showAlert(msg) {
-            document.getElementById('alert-msg').innerText = msg;
-            document.getElementById('alert-modal').style.display = 'flex';
-        }
+  <!-- ════════════════════════════════════════════
+       FEATURES GRID
+  ════════════════════════════════════════════ -->
+  <section class="l-features" id="features" aria-labelledby="features-heading">
+    <div class="l-container">
 
-        async function handleLogin(e) {
-            e.preventDefault();
-            const email = document.getElementById('login-email').value;
-            const pass = document.getElementById('login-pass').value;
-            showLoad("AUTHENTICATING...");
-            try {
-                const res = await fetch(window.API_BASE_URL + '/api/auth/login', {
-                    method: 'POST',
-                    headers: {'Content-Type': 'application/json'},
-                    body: JSON.stringify({ email, password: pass })
-                });
-                const data = await res.json();
-                if(res.ok) {
-                    localStorage.setItem('primeedu_token', data.token);
-                    localStorage.setItem('primeedu_leaderboard_name', data.name);
-                    localStorage.setItem('primeedu_email', email);
-                    window.location.href = 'dashboard.html';
-                } else {
-                    showAlert(data.message || "Login failed");
-                    hideLoad();
-                }
-            } catch(e) { showAlert("Error connecting to server."); hideLoad(); }
-        }
+      <header class="l-section-header">
+        <p class="l-section-tag" aria-hidden="true">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="12" r="10"/></svg>
+          The Arsenal
+        </p>
+        <h2 class="l-section-title" id="features-heading">
+          Every Weapon You Need<br>to Win the War on Laziness.
+        </h2>
+        <p class="l-section-subtitle">
+          Built for students who refuse to be average. Each feature is a tool forged for maximum discipline.
+        </p>
+      </header>
 
-        async function handleRegisterSubmit(e) {
-            e.preventDefault();
-            const email = document.getElementById('reg-email').value;
-            
-            showLoad("DISPATCHING VERIFICATION OTP...");
-            try {
-                const res = await fetch(window.API_BASE_URL + '/api/auth/register/request_otp', {
-                    method: 'POST',
-                    headers: {'Content-Type': 'application/json'},
-                    body: JSON.stringify({ email })
-                });
-                const data = await res.json();
-                if(res.ok) {
-                    isOtpSent = true;
-                    switchView('view-register-otp');
-                    showAlert(data.message || "Verification OTP sent! Please check your Google email inbox.");
-                    hideLoad();
-                } else {
-                    showAlert(data.message || "Failed to send verification OTP");
-                    hideLoad();
-                }
-            } catch(e) { showAlert("Error connecting to server."); hideLoad(); }
-        }
+      <div class="l-features__grid" role="list">
 
-        async function handleRegisterOtpVerify(e) {
-            e.preventDefault();
-            const name = document.getElementById('reg-name').value;
-            const email = document.getElementById('reg-email').value;
-            const pass = document.getElementById('reg-pass').value;
-            const otp = document.getElementById('reg-verification-otp').value;
-            
-            showLoad("VERIFYING & REGISTERING...");
-            try {
-                const res = await fetch(window.API_BASE_URL + '/api/auth/register', {
-                    method: 'POST',
-                    headers: {'Content-Type': 'application/json'},
-                    body: JSON.stringify({ name, email, password: pass, otp })
-                });
-                const data = await res.json();
-                if(res.ok) {
-                    // Auto-login upon successful registration
-                    try {
-                        const loginRes = await fetch(window.API_BASE_URL + '/api/auth/login', {
-                            method: 'POST',
-                            headers: {'Content-Type': 'application/json'},
-                            body: JSON.stringify({ email, password: pass })
-                        });
-                        const loginData = await loginRes.json();
-                        if(loginRes.ok) {
-                            localStorage.setItem('primeedu_token', loginData.token);
-                            localStorage.setItem('primeedu_leaderboard_name', loginData.name);
-                            localStorage.setItem('primeedu_email', email);
-                            window.location.href = 'dashboard.html';
-                        } else {
-                            switchView('view-login');
-                            document.getElementById('login-email').value = email;
-                            hideLoad();
-                        }
-                    } catch(e) {
-                        switchView('view-login');
-                        document.getElementById('login-email').value = email;
-                        hideLoad();
-                    }
-                } else {
-                    showAlert(data.message || "Registration failed");
-                    hideLoad();
-                }
-            } catch(e) { showAlert("Error connecting to server."); hideLoad(); }
-        }
+        <!-- Card 1: AI Recap Cards -->
+        <article class="l-feat-card l-feat-card--neon-violet" role="listitem" aria-label="AI Recap Cards feature">
+          <div class="l-feat-card__icon l-feat-card__icon--violet" aria-hidden="true">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/>
+            </svg>
+          </div>
+          <p class="l-feat-card__tag">AI-Powered</p>
+          <h3 class="l-feat-card__title">Dynamic Recap Cards</h3>
+          <p class="l-feat-card__body">Earn unique anime personas based on your real study habits. Your effort becomes your identity.</p>
+          <div class="l-feat-card__glow" style="background:var(--violet);" aria-hidden="true"></div>
+          <div class="l-feat-card__border-glow" aria-hidden="true"></div>
+        </article>
 
-        async function handleOtpReq(e) {
-            e.preventDefault();
-            const email = document.getElementById('reset-email').value;
-            showLoad("DISPATCHING OTP...");
-            try {
-                const res = await fetch(window.API_BASE_URL + '/api/auth/otp/request', {
-                    method: 'POST',
-                    headers: {'Content-Type': 'application/json'},
-                    body: JSON.stringify({ email })
-                });
-                const data = await res.json();
-                if(res.ok) {
-                    switchView('view-otp-verify');
-                    hideLoad();
-                } else {
-                    showAlert(data.message || "Failed to request OTP");
-                    hideLoad();
-                }
-            } catch(e) { showAlert("Error connecting to server."); hideLoad(); }
-        }
+        <!-- Card 2: Leaderboards -->
+        <article class="l-feat-card l-feat-card--neon-gold" role="listitem" aria-label="Leaderboards feature">
+          <div class="l-feat-card__icon l-feat-card__icon--gold" aria-hidden="true">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <polyline points="22 17 13.5 8.5 8.5 13.5 2 7"/><polyline points="16 17 22 17 22 11"/>
+            </svg>
+          </div>
+          <p class="l-feat-card__tag">Competitive</p>
+          <h3 class="l-feat-card__title">Global Leaderboards</h3>
+          <p class="l-feat-card__body">Compete and climb ranks on weekly, monthly, or yearly scales. Supremacy is earned, never given.</p>
+          <div class="l-feat-card__glow" style="background:#EAB308;" aria-hidden="true"></div>
+          <div class="l-feat-card__border-glow" aria-hidden="true"></div>
+        </article>
 
-        async function handleOtpVerify(e) {
-            e.preventDefault();
-            const email = document.getElementById('reset-email').value;
-            const otp = document.getElementById('reset-otp').value;
-            const new_pass = document.getElementById('reset-new-pass').value;
-            showLoad("VERIFYING IDENTITY...");
-            try {
-                const res = await fetch(window.API_BASE_URL + '/api/auth/otp/verify', {
-                    method: 'POST',
-                    headers: {'Content-Type': 'application/json'},
-                    body: JSON.stringify({ email, otp, new_password: new_pass })
-                });
-                const data = await res.json();
-                if(res.ok) {
-                    showAlert("Password reset successful. Please log in with your new password.");
-                    switchView('view-login');
-                    document.getElementById('login-email').value = email;
-                    hideLoad();
-                } else {
-                    showAlert(data.message || "Failed to verify OTP");
-                    hideLoad();
-                }
-            } catch(e) { showAlert("Error connecting to server."); hideLoad(); }
-        }
+        <!-- Card 3: Clan Arena -->
+        <article class="l-feat-card l-feat-card--neon-cyan" role="listitem" aria-label="Clan Arena feature">
+          <div class="l-feat-card__icon l-feat-card__icon--cyan" aria-hidden="true">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/>
+              <path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>
+            </svg>
+          </div>
+          <p class="l-feat-card__tag">Social</p>
+          <h3 class="l-feat-card__title">Clan Arena</h3>
+          <p class="l-feat-card__body">Form squads, build synergy, and hold your team accountable. No warrior fights alone.</p>
+          <div class="l-feat-card__glow" style="background:var(--cyan);" aria-hidden="true"></div>
+          <div class="l-feat-card__border-glow" aria-hidden="true"></div>
+        </article>
 
-        function resetRegOtpState() {
-            if (!isOtpSent) return;
-            isOtpSent = false;
-        }
+        <!-- Card 4: Dragon Ball Progression (wide) -->
+        <article class="l-feat-card l-feat-card--wide l-feat-card--neon-pink" role="listitem" aria-label="Dragon Ball Progression feature" style="display:flex;gap:2rem;align-items:center;flex-wrap:wrap;">
+          <div style="flex:1;min-width:180px;">
+            <div class="l-feat-card__icon l-feat-card__icon--pink" aria-hidden="true" style="margin-bottom:1rem;">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="12" cy="12" r="10"/><path d="M12 8v4l3 3"/>
+              </svg>
+            </div>
+            <p class="l-feat-card__tag">Progression</p>
+            <h3 class="l-feat-card__title">Dragon Ball Discipline</h3>
+            <p class="l-feat-card__body">Unlock Dragon Balls and build unstoppable discipline streaks. Each one earned, never gifted — your consistency is the power source.</p>
+          </div>
+          <!-- Decorative XP Bar visualization -->
+          <div style="flex:1;min-width:200px;" aria-hidden="true">
+            <div style="background:rgba(255,255,255,0.04);border:1px solid rgba(236,72,153,0.2);border-radius:12px;padding:1rem 1.25rem;">
+              <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0.6rem;">
+                <span style="font-size:0.75rem;color:var(--text-muted);font-weight:600;letter-spacing:0.5px;text-transform:uppercase;">Dragon Ball XP</span>
+                <span style="font-size:0.75rem;color:var(--pink);font-weight:700;">7 / 7</span>
+              </div>
+              <div style="display:flex;gap:6px;margin-bottom:0.75rem;">
+                <div style="width:22px;height:22px;border-radius:50%;background:radial-gradient(circle at 35% 35%, #f97316, #dc2626);box-shadow:0 0 8px rgba(249,115,22,0.6);"></div>
+                <div style="width:22px;height:22px;border-radius:50%;background:radial-gradient(circle at 35% 35%, #f97316, #dc2626);box-shadow:0 0 8px rgba(249,115,22,0.6);"></div>
+                <div style="width:22px;height:22px;border-radius:50%;background:radial-gradient(circle at 35% 35%, #f97316, #dc2626);box-shadow:0 0 8px rgba(249,115,22,0.6);"></div>
+                <div style="width:22px;height:22px;border-radius:50%;background:radial-gradient(circle at 35% 35%, #f97316, #dc2626);box-shadow:0 0 8px rgba(249,115,22,0.6);"></div>
+                <div style="width:22px;height:22px;border-radius:50%;background:radial-gradient(circle at 35% 35%, #f97316, #dc2626);box-shadow:0 0 8px rgba(249,115,22,0.6);"></div>
+                <div style="width:22px;height:22px;border-radius:50%;background:radial-gradient(circle at 35% 35%, rgba(249,115,22,0.4), rgba(220,38,38,0.3));border:1px solid rgba(249,115,22,0.3);"></div>
+                <div style="width:22px;height:22px;border-radius:50%;background:radial-gradient(circle at 35% 35%, rgba(249,115,22,0.4), rgba(220,38,38,0.3));border:1px solid rgba(249,115,22,0.3);"></div>
+              </div>
+              <div style="background:rgba(0,0,0,0.3);border-radius:100px;height:6px;overflow:hidden;">
+                <div style="width:71%;height:100%;background:linear-gradient(90deg,var(--violet),var(--pink));border-radius:100px;box-shadow:0 0 8px var(--pink);"></div>
+              </div>
+              <div style="display:flex;justify-content:space-between;margin-top:0.5rem;">
+                <span style="font-size:0.7rem;color:var(--text-muted);">Streak: 18 days</span>
+                <span style="font-size:0.7rem;color:var(--violet-bright);">+450 XP today</span>
+              </div>
+            </div>
+          </div>
+          <div class="l-feat-card__glow" style="background:var(--pink);" aria-hidden="true"></div>
+          <div class="l-feat-card__border-glow" aria-hidden="true"></div>
+        </article>
 
-        document.getElementById('reg-name').addEventListener('input', resetRegOtpState);
-        document.getElementById('reg-email').addEventListener('input', resetRegOtpState);
-        document.getElementById('reg-pass').addEventListener('input', resetRegOtpState);
-    </script>
-    <script src="notifications.js"></script>
+        <!-- Card 5: Synergy -->
+        <article class="l-feat-card l-feat-card--neon-violet" role="listitem" aria-label="Synergy System feature">
+          <div class="l-feat-card__icon l-feat-card__icon--violet" aria-hidden="true">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <polyline points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/>
+            </svg>
+          </div>
+          <p class="l-feat-card__tag">Team Power</p>
+          <h3 class="l-feat-card__title">Synergy System</h3>
+          <p class="l-feat-card__body">Team-wide focus multipliers that reward collective grind. Your clan's energy is your edge.</p>
+          <div class="l-feat-card__glow" style="background:var(--violet);" aria-hidden="true"></div>
+          <div class="l-feat-card__border-glow" aria-hidden="true"></div>
+        </article>
+
+        <!-- Card 6: MavX Echoes -->
+        <article class="l-feat-card l-feat-card--neon-cyan" role="listitem" aria-label="MavX Echoes feature">
+          <div class="l-feat-card__icon l-feat-card__icon--cyan" aria-hidden="true">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+            </svg>
+          </div>
+          <p class="l-feat-card__tag">Social Layer</p>
+          <h3 class="l-feat-card__title">MavX Echoes</h3>
+          <p class="l-feat-card__body">Share your daily victories as shareable story cards. Let your progress speak louder than words.</p>
+          <div class="l-feat-card__glow" style="background:var(--cyan);" aria-hidden="true"></div>
+          <div class="l-feat-card__border-glow" aria-hidden="true"></div>
+        </article>
+
+      </div>
+    </div>
+  </section>
+
+  <div class="l-divider" role="separator"></div>
+
+  <!-- ════════════════════════════════════════════
+       FAQ & PHILOSOPHY
+  ════════════════════════════════════════════ -->
+  <section class="l-faq" id="faq" aria-labelledby="faq-heading" id="about">
+    <div class="l-container">
+
+      <header class="l-section-header">
+        <p class="l-section-tag" aria-hidden="true">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="12" r="10"/></svg>
+          Philosophy
+        </p>
+        <h2 class="l-section-title" id="faq-heading">
+          Questions the Weak Ask.<br>
+          <span class="l-text-grad">Answers for the Warrior.</span>
+        </h2>
+        <p class="l-section-subtitle">Everything you need to know about why MavX Mndset exists and who it's for.</p>
+      </header>
+
+      <div class="l-faq__inner">
+        <div class="l-accordion" role="list" aria-label="Frequently asked questions">
+
+          <!-- Item 1 -->
+          <div class="l-accordion__item" role="listitem" id="faq-item-1">
+            <button class="l-accordion__trigger" aria-expanded="false" aria-controls="faq-answer-1" id="faq-trigger-1">
+              <span>Who is this app for?</span>
+              <svg class="l-accordion__chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <polyline points="6 9 12 15 18 9"/>
+              </svg>
+            </button>
+            <div class="l-accordion__body" id="faq-answer-1" role="region" aria-labelledby="faq-trigger-1">
+              <p class="l-accordion__answer">Students and warriors looking to gamify their focus and master their discipline. If you've ever opened YouTube instead of your textbook — this app is your intervention. MavX Mndset is built for those who choose to fight for their potential.</p>
+            </div>
+          </div>
+
+          <!-- Item 2 -->
+          <div class="l-accordion__item" role="listitem" id="faq-item-2">
+            <button class="l-accordion__trigger" aria-expanded="false" aria-controls="faq-answer-2" id="faq-trigger-2">
+              <span>How can it transform your life?</span>
+              <svg class="l-accordion__chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <polyline points="6 9 12 15 18 9"/>
+              </svg>
+            </button>
+            <div class="l-accordion__body" id="faq-answer-2" role="region" aria-labelledby="faq-trigger-2">
+              <p class="l-accordion__answer">By turning grueling study hours into a measurable, rewarding RPG game where your effort translates directly to power. You don't just study — you level up. Every focused session earns XP, every streak builds a legend, and every Dragon Ball collected is proof of your will.</p>
+            </div>
+          </div>
+
+          <!-- Item 3 -->
+          <div class="l-accordion__item" role="listitem" id="faq-item-3">
+            <button class="l-accordion__trigger" aria-expanded="false" aria-controls="faq-answer-3" id="faq-trigger-3">
+              <span>How do you socialize your improvements?</span>
+              <svg class="l-accordion__chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <polyline points="6 9 12 15 18 9"/>
+              </svg>
+            </button>
+            <div class="l-accordion__body" id="faq-answer-3" role="region" aria-labelledby="faq-trigger-3">
+              <p class="l-accordion__answer">Through shareable streak instants and exportable, dynamically generated AI Recap Cards. Each card is a snapshot of your week — your persona, your hours logged, your rank. Post it. Share it. Let your grind be seen.</p>
+            </div>
+          </div>
+
+          <!-- Item 4 -->
+          <div class="l-accordion__item" role="listitem" id="faq-item-4">
+            <button class="l-accordion__trigger" aria-expanded="false" aria-controls="faq-answer-4" id="faq-trigger-4">
+              <span>How does the app foster a social environment?</span>
+              <svg class="l-accordion__chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <polyline points="6 9 12 15 18 9"/>
+              </svg>
+            </button>
+            <div class="l-accordion__body" id="faq-answer-4" role="region" aria-labelledby="faq-trigger-4">
+              <p class="l-accordion__answer">By introducing the Clan Arena and Synergy systems built for ultimate team accountability. Your clan rises or falls together. Synergy multipliers reward collective focus. When the whole squad is locked in, everyone wins — and your combined XP tells the story.</p>
+            </div>
+          </div>
+
+        </div>
+      </div>
+
+    </div>
+  </section>
+
+  <div class="l-divider" role="separator"></div>
+
+  <!-- ════════════════════════════════════════════
+       FINAL CTA BANNER
+  ════════════════════════════════════════════ -->
+  <section class="l-cta-banner" aria-labelledby="cta-heading">
+    <div class="l-container">
+      <div class="l-cta-banner__inner">
+        <div class="l-cta-banner__content">
+
+          <p class="l-cta-banner__eyebrow" aria-hidden="true">
+            <svg width="10" height="10" viewBox="0 0 24 24" fill="currentColor"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+            Your Destiny Awaits
+          </p>
+
+          <h2 class="l-cta-banner__title" id="cta-heading">
+            Stop Surviving.<br>
+            Start <span class="grad">Dominating.</span>
+          </h2>
+
+          <p class="l-cta-banner__sub">
+            Every warrior who ever conquered their studies started exactly where you are — unsure, distracted, and scrolling. The difference is a single decision.
+          </p>
+
+          <div class="l-cta-banner__actions">
+            <a href="login.html" class="l-btn-primary" id="footer-cta-primary" style="font-size:1.05rem;padding:1rem 2.25rem;">
+              Awaken Now
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/>
+              </svg>
+            </a>
+            <span style="font-size:0.82rem;color:var(--text-muted);">Free to start. No credit card required.</span>
+          </div>
+
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ════════════════════════════════════════════
+       FOOTER
+  ════════════════════════════════════════════ -->
+  <footer class="l-footer" aria-label="Site footer">
+    <div class="l-container">
+
+      <div class="l-footer__inner">
+
+        <!-- Col 1: Branding -->
+        <div class="l-footer__brand-col">
+          <div class="l-footer__brand">
+            <img src="assets/mavx_logo_nav.png?v=2" alt="MavX Mndset" class="l-footer__logo-img">
+            <span class="l-footer__brand-name">MavX Mndset</span>
+          </div>
+          <p class="l-footer__tagline">MavX Mndset — Where discipline becomes data, and focus becomes your superpower. Built for warriors who refuse to settle.</p>
+        </div>
+
+        <!-- Col 2: Community -->
+        <div>
+          <h3 class="l-footer__col-title">Community</h3>
+          <ul class="l-footer__links">
+            <li><a href="mailto:contact@mavxmndset.com" id="footer-contact-link">Contact Us</a></li>
+            <li><a href="#" id="footer-discord-link">Discord Community</a></li>
+            <li><a href="#" id="footer-twitter-link">Twitter / X</a></li>
+          </ul>
+        </div>
+
+        <!-- Col 3: Legal -->
+        <div>
+          <h3 class="l-footer__col-title">Legal</h3>
+          <ul class="l-footer__links">
+            <li><a href="#" id="footer-privacy-link">Privacy Policy</a></li>
+            <li><a href="#" id="footer-terms-link">Terms of Service</a></li>
+          </ul>
+        </div>
+
+      </div>
+
+      <div class="l-footer__bottom">
+        <p class="l-footer__copy">
+          &copy; 2026 <span>MavX Mndset</span>. All rights reserved. Built for the relentless.
+        </p>
+        <ul class="l-footer__bottom-links">
+          <li><a href="#" id="footer-bottom-privacy">Privacy</a></li>
+          <li><a href="#" id="footer-bottom-terms">Terms</a></li>
+          <li><a href="login.html" id="footer-bottom-login">Login</a></li>
+        </ul>
+      </div>
+
+    </div>
+  </footer>
+
+  <!-- Isolated Landing JS -->
+  <script src="landing-script.js?v=2" defer></script>
+
 </body>
 </html>

@@ -1,6 +1,7 @@
 from flask import Flask, render_template, request, jsonify, send_from_directory, send_file, g, has_app_context
 from flask_cors import CORS
 import os
+import time
 import json
 import psycopg2
 import sqlite3
@@ -227,14 +228,30 @@ def get_conn():
     if has_app_context():
         if not hasattr(g, 'db_conn'):
             if DATABASE_URL:
-                g.db_conn = psycopg2.connect(DATABASE_URL)
+                last_err = None
+                for attempt in range(3):
+                    try:
+                        g.db_conn = psycopg2.connect(DATABASE_URL)
+                        break
+                    except Exception as e:
+                        last_err = e
+                        time.sleep(1.5)
+                else:
+                    raise last_err
             else:
                 g.db_conn = sqlite3.connect('data/primeedu.db')
                 g.db_conn.execute("PRAGMA journal_mode=WAL;")
         return g.db_conn
     else:
         if DATABASE_URL:
-            return psycopg2.connect(DATABASE_URL)
+            last_err = None
+            for attempt in range(3):
+                try:
+                    return psycopg2.connect(DATABASE_URL)
+                except Exception as e:
+                    last_err = e
+                    time.sleep(1.5)
+            raise last_err
         else:
             if not os.path.exists('data'):
                 os.makedirs('data')
@@ -531,12 +548,18 @@ def check_streak_and_login(user, db=None):
             elif user['streak'] == 365: user['balls'] = user.get('balls', 0) + 1000
             user['last_login'] = get_ist_iso()
         elif days_diff > 1:
-            # Missed a day — reset streak to healed_streak instead of 1 if activity was logged
-            user['streak'] = healed_streak
+            # Missed a day — reset streak to 0 and trigger notification
+            old_streak = user.get('streak', 0)
+            if old_streak > 0:
+                user['lost_streak_value'] = old_streak
+                user['streak_broken_notif'] = True
+            user['streak'] = 0
+            user['streak_reset_date'] = now.date().isoformat()
             user['last_login'] = get_ist_iso()
         elif days_diff == 0:
-            # If days_diff == 0, streak stays unchanged, but heal it if it's lagging
-            if user.get('streak', 0) < healed_streak:
+            # If days_diff == 0, streak stays unchanged, but heal it if it's lagging and not reset today
+            reset_today = (user.get('streak_reset_date') == now.date().isoformat())
+            if not reset_today and user.get('streak', 0) < healed_streak:
                 user['streak'] = healed_streak
     else:
         user['streak'] = healed_streak
@@ -951,6 +974,18 @@ def handle_profile():
     
     save_db(db)
     return jsonify(user)
+
+@app.route('/api/user/clear_streak_notif', methods=['POST'])
+def clear_streak_notif():
+    db = load_db()
+    user, uid = get_current_user(db)
+    if not user:
+        return jsonify({"status": "error", "message": "Unauthorized"}), 401
+    user['streak_broken_notif'] = False
+    if 'lost_streak_value' in user:
+        del user['lost_streak_value']
+    save_db(db)
+    return jsonify({"status": "success"})
 
 @app.route('/api/user/destiny/cancel', methods=['POST'])
 def cancel_destiny():
