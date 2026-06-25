@@ -12,8 +12,8 @@
   <meta name="google-site-verification" content="AAiyRStkSgUU65ebYUlgqprIwU_qOJPn1YfFwUubjfo" />
 
   <!-- Favicon / Brand Icon Configuration -->
-  <link rel="icon" href="assets/mavx_logo_nav.png?v=2" type="image/png">
-  <link rel="shortcut icon" href="assets/mavx_logo_nav.png?v=2" type="image/png">
+  <link rel="icon" href="favicon.ico" type="image/x-icon">
+  <link rel="shortcut icon" href="favicon.ico" type="image/x-icon">
   <link rel="apple-touch-icon" href="assets/mavx_logo_nav.png?v=2">
 
   <!-- Google Search Structured Data (JSON-LD) for Founder and Brand Recognition -->
@@ -48,28 +48,6 @@
   <!-- Isolated Landing CSS — does NOT affect login.html or app styles -->
   <link rel="stylesheet" href="landing-style.css?v=2">
 
-  <!-- Inline Auth-Guard: If already logged in, skip landing & go to dashboard -->
-  <script>
-    (function () {
-      try {
-        var token = localStorage.getItem('primeedu_token');
-        if (token) {
-          var isLocal = window.location.hostname === 'localhost' ||
-                        window.location.hostname === '127.0.0.1' ||
-                        window.location.protocol === 'file:' ||
-                        window.location.hostname === '';
-          var apiBase = isLocal ? 'http://127.0.0.1:5000' : 'https://primeedu.onrender.com';
-          fetch(apiBase + '/api/user/profile', {
-            headers: { 'Authorization': 'Bearer ' + token }
-          }).then(function (res) {
-            if (res.ok) { window.location.replace('dashboard.html'); }
-          }).catch(function () {
-            window.location.replace('dashboard.html');
-          });
-        }
-      } catch (e) { /* Silently fail — show landing page */ }
-    })();
-  </script>
 </head>
 <body class="landing-page">
 
