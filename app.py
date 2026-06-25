@@ -115,6 +115,16 @@ def sanitize_timestamps(db):
 
 DATABASE_URL = os.environ.get('DATABASE_URL')
 
+# Initialize ThreadedConnectionPool for PostgreSQL if database URL is configured
+db_pool = None
+if DATABASE_URL:
+    try:
+        from psycopg2.pool import ThreadedConnectionPool
+        db_pool = ThreadedConnectionPool(minconn=1, maxconn=20, dsn=DATABASE_URL)
+        print("[DATABASE] ThreadedConnectionPool initialized successfully.")
+    except Exception as pool_err:
+        print(f"[DATABASE ERROR] Failed to initialize ThreadedConnectionPool: {pool_err}")
+
 TABLES_SCHEMA = {
     "user_profiles": "email",
     "sessions": "id",
@@ -239,30 +249,36 @@ def get_conn():
     if has_app_context():
         if not hasattr(g, 'db_conn'):
             if DATABASE_URL:
-                last_err = None
-                for attempt in range(3):
-                    try:
-                        g.db_conn = psycopg2.connect(DATABASE_URL)
-                        break
-                    except Exception as e:
-                        last_err = e
-                        time.sleep(1.5)
+                if db_pool:
+                    g.db_conn = db_pool.getconn()
                 else:
-                    raise last_err
+                    last_err = None
+                    for attempt in range(3):
+                        try:
+                            g.db_conn = psycopg2.connect(DATABASE_URL)
+                            break
+                        except Exception as e:
+                            last_err = e
+                            time.sleep(1.5)
+                    else:
+                        raise last_err
             else:
                 g.db_conn = sqlite3.connect('data/primeedu.db')
                 g.db_conn.execute("PRAGMA journal_mode=WAL;")
         return g.db_conn
     else:
         if DATABASE_URL:
-            last_err = None
-            for attempt in range(3):
-                try:
-                    return psycopg2.connect(DATABASE_URL)
-                except Exception as e:
-                    last_err = e
-                    time.sleep(1.5)
-            raise last_err
+            if db_pool:
+                return db_pool.getconn()
+            else:
+                last_err = None
+                for attempt in range(3):
+                    try:
+                        return psycopg2.connect(DATABASE_URL)
+                    except Exception as e:
+                        last_err = e
+                        time.sleep(1.5)
+                raise last_err
         else:
             if not os.path.exists('data'):
                 os.makedirs('data')
@@ -270,14 +286,24 @@ def get_conn():
             conn.execute("PRAGMA journal_mode=WAL;")
             return conn
 
+def close_connection(conn):
+    if conn is not None:
+        if DATABASE_URL and db_pool:
+            try:
+                db_pool.putconn(conn)
+            except Exception as e:
+                print(f"[DATABASE ERROR] Failed to return connection to pool: {e}")
+        else:
+            try:
+                conn.close()
+            except Exception:
+                pass
+
 @app.teardown_appcontext
 def close_db_connection(exception):
     conn = getattr(g, 'db_conn', None)
     if conn is not None:
-        try:
-            conn.close()
-        except Exception:
-            pass
+        close_connection(conn)
 
 def load_db_normalized(conn):
     db_dict = {
@@ -407,7 +433,7 @@ def load_db():
             return _DB_CACHE
         finally:
             if not has_app_context():
-                conn.close()
+                close_connection(conn)
 
 def save_db(data):
     global _DB_CACHE, _DB_LAST_LOADED_TIME
@@ -435,7 +461,7 @@ def save_db(data):
             print(f"[ERROR] Failed to save database: {e}")
         finally:
             if not has_app_context():
-                conn.close()
+                close_connection(conn)
 
 # Initialize tables and migrate legacy data on startup
 with app.app_context():
@@ -446,7 +472,7 @@ with app.app_context():
     except Exception as startup_err:
         print(f"[ERROR] Startup DB init/migration failed: {startup_err}")
     finally:
-        startup_conn.close()
+        close_connection(startup_conn)
 
 def _backfill_profile(profile):
     """Ensure all expected profile fields exist (backfill defaults)."""
