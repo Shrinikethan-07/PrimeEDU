@@ -374,7 +374,55 @@
                         </button>
                         <span class="journal-word-count" id="word-count">0 words</span>
                     </div>
-                    <div class="ai-recap-panel" id="recap-area">
+                    <!-- AI Recap: 7-day gate banner -->
+                    <div id="recap-gate-banner" style="display:none; margin-top:1.25rem; padding:1rem 1.25rem; background:rgba(157,0,255,0.08); border:1px solid rgba(157,0,255,0.3); border-radius:14px;">
+                        <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:0.75rem;">
+                            <span style="font-size:0.8rem; color:var(--neon-purple); font-family:var(--font-heading); letter-spacing:1px;">AI RECAP PROGRESS</span>
+                            <span id="recap-days-label" style="font-size:0.85rem; color:white; font-weight:600;">0 / 7 days</span>
+                        </div>
+                        <div style="height:6px; background:rgba(255,255,255,0.08); border-radius:4px; overflow:hidden;">
+                            <div id="recap-gate-fill" style="height:100%; border-radius:4px; background:linear-gradient(90deg,var(--neon-purple),var(--neon-cyan)); transition:width 0.6s ease; width:0%;"></div>
+                        </div>
+                        <p id="recap-gate-msg" style="margin-top:0.6rem; font-size:0.78rem; color:rgba(255,255,255,0.5);"></p>
+                    </div>
+
+                    <!-- AI Recap: synthesis progress bar (shown during generation) -->
+                    <div id="recap-progress-container" style="display:none; margin-top:1.25rem; padding:1.25rem; background:rgba(0,0,0,0.4); border:1px solid rgba(0,243,255,0.2); border-radius:14px;">
+                        <div style="display:flex; align-items:center; gap:0.75rem; margin-bottom:0.85rem;">
+                            <i class="fas fa-brain" style="color:var(--neon-cyan); font-size:1.1rem; animation:pulse 1.5s ease-in-out infinite;"></i>
+                            <span id="recap-progress-label" style="font-size:0.85rem; color:var(--neon-cyan); font-weight:600;">Initializing AI synthesis...</span>
+                        </div>
+                        <div style="height:8px; background:rgba(255,255,255,0.06); border-radius:6px; overflow:hidden;">
+                            <div id="recap-progress-fill" style="height:100%; border-radius:6px; background:linear-gradient(90deg,var(--neon-purple),var(--neon-cyan)); transition:width 0.8s ease; width:0%;"></div>
+                        </div>
+                        <div style="display:flex; justify-content:space-between; margin-top:0.4rem;">
+                            <span style="font-size:0.7rem; color:rgba(255,255,255,0.3);">Scanning 7 days of entries</span>
+                            <span id="recap-progress-pct" style="font-size:0.7rem; color:var(--neon-cyan);">0%</span>
+                        </div>
+                    </div>
+
+                    <!-- AI Recap: highlight slideshow (shown after generation) -->
+                    <div id="recap-slideshow" style="display:none; margin-top:1.25rem; padding:1.5rem; background:linear-gradient(135deg,rgba(157,0,255,0.12),rgba(0,243,255,0.06)); border:1px solid rgba(0,243,255,0.25); border-radius:16px;">
+                        <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:1rem;">
+                            <div style="display:flex;align-items:center;gap:0.5rem;">
+                                <i class="fas fa-wand-magic-sparkles" style="color:var(--neon-cyan);"></i>
+                                <span style="font-family:var(--font-heading);font-size:0.75rem;letter-spacing:2px;color:var(--neon-cyan);">7-DAY WARRIOR RECAP</span>
+                            </div>
+                            <span id="recap-slide-counter" style="font-size:0.75rem;color:rgba(255,255,255,0.4);">1 / 1</span>
+                        </div>
+                        <p id="recap-slide-text" style="font-size:1rem; line-height:1.75; color:white; font-style:italic; min-height:60px; transition:opacity 0.25s ease;">...</p>
+                        <div style="display:flex; gap:0.75rem; margin-top:1.25rem; justify-content:center;">
+                            <button id="recap-prev-btn" onclick="prevRecapSlide()" class="neon-btn" style="padding:0.4rem 1rem; font-size:0.75rem; border-color:rgba(255,255,255,0.2); color:rgba(255,255,255,0.5);">
+                                <i class="fas fa-arrow-left"></i> Prev
+                            </button>
+                            <button id="recap-next-btn" onclick="nextRecapSlide()" class="neon-btn" style="padding:0.4rem 1rem; font-size:0.75rem; border-color:var(--neon-cyan); color:var(--neon-cyan);">
+                                Next <i class="fas fa-arrow-right"></i>
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Legacy single-entry recap panel (kept for existing /api/journal flow) -->
+                    <div class="ai-recap-panel" id="recap-area" style="display:none;">
                         <div class="ai-badge">AI INSIGHT</div>
                         <h3 style="color:var(--neon-cyan);margin-bottom:0.75rem;">Resonant Recap</h3>
                         <p id="ai-content" style="font-size:0.95rem;line-height:1.8;font-style:italic;color:white;">...</p>
@@ -609,34 +657,135 @@
             }
         });
 
-        // ═══ AI RECAP ═══
-        document.getElementById('save-journal').addEventListener('click', async function () {
-            const content = document.getElementById('journal-editor').value;
-            const title = document.getElementById('journal-title').value || 'Untitled';
-            if (content.length < 10) { showToast('Write more for a recap.', 'var(--neon-pink)'); return; }
+        // ═══ AI RECAP — NEW 7-DAY GATE + PROGRESS BAR + SLIDESHOW ═══
+        let recapSlides = [];
+        let recapSlideIdx = 0;
 
-            this.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Analyzing...';
-            this.disabled = true;
+        function updateProgressBar(pct, label) {
+            const fill = document.getElementById('recap-progress-fill');
+            const pctEl = document.getElementById('recap-progress-pct');
+            const labelEl = document.getElementById('recap-progress-label');
+            if (fill) fill.style.width = pct + '%';
+            if (pctEl) pctEl.textContent = pct + '%';
+            if (labelEl) labelEl.textContent = label;
+        }
+
+        function showRecapProgressUI() {
+            document.getElementById('recap-progress-container').style.display = 'block';
+            document.getElementById('recap-slideshow').style.display = 'none';
+            document.getElementById('recap-area').style.display = 'none';
+            updateProgressBar(0, 'Initializing AI synthesis...');
+        }
+
+        function hideRecapProgressUI() {
+            document.getElementById('recap-progress-container').style.display = 'none';
+        }
+
+        function showLockedState(data) {
+            hideRecapProgressUI();
+            const banner = document.getElementById('recap-gate-banner');
+            const daysLabel = document.getElementById('recap-days-label');
+            const fill = document.getElementById('recap-gate-fill');
+            const msg = document.getElementById('recap-gate-msg');
+            if (!banner) return;
+            banner.style.display = 'block';
+            const written = data.days_written || 0;
+            const needed = data.days_needed || 7;
+            if (daysLabel) daysLabel.textContent = `${written} / ${needed} days`;
+            if (fill) fill.style.width = `${(written / needed) * 100}%`;
+            if (msg) msg.textContent = data.message || `Write for ${needed - written} more days to unlock AI Recap`;
+        }
+
+        function renderRecapSlide(idx) {
+            const textEl = document.getElementById('recap-slide-text');
+            const counterEl = document.getElementById('recap-slide-counter');
+            const prevBtn = document.getElementById('recap-prev-btn');
+            const nextBtn = document.getElementById('recap-next-btn');
+            if (!textEl) return;
+            textEl.style.opacity = '0';
+            setTimeout(() => {
+                textEl.textContent = recapSlides[idx] || '...';
+                textEl.style.opacity = '1';
+            }, 150);
+            if (counterEl) counterEl.textContent = `${idx + 1} / ${recapSlides.length}`;
+            if (prevBtn) prevBtn.disabled = idx === 0;
+            if (nextBtn) nextBtn.disabled = idx === recapSlides.length - 1;
+        }
+
+        window.nextRecapSlide = function() {
+            if (recapSlideIdx < recapSlides.length - 1) renderRecapSlide(++recapSlideIdx);
+        };
+        window.prevRecapSlide = function() {
+            if (recapSlideIdx > 0) renderRecapSlide(--recapSlideIdx);
+        };
+
+        function showRecapSlideshow(slides) {
+            recapSlides = slides;
+            recapSlideIdx = 0;
+            hideRecapProgressUI();
+            renderRecapSlide(0);
+            document.getElementById('recap-slideshow').style.display = 'block';
+        }
+
+        async function checkRecapEligibility() {
             try {
-                const res = await fetch(window.API_BASE_URL + '/api/journal', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ content, title })
-                });
+                const res = await fetch(window.API_BASE_URL + '/api/journal/ai-recap', { method: 'POST' });
+                if (!res.ok) return;
                 const data = await res.json();
-                if (data.status === 'success') {
-                    document.getElementById('ai-content').innerText = data.recap.content;
-                    document.getElementById('recap-area').style.display = 'block';
-                    this.innerHTML = '<i class="fas fa-check"></i> Done';
-                } else { throw new Error('err'); }
-            } catch (e) {
-                showToast('AI offline. Entry saved locally.', 'var(--neon-purple)');
-                this.innerHTML = '<i class="fas fa-wand-magic-sparkles"></i> AI Recap';
-                this.disabled = false;
+                if (data.status === 'locked') {
+                    showLockedState(data);
+                }
+            } catch(e) { /* silent — backend may be cold */ }
+        }
+
+        async function generateAIRecap() {
+            showRecapProgressUI();
+
+            // Stepped progress simulation matching expected AI processing time
+            const steps = [
+                { pct: 12, label: 'Reading your 7-day journey...' },
+                { pct: 28, label: 'Identifying key moments...' },
+                { pct: 50, label: 'Extracting peak wins...' },
+                { pct: 72, label: 'Formatting highlights...' },
+                { pct: 88, label: 'Polishing your recap...' },
+            ];
+            let stepIdx = 0;
+            const progressInterval = setInterval(() => {
+                if (stepIdx < steps.length) {
+                    updateProgressBar(steps[stepIdx].pct, steps[stepIdx].label);
+                    stepIdx++;
+                }
+            }, 1100);
+
+            try {
+                const res = await fetch(window.API_BASE_URL + '/api/journal/ai-recap', { method: 'POST' });
+                clearInterval(progressInterval);
+                const data = await res.json();
+
+                if (data.status === 'locked') {
+                    showLockedState(data);
+                    return;
+                }
+
+                if (data.status === 'success' && data.slides && data.slides.length > 0) {
+                    updateProgressBar(100, 'Recap complete! ⚡');
+                    setTimeout(() => showRecapSlideshow(data.slides), 600);
+                } else {
+                    throw new Error('No slides returned');
+                }
+            } catch(e) {
+                clearInterval(progressInterval);
+                hideRecapProgressUI();
+                showToast('AI offline. Try again later.', 'var(--neon-pink)');
             }
+        }
+
+        document.getElementById('save-journal').addEventListener('click', function () {
+            generateAIRecap();
         });
 
         renderPastEntries();
+        checkRecapEligibility(); // Show 7-day progress banner if not yet eligible
 
         // ═══ INTRO ANIMATION CLEANUP ═══
         setTimeout(() => {

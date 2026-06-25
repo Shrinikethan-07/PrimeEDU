@@ -617,9 +617,10 @@
         </button>
       </div>
 
-      <!-- Navigation tap areas (no arrows, invisible but responsive) -->
-      <div class="story-nav-tap-left" style="position: absolute; top: 0; bottom: 0; left: 0; width: 40%; z-index: 80; cursor: w-resize;" onclick="navigateStory(-1); event.stopPropagation();"></div>
-      <div class="story-nav-tap-right" style="position: absolute; top: 0; bottom: 0; right: 0; width: 60%; z-index: 80; cursor: e-resize;" onclick="navigateStory(1); event.stopPropagation();"></div>
+      <!-- Navigation: invisible 50/50 overlay divs — left = prev, right = next -->
+      <!-- Click handler attached in JS via clientX for precise 50% split -->
+      <div id="storyNavLeft"  style="position: absolute; top: 0; bottom: 0; left: 0; width: 50%; z-index: 80; cursor: w-resize;"></div>
+      <div id="storyNavRight" style="position: absolute; top: 0; bottom: 0; right: 0; width: 50%; z-index: 80; cursor: e-resize;"></div>
 
       <!-- The Echo Card Image -->
       <img class="story-card-image" id="storyCardImage" src="" style="width: 100%; height: 100%; object-fit: cover; pointer-events: none;">
@@ -659,6 +660,9 @@
   <div class="toast" id="toast"></div>
 
   <script>
+    // ── Session guard: prevents premature 401 redirects during Render cold-start
+    let sessionInitialized = false;
+
     const _origFetch = window.fetch;
     window.fetch = async (...args) => {
       let [resource, config] = args;
@@ -675,7 +679,7 @@
       if (isApiCall && isGet) {
         let lastError = null;
         let delay = 1000;
-        const maxRetries = 10;
+        const maxRetries = 3; // Reduced from 10 — prevents 45s freeze on cold start
         for (let attempt = 0; attempt < maxRetries; attempt++) {
           try {
             response = await _origFetch(resource, config);
@@ -695,7 +699,9 @@
         response = await _origFetch(resource, config);
       }
       
+      // Only redirect on 401 after session is initialized — prevents blank page on cold start
       if (response && response.status === 401
+          && sessionInitialized
           && !window.location.pathname.endsWith('login.html')
           && !window.location.pathname.endsWith('index.html')) {
         window.location.href = 'index.html';
@@ -745,6 +751,8 @@
         av.src = getAvatarSrc(storedChar);
         av.onerror = () => { av.src = getAvatarFallback(storedChar); };
       }
+      // Pre-populate email from cache so delete button works even if backend is slow
+      currentUserEmail = localStorage.getItem('primeedu_email') || '';
       try {
         const res = await fetch(`${window.API_BASE_URL}/api/user/profile`);
         if (!res.ok) return;
@@ -754,19 +762,28 @@
           av.src = getAvatarSrc(p.avatar);
           av.onerror = () => { av.src = getAvatarFallback(p.avatar); };
         }
-        currentUserEmail = p.email || '';
-        currentUserEmail = p.email || '';
-        const userEmail = currentUserEmail.trim().toLowerCase() || (localStorage.getItem('primeedu_email') || '').trim().toLowerCase();
+        currentUserEmail = p.email || localStorage.getItem('primeedu_email') || '';
+        // Cache email for next session so delete button always works
+        if (currentUserEmail) localStorage.setItem('primeedu_email', currentUserEmail);
+        const userEmail = currentUserEmail.trim().toLowerCase();
         if (userEmail === 'buvanavel.m01@gmail.com') {
           document.querySelectorAll('.admin-only-link').forEach(el => el.style.display = 'block');
         }
-      } catch(e) { console.warn('Profile load failed:', e); }
+      } catch(e) {
+        // Use cached email so isOwner check still works offline/on cold start
+        currentUserEmail = localStorage.getItem('primeedu_email') || '';
+        console.warn('Profile load failed, using cached email:', currentUserEmail);
+      }
     }
 
+    let tabDebounceTimer = null;
     function switchTab(tab) {
-      currentTab = tab;
-      document.querySelectorAll('.echo-tab-btn').forEach(b => b.classList.toggle('active', b.dataset.tab === tab));
-      loadEchoes(tab);
+      clearTimeout(tabDebounceTimer);
+      tabDebounceTimer = setTimeout(() => {
+        currentTab = tab;
+        document.querySelectorAll('.echo-tab-btn').forEach(b => b.classList.toggle('active', b.dataset.tab === tab));
+        loadEchoes(tab);
+      }, 200);
     }
 
     function showSkeletons(n=4) {
@@ -874,13 +891,24 @@
       return row;
     }
 
+    // ── Client-side 12-hour TTL filter — echoes expire same as backend TTL
+    const ECHO_TTL_MS = 12 * 60 * 60 * 1000;
+    function filterExpiredEchoes(echoes) {
+      const now = Date.now();
+      return echoes.filter(e => {
+        if (!e.created_at) return true;
+        return (now - new Date(e.created_at).getTime()) < ECHO_TTL_MS;
+      });
+    }
+
     async function loadEchoes(tab='all') {
       showSkeletons(4);
       try {
         const res = await fetch(`${window.API_BASE_URL}/api/echoes?tab=${tab}`);
         if (!res.ok) throw new Error('fetch failed');
         const data = await res.json();
-        renderEchoes(Array.isArray(data) ? data : (data.echoes || []));
+        const raw = Array.isArray(data) ? data : (data.echoes || []);
+        renderEchoes(filterExpiredEchoes(raw));
       } catch(e) { 
         console.error(e); 
         renderEmpty(); 
@@ -945,7 +973,7 @@
       card.onclick = () => startStoryPlayer(echo.user_id, echo.id);
 
       card.innerHTML = `
-        <img class="echo-card-bg" src="${imgUrl}" alt="Echo"
+        <img class="echo-card-bg" src="${imgUrl}" alt="Echo" loading="lazy"
           onerror="this.style.display='none';this.nextElementSibling.style.display='block';" />
         <div class="echo-card-bg-fallback ${tplCls}" style="display:none;"></div>
         <div class="echo-card-overlay"></div>
@@ -1037,35 +1065,18 @@
       
       const progressContainer = document.getElementById('storyProgressContainer');
       progressContainer.innerHTML = '';
+      // ── Instagram-style: progress fills instantly (no timed animation)
+      // Segments: past = 100% filled, current = 100% filled immediately, future = 0%
       for (let i = 0; i < echoes.length; i++) {
         const seg = document.createElement('div');
         seg.className = 'story-progress-segment';
-        
         const fill = document.createElement('div');
         fill.className = 'story-progress-fill';
-        if (i < activeStoryIndex) {
-          fill.style.width = '100%';
-        } else if (i === activeStoryIndex) {
-          fill.id = 'active-progress-fill';
-        }
-        
+        fill.style.width = i <= activeStoryIndex ? '100%' : '0%';
         seg.appendChild(fill);
         progressContainer.appendChild(seg);
       }
-      
-      storyStartTime = Date.now();
-      storyProgressInterval = setInterval(() => {
-        const elapsed = Date.now() - storyStartTime;
-        const pct = Math.min(100, (elapsed / STORY_DURATION) * 100);
-        const activeFill = document.getElementById('active-progress-fill');
-        if (activeFill) {
-          activeFill.style.width = `${pct}%`;
-        }
-      }, 50);
-      
-      storyAutoAdvanceTimer = setTimeout(() => {
-        navigateStory(1);
-      }, STORY_DURATION);
+      // No auto-advance timer, no progress interval — navigation is manual only
     }
     
     function navigateStory(direction) {
@@ -1090,8 +1101,6 @@
     }
     
     function closeStoryViewer() {
-      clearTimeout(storyAutoAdvanceTimer);
-      clearInterval(storyProgressInterval);
       document.getElementById('storyViewerOverlay').style.display = 'none';
       document.body.style.overflow = '';
     }
@@ -1315,7 +1324,36 @@
     }
 
     document.getElementById('shareModalOverlay').addEventListener('click', function(e){ if(e.target===this) closeShareModal(); });
-    document.addEventListener('keydown', e => { if(e.key==='Escape') closeShareModal(); });
+    document.addEventListener('keydown', e => {
+      if (e.key === 'Escape') {
+        closeShareModal();
+        closeStoryViewer();
+      }
+    });
+
+    // ── Instagram-style 50/50 navigation: clientX determines left (prev) or right (next)
+    const storyCardWrapper = document.getElementById('storyCardWrapper');
+    if (storyCardWrapper) {
+      storyCardWrapper.addEventListener('click', function(e) {
+        // Ignore clicks on interactive elements (buttons, links)
+        if (e.target.closest('button') || e.target.closest('a')) return;
+        const rect = this.getBoundingClientRect();
+        const relX = e.clientX - rect.left;
+        if (relX < rect.width / 2) {
+          navigateStory(-1); // Left 50% → previous card
+        } else {
+          navigateStory(1);  // Right 50% → next card
+        }
+      });
+    }
+
+    // Keyboard arrow key navigation for story viewer
+    document.addEventListener('keydown', e => {
+      const overlay = document.getElementById('storyViewerOverlay');
+      if (!overlay || overlay.style.display === 'none') return;
+      if (e.key === 'ArrowLeft')  navigateStory(-1);
+      if (e.key === 'ArrowRight') navigateStory(1);
+    });
 
     (async function init(){
       const loadingText = document.getElementById('loading-text');
@@ -1359,6 +1397,7 @@
       }
 
       await loadProfile();
+      sessionInitialized = true; // Allow 401 redirects now that session is established
       loadEchoes('all');
 
       clearTimeout(loadTimer);

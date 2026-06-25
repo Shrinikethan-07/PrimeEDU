@@ -32,6 +32,10 @@ _DB_CACHE = None
 _DB_LAST_LOADED_TIME = 0.0
 db_lock = threading.RLock()
 
+# O(1) token → uid reverse index (eliminates O(n) user scan per request)
+_TOKEN_INDEX = {}  # token_str: uid
+_TOKEN_INDEX_lock = threading.Lock()
+
 def get_ist_now():
     return datetime.now(timezone(timedelta(hours=5, minutes=30)))
 
@@ -444,6 +448,17 @@ with app.app_context():
     finally:
         startup_conn.close()
 
+def _backfill_profile(profile):
+    """Ensure all expected profile fields exist (backfill defaults)."""
+    if 'clan_id' not in profile: profile['clan_id'] = None
+    if 'is_clan_leader' not in profile: profile['is_clan_leader'] = False
+    if 'banned_clans' not in profile: profile['banned_clans'] = []
+    if 'balls' not in profile: profile['balls'] = 0
+    if 'streak' not in profile: profile['streak'] = 0
+    if 'partner_id' not in profile: profile['partner_id'] = None
+    if 'aura_balance' not in profile: profile['aura_balance'] = 0
+    if 'synergy_symbol' not in profile: profile['synergy_symbol'] = None
+
 def get_current_user(db):
     auth_header = request.headers.get('Authorization')
     token = None
@@ -451,20 +466,29 @@ def get_current_user(db):
         token = auth_header.split(' ')[1]
     else:
         token = request.args.get('token')
-        
+
     if not token:
         return None, None
-    
+
+    # O(1) fast path via reverse-index
+    with _TOKEN_INDEX_lock:
+        cached_uid = _TOKEN_INDEX.get(token)
+    if cached_uid:
+        profile = db.get('user_profiles', {}).get(cached_uid)
+        if profile and token in profile.get('active_tokens', []):
+            _backfill_profile(profile)
+            return profile, cached_uid
+        else:
+            # Token was revoked — evict from index
+            with _TOKEN_INDEX_lock:
+                _TOKEN_INDEX.pop(token, None)
+
+    # O(n) fallback scan (first hit after server restart or cache miss)
     for uid, profile in db.get('user_profiles', {}).items():
         if token in profile.get('active_tokens', []):
-            if 'clan_id' not in profile: profile['clan_id'] = None
-            if 'is_clan_leader' not in profile: profile['is_clan_leader'] = False
-            if 'banned_clans' not in profile: profile['banned_clans'] = []
-            if 'balls' not in profile: profile['balls'] = 0
-            if 'streak' not in profile: profile['streak'] = 0
-            if 'partner_id' not in profile: profile['partner_id'] = None
-            if 'aura_balance' not in profile: profile['aura_balance'] = 0
-            if 'synergy_symbol' not in profile: profile['synergy_symbol'] = None
+            _backfill_profile(profile)
+            with _TOKEN_INDEX_lock:
+                _TOKEN_INDEX[token] = uid
             return profile, uid
     return None, None
 
@@ -1139,6 +1163,116 @@ def submit_journal():
     recap = asyncio.run(journal_agent.generate_recap_card([entry_obj], period="Daily"))
     
     return jsonify({"status": "success", "recap": {"title": recap.title, "content": recap.content, "sentiment": recap.sentiment}})
+
+
+# ─── AI Recap helper functions ────────────────────────────────────────────────
+
+def parse_highlights_into_slides(content: str) -> list:
+    """Split AI recap content into individual highlight slides."""
+    lines = [l.strip() for l in content.split('\n') if l.strip()]
+    slides = []
+    for line in lines:
+        if line.startswith(('•', '-', '*', '✓', '⚡', '🔥', '💎', '👑', '🎯', '📜')):
+            cleaned = line.lstrip('•-*✓⚡🔥💎👑🎯📜 ')
+            if len(cleaned) > 10:
+                slides.append(cleaned)
+        elif len(line) > 20 and not line.endswith(':'):
+            slides.append(line)
+    return slides[:8] if slides else [content[:300]]
+
+
+def extract_highlights_rule_based(journal_entries: list) -> list:
+    """Rule-based fallback: extract the strongest sentence from each day's entry."""
+    highlights = []
+    for j in reversed(journal_entries):  # chronological order (oldest → newest)
+        content = j.get('content', '').strip()
+        title = j.get('title', '')
+        date_str = j.get('timestamp', '')[:10]  # YYYY-MM-DD
+        # Split on sentence boundaries
+        sentences = [
+            s.strip() for s in content.replace('\n', '. ').split('.')
+            if len(s.strip()) > 20
+        ]
+        if sentences:
+            # Pick longest sentence as the "most significant" highlight
+            best = max(sentences, key=len)
+            highlights.append(f"[{date_str}] {best}")
+        elif title and title != 'Untitled Entry':
+            highlights.append(f"[{date_str}] {title}")
+    return highlights[:8]
+
+
+@app.route('/api/journal/ai-recap', methods=['POST'])
+def journal_ai_recap():
+    """
+    7-day AI Recap endpoint.
+    - Returns 'locked' status with progress if user has < 7 unique writing days.
+    - Returns structured highlight slides from the last 7 entries if eligible.
+    - Falls back to rule-based extraction if AI agent fails.
+    """
+    db = load_db()
+    user, uid = get_current_user(db)
+    if not user:
+        return jsonify({'status': 'error', 'message': 'Unauthorized'}), 401
+
+    user_journals = [j for j in db.get('journal', []) if j.get('user_id') == uid]
+
+    # Count unique calendar days with at least one entry
+    unique_days = set()
+    for j in user_journals:
+        t = parse_ist_datetime(j.get('timestamp'))
+        if t:
+            unique_days.add(t.date())
+
+    days_written = len(unique_days)
+
+    # 7-day gate
+    if days_written < 7:
+        return jsonify({
+            'status': 'locked',
+            'days_written': days_written,
+            'days_needed': 7,
+            'days_remaining': 7 - days_written,
+            'message': f'Write for {7 - days_written} more day{"s" if 7 - days_written != 1 else ""} to unlock AI Recap'
+        }), 200
+
+    # Eligible — get last 7 entries (newest first)
+    user_journals.sort(key=lambda j: j.get('timestamp', ''), reverse=True)
+    last_7 = user_journals[:7]
+
+    # Try AI agent first, fall back to rule-based extractor
+    slides = []
+    try:
+        entry_objs = [
+            JournalEntry(
+                user_id=uid,
+                content=j.get('content', ''),
+                timestamp=parse_ist_datetime(j.get('timestamp')) or get_ist_now(),
+                mood_score=7
+            )
+            for j in last_7
+        ]
+        highlights = asyncio.run(
+            journal_agent.generate_recap_card(entry_objs, period="Weekly")
+        )
+        if highlights and highlights.content:
+            slides = parse_highlights_into_slides(highlights.content)
+    except Exception as ai_err:
+        print(f"[AI Recap] Agent failed, using rule-based fallback: {ai_err}")
+
+    if not slides:
+        slides = extract_highlights_rule_based(last_7)
+
+    # Final safety fallback
+    if not slides:
+        slides = ["You've journaled for 7 days — that alone is a warrior's achievement. Keep going!"]
+
+    return jsonify({
+        'status': 'success',
+        'days_written': days_written,
+        'slides': slides
+    })
+
 
 @app.route('/api/tasks', methods=['GET', 'POST'])
 def handle_tasks():
@@ -2983,9 +3117,9 @@ def cleanup_old_echoes(db):
         if created_str:
             created_t = parse_ist_datetime(created_str)
             if created_t:
-                # 24 hours = 86400 seconds
+                # 12 hours = 43200 seconds (Echo Card TTL)
                 age_seconds = (now - created_t).total_seconds()
-                if age_seconds > 86400:
+                if age_seconds > 43200:
                     to_delete.append(eid)
                     card_path = echo.get('card_path')
                     if card_path and os.path.exists(card_path):
@@ -3009,7 +3143,7 @@ def cleanup_old_echoes(db):
 @app.route('/api/echoes', methods=['GET'])
 def get_echoes():
     db = load_db()
-    cleanup_old_echoes(db)
+    # cleanup_old_echoes runs in the nightly cron — not per-request (performance fix)
     user, uid = get_current_user(db)
     if not user:
         return jsonify({'status': 'error', 'message': 'Unauthorized'}), 401
@@ -3044,7 +3178,7 @@ def get_echoes():
 @app.route('/api/echoes/eligible', methods=['GET'])
 def get_eligible_echoes():
     db = load_db()
-    cleanup_old_echoes(db)
+    # cleanup runs nightly in cron, not per-request
     user, uid = get_current_user(db)
     if not user:
         return jsonify({'status': 'error', 'message': 'Unauthorized'}), 401
@@ -3067,7 +3201,7 @@ def get_eligible_echoes():
 @app.route('/api/echoes/share', methods=['POST'])
 def share_echo():
     db = load_db()
-    cleanup_old_echoes(db)
+    # cleanup runs nightly in cron, not per-request
     user, uid = get_current_user(db)
     if not user:
         return jsonify({'status': 'error', 'message': 'Unauthorized'}), 401
@@ -3135,7 +3269,7 @@ def share_echo():
 @app.route('/api/echoes/<echo_id>/like', methods=['POST'])
 def like_echo(echo_id):
     db = load_db()
-    cleanup_old_echoes(db)
+    # cleanup runs nightly in cron, not per-request
     user, uid = get_current_user(db)
     if not user:
         return jsonify({'status': 'error', 'message': 'Unauthorized'}), 401
@@ -3193,7 +3327,11 @@ def serve_echo_card(echo_id):
     card_path = echo.get('card_path', '')
     if not card_path or not os.path.exists(card_path):
         return jsonify({'status': 'error', 'message': 'Card image not found'}), 404
-    return send_file(card_path, mimetype='image/png')
+    response = send_file(card_path, mimetype='image/png')
+    # Allow browser to cache echo card images for 12h (matches TTL)
+    response.headers['Cache-Control'] = 'public, max-age=43200'
+    response.headers['ETag'] = echo_id
+    return response
 
 
 # ═══════════════════════════════════════════════════════════

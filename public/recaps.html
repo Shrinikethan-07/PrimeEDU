@@ -871,10 +871,15 @@
                 applyLockOverlay('weekly-grid', 0, 'Weekly Insights', dynamicData.weekly_lock_reason);
             } else {
                 document.getElementById('weekly-period-select').style.display = 'block';
+                const hasWeeklyWork = dynamicData.weekly && dynamicData.weekly.total_focus_minutes > 0;
+                const weeklyGritContent = hasWeeklyWork 
+                    ? `You logged ${dynamicData.weekly.total_focus_minutes} minutes of deep focus. Keep training your mind!`
+                    : "A warrior's journey begins with a single step. Start your focus timer today to break this empty chart!";
+                
                 const weeklyData = [
                     { 
                         title: "Weekly Grit", 
-                        content: dynamicData.weekly?.reason || 'You stayed disciplined and forged your mind daily.', 
+                        content: weeklyGritContent, 
                         type: 'chart', 
                         image: `${window.API_BASE_URL}/api/recap/graph/weekly_grit?token=${token}&offset=${currentWeeklyOffset}`,
                         roleImage: dynamicData.weekly?.role_image,
@@ -912,6 +917,14 @@
                 const mRoleImage = dynamicData.monthly?.role_image || 'assets/recap_chilling.jpg';
                 const mRoleDesc = dynamicData.monthly?.role_desc || 'Forge your discipline.';
                 
+                const hasMonthlyWork = dynamicData.monthly && dynamicData.monthly.total_focus_minutes > 0;
+                const monthlyConsistencyContent = hasMonthlyWork
+                    ? "Your consistency graph shows your path of discipline. Keep forging your legendary mindset!"
+                    : "No focus sessions logged this month. Do not let laziness conquer your potential—awaken your inner beast!";
+                const monthlyKnowledgeContent = hasMonthlyWork
+                    ? "Your subject distribution highlights where you are gaining expertise. True mastery in the making!"
+                    : "This knowledge chart is empty. Feed your curiosity and log focus sessions on your chosen domains!";
+
                 const monthlyData = [
                     { 
                         title: "Identity", 
@@ -941,7 +954,7 @@
                     },
                     { 
                         title: "Consistency", 
-                        content: "Unstoppable study grit.", 
+                        content: monthlyConsistencyContent, 
                         type: 'chart', 
                         image: `${window.API_BASE_URL}/api/recap/graph/consistency_monthly?token=${token}&offset=${currentMonthlyOffset}`,
                         roleImage: mRoleImage,
@@ -949,7 +962,7 @@
                     },
                     { 
                         title: "Knowledge", 
-                        content: "Focus hours distributed by subject.", 
+                        content: monthlyKnowledgeContent, 
                         type: 'chart', 
                         image: `${window.API_BASE_URL}/api/recap/graph/knowledge_monthly?token=${token}&offset=${currentMonthlyOffset}`,
                         roleImage: mRoleImage,
@@ -987,10 +1000,18 @@
                 const yRoleImage = dynamicData.yearly?.role_image || 'assets/recap_chilling.jpg';
                 const yRoleDesc = dynamicData.yearly?.role_desc || 'Forge your discipline.';
                 
+                const hasYearlyWork = dynamicData.yearly && dynamicData.yearly.total_focus_minutes > 0;
+                const yearlyLegacyContent = hasYearlyWork
+                    ? "This yearly legacy timeline traces your growth over the months. Legacy is built day by day."
+                    : "Your yearly legacy is currently blank. Remember: a year from now, you will wish you had started today!";
+                const yearlyGrowthContent = hasYearlyWork
+                    ? "This year's subject breakdown shows the depth of your intellectual training. Keep pushing!"
+                    : "No legacy growth detected. Turn your study sessions into a battleground and log your focus time!";
+
                 const yearlyData = [
                     { 
                         title: "Legacy", 
-                        content: "Yearly consistency trend.", 
+                        content: yearlyLegacyContent, 
                         type: 'chart', 
                         image: `${window.API_BASE_URL}/api/recap/graph/legacy_yearly?token=${token}&offset=${currentYearlyOffset}`,
                         roleImage: yRoleImage,
@@ -1009,7 +1030,7 @@
                     },
                     { 
                         title: "Growth Mindset", 
-                        content: "Subject breakdown for legacy work.", 
+                        content: yearlyGrowthContent, 
                         type: 'chart', 
                         image: `${window.API_BASE_URL}/api/recap/graph/growth_yearly?token=${token}&offset=${currentYearlyOffset}`,
                         roleImage: yRoleImage,
