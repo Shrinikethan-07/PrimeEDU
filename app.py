@@ -794,67 +794,71 @@ def send_otp_email(to_email, otp, is_registration=False):
         print(f"\n{'='*40}\n[OTP FALLBACK] SMTP not configured. OTP for {to_email}: {otp}\n{'='*40}\n")
         return False
         
-    try:
-        msg = MIMEMultipart()
-        msg['From'] = smtp_email
-        msg['To'] = to_email
-        
-        if is_registration:
-            msg['Subject'] = "MavX Mndset - Warrior Registration Verification OTP"
-            body = f"""Greetings Warrior!
-
-Welcome to MavX Mndset. To complete your identity forging and verify your Google email address, please use the following OTP:
-
-Verification OTP: {otp}
-
-Enter this code in the registration form to finalize your registration.
-
-Stay focused on your journey!
-- MavX Mndset System
-"""
-        else:
-            msg['Subject'] = "MavX Mndset - Warrior Password Reset OTP"
-            body = f"""Greetings Warrior!
-
-You have requested a password reset for your MavX Mndset account.
-
-Your Verification OTP is: {otp}
-
-Enter this code in the app to forge a new password. If you did not request this, please ignore this email.
-
-Stay focused on your journey!
-- MavX Mndset System
-"""
-        msg.attach(MIMEText(body, 'plain'))
-        
-        # Support custom SMTP server (e.g. Brevo on port 2525 to bypass Render blocks)
-        smtp_host = os.environ.get('SMTP_HOST', 'smtp.gmail.com')
+    def _send_bg():
         try:
-            smtp_port = int(os.environ.get('SMTP_PORT', '587'))
-        except ValueError:
-            smtp_port = 587
+            msg = MIMEMultipart()
+            msg['From'] = smtp_email
+            msg['To'] = to_email
             
-        server = None
-        try:
-            server = smtplib.SMTP(smtp_host, smtp_port, timeout=10.0)
-            server.starttls()
-            smtp_user = os.environ.get('SMTP_USER', smtp_email)
-            server.login(smtp_user, smtp_password)
-            server.sendmail(smtp_email, to_email, msg.as_string())
-            print(f"[SMTP] Successfully sent OTP email to {to_email}")
-            return True
-        except Exception as smtp_err:
-            print(f"[SMTP ERROR] SMTP connection/sending failed: {smtp_err}")
-            raise smtp_err
-        finally:
-            if server:
-                try:
-                    server.quit()
-                except Exception:
-                    pass
-    except Exception as e:
-        print(f"[SMTP ERROR] Failed to send OTP email: {e}")
-        return False
+            if is_registration:
+                msg['Subject'] = "MavX Mndset - Warrior Registration Verification OTP"
+                body = f"""Greetings Warrior!
+ 
+Welcome to MavX Mndset. To complete your identity forging and verify your Google email address, please use the following OTP:
+ 
+Verification OTP: {otp}
+ 
+Enter this code in the registration form to finalize your registration.
+ 
+Stay focused on your journey!
+- MavX Mndset System
+"""
+            else:
+                msg['Subject'] = "MavX Mndset - Warrior Password Reset OTP"
+                body = f"""Greetings Warrior!
+ 
+You have requested a password reset for your MavX Mndset account.
+ 
+Your Verification OTP is: {otp}
+ 
+Enter this code in the app to forge a new password. If you did not request this, please ignore this email.
+ 
+Stay focused on your journey!
+- MavX Mndset System
+"""
+            msg.attach(MIMEText(body, 'plain'))
+            
+            # Support custom SMTP server (e.g. Brevo on port 2525 to bypass Render blocks)
+            smtp_host = os.environ.get('SMTP_HOST', 'smtp.gmail.com')
+            try:
+                smtp_port = int(os.environ.get('SMTP_PORT', '587'))
+            except ValueError:
+                smtp_port = 587
+                
+            server = None
+            try:
+                server = smtplib.SMTP(smtp_host, smtp_port, timeout=10.0)
+                server.starttls()
+                smtp_user = os.environ.get('SMTP_USER', smtp_email)
+                server.login(smtp_user, smtp_password)
+                server.sendmail(smtp_email, to_email, msg.as_string())
+                print(f"[SMTP] Successfully sent OTP email to {to_email}")
+            except Exception as smtp_err:
+                print(f"[SMTP ERROR] SMTP connection/sending failed: {smtp_err}")
+            finally:
+                if server:
+                    try:
+                        server.quit()
+                    except Exception:
+                        pass
+        except Exception as e:
+            print(f"[SMTP ERROR] Failed to send OTP email in background: {e}")
+            
+    # Spawn daemon thread to send mail asynchronously and return True immediately to client
+    t = threading.Thread(target=_send_bg)
+    t.daemon = True
+    t.start()
+    return True
 
 @app.route('/api/auth/otp/request', methods=['POST'])
 def request_otp():
@@ -3040,11 +3044,20 @@ def check_echo_eligibility(user, uid, db):
     created = parse_ist_datetime(creation_str) or get_ist_now()
     age_days = max(1, (get_ist_now().date() - created.date()).days + 1)
 
-    # Collect already shared milestone types
+    # Collect already shared milestone types (ignoring expired ones older than 12h)
     shared_types = set()
+    now = get_ist_now()
     for echo in db.get('echoes', {}).values():
         if isinstance(echo, dict) and echo.get('user_id') == uid:
-            shared_types.add(echo.get('milestone_type'))
+            created_str = echo.get('created_at')
+            if created_str:
+                created_t = parse_ist_datetime(created_str)
+                if created_t:
+                    age_seconds = (now - created_t).total_seconds()
+                    if age_seconds <= 43200:
+                        shared_types.add(echo.get('milestone_type'))
+            else:
+                shared_types.add(echo.get('milestone_type'))
 
     # Initiation — once only, day 1+
     if 'initiation' not in shared_types:
@@ -3153,10 +3166,25 @@ def get_echoes():
     per_page = 20
 
     all_echoes = list(db.get('echoes', {}).values())
-    if isinstance(all_echoes, list) and len(all_echoes) > 0 and isinstance(all_echoes[0], dict):
-        pass
-    else:
+    if not isinstance(all_echoes, list) or len(all_echoes) == 0 or not isinstance(all_echoes[0], dict):
         all_echoes = [v for v in db.get('echoes', {}).values() if isinstance(v, dict)]
+
+    # Filter out expired echoes (older than 12 hours) on the backend
+    now = get_ist_now()
+    active_echoes = []
+    for e in all_echoes:
+        created_str = e.get('created_at')
+        if created_str:
+            created_t = parse_ist_datetime(created_str)
+            if created_t:
+                age_seconds = (now - created_t).total_seconds()
+                if age_seconds <= 43200:
+                    active_echoes.append(e)
+            else:
+                active_echoes.append(e)
+        else:
+            active_echoes.append(e)
+    all_echoes = active_echoes
 
     if tab == 'mine':
         all_echoes = [e for e in all_echoes if e.get('user_id') == uid]
@@ -3221,8 +3249,20 @@ def share_echo():
         reason = elig.get(milestone_type, {}).get('reason', 'Not eligible')
         return jsonify({'status': 'error', 'message': f'Not eligible: {reason}'}), 403
 
-    # Check if user already has an active echo for this milestone_type
-    existing = [e for e in db.get('echoes', {}).values() if isinstance(e, dict) and e.get('user_id') == uid and e.get('milestone_type') == milestone_type]
+    # Check if user already has an active echo for this milestone_type (excluding expired ones older than 12h)
+    now = get_ist_now()
+    existing = []
+    for e in db.get('echoes', {}).values():
+        if isinstance(e, dict) and e.get('user_id') == uid and e.get('milestone_type') == milestone_type:
+            created_str = e.get('created_at')
+            if created_str:
+                created_t = parse_ist_datetime(created_str)
+                if created_t:
+                    age_seconds = (now - created_t).total_seconds()
+                    if age_seconds <= 43200:
+                        existing.append(e)
+            else:
+                existing.append(e)
     if existing:
         return jsonify({'status': 'error', 'message': 'You already have an active Echo card for this milestone. Delete it from the Vault first before republishing.'}), 400
 
