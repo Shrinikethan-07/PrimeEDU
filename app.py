@@ -3395,7 +3395,17 @@ def serve_echo_card(echo_id):
         return jsonify({'status': 'error', 'message': 'Echo not found'}), 404
     card_path = echo.get('card_path', '')
     if not card_path or not os.path.exists(card_path):
-        return jsonify({'status': 'error', 'message': 'Card image not found'}), 404
+        # Regenerate the card image on the fly since runtime files are ephemeral
+        template_id = echo.get('template_id', 'naruto')
+        username_display = echo.get('username_display') or echo.get('username') or 'Warrior'
+        avatar_id = echo.get('avatar_id', 'itachi')
+        achievement_phrase = echo.get('achievement_phrase', 'Milestone Achieved')
+        has_synergy = bool(echo.get('has_synergy', False))
+        
+        card_path = generate_echo_card(echo_id, template_id, username_display, avatar_id, achievement_phrase, has_synergy)
+        if not card_path or not os.path.exists(card_path):
+            return jsonify({'status': 'error', 'message': 'Card image not found and regeneration failed'}), 404
+            
     response = send_file(card_path, mimetype='image/png')
     # Allow browser to cache echo card images for 12h (matches TTL)
     response.headers['Cache-Control'] = 'public, max-age=43200'
