@@ -135,7 +135,8 @@ TABLES_SCHEMA = {
     "custom_syllabus": "subject",
     "clans": "clan_id",
     "echoes": "id",
-    "synergy_pairs": "duo_id"
+    "synergy_pairs": "duo_id",
+    "pending_register_otps": "email"
 }
 
 def init_normalized_tables(conn):
@@ -318,7 +319,8 @@ def load_db_normalized(conn):
         },
         "clans": {},
         "echoes": {},
-        "synergy_pairs": {}
+        "synergy_pairs": {},
+        "pending_register_otps": {}
     }
     cur = conn.cursor()
     for table_name, pk_col in TABLES_SCHEMA.items():
@@ -329,7 +331,7 @@ def load_db_normalized(conn):
                 if isinstance(data_val, str):
                     data_val = json.loads(data_val)
                 
-                if table_name in ["user_profiles", "syllabus_progress", "topic_notes", "clans", "echoes", "synergy_pairs"]:
+                if table_name in ["user_profiles", "syllabus_progress", "topic_notes", "clans", "echoes", "synergy_pairs", "pending_register_otps"]:
                     db_dict[table_name][pk_val] = data_val
                 elif table_name == "custom_syllabus":
                     db_dict[table_name][pk_val] = data_val
@@ -346,7 +348,7 @@ def save_db_normalized(conn, new_db, old_db):
         new_val = new_db.get(table_name)
         old_val = old_db.get(table_name) if old_db else None
         
-        if table_name in ["user_profiles", "syllabus_progress", "topic_notes", "custom_syllabus", "clans", "echoes", "synergy_pairs"]:
+        if table_name in ["user_profiles", "syllabus_progress", "topic_notes", "custom_syllabus", "clans", "echoes", "synergy_pairs", "pending_register_otps"]:
             new_dict = new_val or {}
             old_dict = old_val or {}
             
@@ -428,7 +430,8 @@ def load_db():
                     "user_profiles": {}, "sessions": [], "tasks": [],
                     "syllabus_progress": {}, "topic_notes": {}, "journal": [],
                     "custom_syllabus": {"physics": [], "chemistry": [], "biology": [], "mathematics": []},
-                    "clans": {}, "echoes": {}, "synergy_pairs": {}
+                    "clans": {}, "echoes": {}, "synergy_pairs": {},
+                    "pending_register_otps": {}
                 }
             return _DB_CACHE
         finally:
