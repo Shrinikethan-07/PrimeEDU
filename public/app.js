@@ -249,13 +249,51 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // ═══════════════ GLOBAL CONFIRM MODAL ═══════════════
     let confirmCallback = null;
-    window.showConfirm = (msg, callback) => {
+    window.showConfirm = (msg, callback, title = "Better think twice", isInfo = false) => {
         const modal = document.getElementById('confirm-modal');
         if(!modal) {
             if(confirm(msg)) callback();
             return;
         }
         document.getElementById('confirm-msg').innerText = msg;
+        
+        // Dynamically style based on isInfo
+        const headerEl = modal.querySelector('h3');
+        const iconEl = modal.querySelector('i');
+        const contentEl = modal.querySelector('.modal-content');
+        const yesBtn = document.getElementById('confirm-yes-btn');
+        
+        if (headerEl) {
+            headerEl.innerText = title;
+        }
+        if (iconEl) {
+            if (isInfo) {
+                iconEl.className = "fas fa-info-circle";
+                iconEl.style.color = "var(--neon-cyan)";
+            } else {
+                iconEl.className = "fas fa-exclamation-triangle";
+                iconEl.style.color = "var(--neon-pink)";
+            }
+        }
+        if (contentEl) {
+            if (isInfo) {
+                contentEl.style.borderColor = "var(--neon-cyan)";
+                contentEl.style.boxShadow = "0 0 30px rgba(0,243,255,0.3)";
+            } else {
+                contentEl.style.borderColor = "var(--neon-pink)";
+                contentEl.style.boxShadow = "0 0 30px rgba(255,42,133,0.3)";
+            }
+        }
+        if (yesBtn) {
+            if (isInfo) {
+                yesBtn.style.borderColor = "var(--neon-cyan)";
+                yesBtn.style.color = "var(--neon-cyan)";
+            } else {
+                yesBtn.style.borderColor = "var(--neon-pink)";
+                yesBtn.style.color = "var(--neon-pink)";
+            }
+        }
+        
         confirmCallback = callback;
         modal.style.display = 'flex';
     };
@@ -459,6 +497,13 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
     loadDestinies();
+    
+    // Auto-update dashboard stats (dragon balls, streak) live every 10 seconds
+    setInterval(() => {
+        if (document.visibilityState === 'visible') {
+            loadDestinies();
+        }
+    }, 10000);
 
     // ═══════════════ MANUAL MISSIONS (TASKS) ═══════════════
     let manualTasks = safeParse('primeedu_manual_tasks', []);
@@ -793,7 +838,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 if(typeof playTimerSound === 'function') playTimerSound();
                 showConfirm("FOCUS COMPLETE. Click PROCEED to save your session and earn 20 Dragon Balls.", () => {
                     updateDragonBalls(20);
-                });
+                }, "Session Complete", true);
             } else {
                 const m = Math.floor(remaining / 60);
                 const s = remaining % 60;

@@ -1039,6 +1039,35 @@ def handle_profile():
     save_db(db)
     return jsonify(user)
 
+@app.route('/api/user/active_time_heartbeat', methods=['POST'])
+def active_time_heartbeat():
+    db = load_db()
+    user, uid = get_current_user(db)
+    if not user:
+        return jsonify({"status": "error", "message": "Unauthorized"}), 401
+    
+    data = request.json or {}
+    timestamp_str = data.get('timestamp') or get_ist_iso()
+    
+    try:
+        if timestamp_str.endswith('Z'):
+            timestamp_str = timestamp_str[:-1] + '+00:00'
+        dt = datetime.fromisoformat(timestamp_str)
+        if dt.tzinfo and dt.tzinfo != timezone(timedelta(hours=5, minutes=30)):
+            dt = dt.astimezone(timezone(timedelta(hours=5, minutes=30)))
+    except Exception:
+        dt = get_ist_now()
+        
+    if 'app_activity_logs' not in user:
+        user['app_activity_logs'] = []
+        
+    user['app_activity_logs'].append(dt.isoformat())
+    if len(user['app_activity_logs']) > 5000:
+        user['app_activity_logs'] = user['app_activity_logs'][-5000:]
+        
+    save_db(db)
+    return jsonify({"status": "success"})
+
 @app.route('/api/user/clear_streak_notif', methods=['POST'])
 def clear_streak_notif():
     db = load_db()
@@ -1808,6 +1837,21 @@ def get_user_active_dates(user, db):
     active_dates.add(now_ist.date())
     return active_dates
 
+def count_night_activity_pings(logs, start_dt, end_dt):
+    if not logs:
+        return 0
+    night_pings = 0
+    for log_str in logs:
+        try:
+            dt = datetime.fromisoformat(log_str)
+            if start_dt <= dt <= end_dt:
+                h = dt.hour
+                if h >= 21 or h < 5:
+                    night_pings += 1
+        except Exception:
+            pass
+    return night_pings
+
 @app.route('/api/recap/dynamic', methods=['GET'])
 def get_dynamic_recap():
     db = load_db()
@@ -1954,12 +1998,20 @@ def get_dynamic_recap():
         yearly_locked = False
         yearly_lock_reason = ""
         
+    w_night_mins = count_night_activity_pings(user.get('app_activity_logs', []), w_start, w_end)
+    m_night_mins = count_night_activity_pings(user.get('app_activity_logs', []), m_start, m_end)
+    y_night_mins = count_night_activity_pings(user.get('app_activity_logs', []), y_start, y_end)
+
+    is_weekend = ist_now.weekday() in [5, 6]
+
     weekly_visuals = visual_agent.get_recap_visuals(
         w_sessions, 
         w_tasks, 
         user_balls=w_balls,
         journal_count=len(w_journals),
-        user_streak=user_streak if weekly_offset == 0 else 0
+        user_streak=user_streak if weekly_offset == 0 else 0,
+        night_activity_minutes=w_night_mins,
+        is_weekend_or_past=is_weekend or weekly_offset > 0
     )
     
     monthly_visuals = visual_agent.get_recap_visuals(
@@ -1967,7 +2019,9 @@ def get_dynamic_recap():
         m_tasks, 
         user_balls=m_balls,
         journal_count=len(m_journals),
-        user_streak=user_streak if monthly_offset == 0 else 0
+        user_streak=user_streak if monthly_offset == 0 else 0,
+        night_activity_minutes=m_night_mins,
+        is_weekend_or_past=is_weekend or monthly_offset > 0
     )
     
     yearly_visuals = visual_agent.get_recap_visuals(
@@ -1975,7 +2029,9 @@ def get_dynamic_recap():
         y_tasks, 
         user_balls=y_balls,
         journal_count=len(y_journals),
-        user_streak=user_streak if yearly_offset == 0 else 0
+        user_streak=user_streak if yearly_offset == 0 else 0,
+        night_activity_minutes=y_night_mins,
+        is_weekend_or_past=is_weekend or yearly_offset > 0
     )
     
     return jsonify({

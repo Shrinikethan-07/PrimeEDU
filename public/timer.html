@@ -944,6 +944,13 @@
         syncAvatar();
         renderSessions();
         syncSessionsFromBackend();
+
+        // Auto-update study sessions list and statistics live every 10 seconds (if timer not running)
+        setInterval(() => {
+            if (document.visibilityState === 'visible' && !isRunning) {
+                syncSessionsFromBackend();
+            }
+        }, 10000);
         loadTimerState();
 
     </script>

@@ -559,7 +559,7 @@
                 <!-- Background Layer 1: Image -->
                 <div class="poster-bg-image" style="position:absolute; inset:0; background: url('${roleImage}') no-repeat center center; background-size: cover; z-index:1; width: 100%; height: 100%;"></div>
                 <!-- Background Layer 2: Gradient -->
-                <div class="poster-bg-gradient" style="position:absolute; inset:0; background: linear-gradient(180deg, rgba(13, 4, 26, 0.88) 0%, rgba(26, 10, 46, 0.94) 100%); z-index:2; width: 100%; height: 100%;"></div>
+                <div class="poster-bg-gradient" style="position:absolute; inset:0; background: linear-gradient(180deg, rgba(13, 4, 26, 0.65) 0%, rgba(26, 10, 46, 0.75) 100%); z-index:2; width: 100%; height: 100%;"></div>
                 
                 <!-- Inner Content Container -->
                 <div class="poster-inner" style="position:relative; z-index:3; display:flex; flex-direction:column; height:100%; width:100%;">
@@ -788,6 +788,13 @@
             populateSelects();
             await updateRecapsData();
 
+            // Auto-update live every 10 seconds
+            setInterval(async () => {
+                if (document.visibilityState === 'visible' && (!document.getElementById('zoom-modal') || document.getElementById('zoom-modal').style.display === 'none') && (!document.getElementById('period-leaderboard-modal') || document.getElementById('period-leaderboard-modal').style.display === 'none')) {
+                    await updateRecapsData();
+                }
+            }, 10000);
+
             // Dismiss loader
             clearTimeout(loadTimer);
             const loader = document.getElementById('loading-screen');
@@ -932,7 +939,7 @@
                             <div style="font-size:0.82rem;color:var(--neon-purple);font-family:var(--font-heading);border:1px solid var(--neon-purple);padding:0.3rem 0.6rem;border-radius:8px;margin-bottom:0.5rem;text-transform:uppercase;">${mRoleTitle}</div>
                             <p style="font-size:0.78rem;margin-bottom:0.4rem;color:#cbd5e1;">${mRoleSubtitle}</p>
                             <div style="position:relative;height:125px;border-radius:12px;overflow:hidden;width:100%;border:1px solid rgba(255,255,255,0.15);background:#07020d;">
-                                <div style="background-image:url('${mRoleImage}');height:100%;width:100%;background-size:cover;background-position:center;filter:brightness(0.25) contrast(1.1);position:absolute;top:0;left:0;"></div>
+                                <div style="background-image:url('${mRoleImage}');height:100%;width:100%;background-size:cover;background-position:center;filter:brightness(0.55) contrast(1.1);position:absolute;top:0;left:0;"></div>
                                 <div style="position:absolute;inset:0;display:flex;flex-direction:column;justify-content:space-between;padding:0.75rem;z-index:2;text-align:center;">
                                     <div style="color:#e2e8f0;font-size:0.72rem;font-weight:500;font-style:italic;line-height:1.2;margin:auto 0;">
                                         "${mRoleDesc}"
@@ -1053,7 +1060,7 @@
                             <div style="color:#ff00ea;font-family:var(--font-heading);border:1px solid #ff00ea;padding:0.3rem 0.6rem;border-radius:8px;font-size:0.82rem;margin-bottom:0.5rem;text-transform:uppercase;">${yRoleTitle}</div>
                             <p style="font-size:0.78rem;margin-bottom:0.4rem;color:#cbd5e1;">${yRoleSubtitle}</p>
                             <div style="position:relative;height:125px;border-radius:12px;overflow:hidden;width:100%;border:1px solid rgba(255,255,255,0.15);background:#07020d;">
-                                <div style="background-image:url('${yRoleImage}');height:100%;width:100%;background-size:cover;background-position:center;filter:brightness(0.25) contrast(1.1);position:absolute;top:0;left:0;"></div>
+                                <div style="background-image:url('${yRoleImage}');height:100%;width:100%;background-size:cover;background-position:center;filter:brightness(0.55) contrast(1.1);position:absolute;top:0;left:0;"></div>
                                 <div style="position:absolute;inset:0;display:flex;flex-direction:column;justify-content:space-between;padding:0.75rem;z-index:2;text-align:center;">
                                     <div style="color:#e2e8f0;font-size:0.72rem;font-weight:500;font-style:italic;line-height:1.2;margin:auto 0;">
                                         "${yRoleDesc}"

@@ -237,6 +237,37 @@
         }
     }
 
+    // 6. Active time tracking heartbeat
+    let lastHeartbeat = 0;
+    async function sendActivityHeartbeat() {
+        const token = localStorage.getItem('primeedu_token');
+        if (!token) return; // Not logged in
+        
+        // Skip if page is hidden
+        if (document.hidden) return;
+        
+        const now = Date.now();
+        if (now - lastHeartbeat >= 55000) {
+            lastHeartbeat = now;
+            try {
+                const apiBase = window.API_BASE_URL || '';
+                await fetch(apiBase + '/api/user/active_time_heartbeat', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': 'Bearer ' + token
+                    },
+                    body: JSON.stringify({
+                        timestamp: new Date().toISOString(),
+                        page: window.location.pathname
+                    })
+                });
+            } catch (e) {
+                console.error("Heartbeat failed", e);
+            }
+        }
+    }
+
     // Initialize
     document.addEventListener('DOMContentLoaded', () => {
         ensureToastContainer();
@@ -249,5 +280,9 @@
         
         // Monitor timer state every second in the background of all tabs
         setInterval(checkBackgroundTimer, 1000);
+
+        // Heartbeat active time tracking
+        setInterval(sendActivityHeartbeat, 60000);
+        setTimeout(sendActivityHeartbeat, 2000);
     });
 })();

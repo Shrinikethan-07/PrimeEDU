@@ -101,7 +101,7 @@ class VisualizerAgent:
     def __init__(self):
         pass
 
-    def get_recap_visuals(self, sessions, tasks, user_balls=0, journal_count=0, user_streak=0) -> dict:
+    def get_recap_visuals(self, sessions, tasks, user_balls=0, journal_count=0, user_streak=0, night_activity_minutes=0, is_weekend_or_past=False) -> dict:
         completed_sessions = [s for s in sessions if s.get('status') == 'completed']
         total_focus_minutes = 0
         for s in completed_sessions:
@@ -133,61 +133,60 @@ class VisualizerAgent:
         total_focus_hours = total_focus_minutes / 60.0
         
         # Determine user role dynamically
-        if len(completed_sessions) == 0 and user_balls == 0:
+        night_count = 0
+        for s in completed_sessions:
+            try:
+                t_str = s.get('start_time')
+                if t_str:
+                    if isinstance(t_str, str) and t_str.endswith('Z'):
+                        t_str = t_str[:-1] + '+00:00'
+                    dt = datetime.fromisoformat(t_str)
+                    if dt.tzinfo and dt.tzinfo != timezone(timedelta(hours=5, minutes=30)):
+                        dt = dt.astimezone(timezone(timedelta(hours=5, minutes=30)))
+                    h = dt.hour
+                    if h >= 21 or h < 5:
+                        night_count += 1
+            except Exception:
+                pass
+        
+        subject_counts = {}
+        for s in completed_sessions:
+            subj = s.get('subject') or 'General'
+            subject_counts[subj] = subject_counts.get(subj, 0) + 1
+        
+        max_subj_count = max(subject_counts.values()) if subject_counts else 0
+        max_subj_ratio = (max_subj_count / len(completed_sessions)) if completed_sessions else 0
+        
+        if night_activity_minutes >= 140 and is_weekend_or_past:
+            role = "GHOST OF UCHIHA"
+            role_title = "GHOST OF UCHIHA"
+            role_subtitle = "Warrior of the Night"
+            role_image = "assets/recap_uchiha.jpg"
+            role_desc = "Your training is forged in the shadows of the night."
+        elif len(completed_sessions) == 0 or total_focus_minutes == 0:
             role = "JUST CHILLING"
             role_title = "JUST CHILLING"
             role_subtitle = "Surgical Precision: 0% Effort"
             role_image = "assets/recap_chilling.jpg"
             role_desc = "Time to forge your discipline."
+        elif user_balls >= 1000 or len(completed_sessions) >= 50 or total_focus_hours >= 50:
+            role = "THE KNOWLEDGE SAGE"
+            role_title = "THE KNOWLEDGE SAGE"
+            role_subtitle = "Master of All Domains"
+            role_image = "assets/recap_sage.jpg"
+            role_desc = "You dominate the arena with grand wisdom."
+        elif (len(completed_sessions) > 0 and max_subj_ratio >= 0.65) or user_balls >= 200 or len(completed_sessions) >= 10 or total_focus_hours >= 10:
+            role = "SHARINGAN SIGHT"
+            role_title = "SHARINGAN SIGHT"
+            role_subtitle = "Laser-Focused Precision"
+            role_image = "assets/recap_sharingan.jpg"
+            role_desc = "Laser focus on a single domain to achieve mastery."
         else:
-            night_count = 0
-            for s in completed_sessions:
-                try:
-                    t_str = s.get('start_time')
-                    if t_str:
-                        if isinstance(t_str, str) and t_str.endswith('Z'):
-                            t_str = t_str[:-1] + '+00:00'
-                        dt = datetime.fromisoformat(t_str)
-                        if dt.tzinfo and dt.tzinfo != timezone(timedelta(hours=5, minutes=30)):
-                            dt = dt.astimezone(timezone(timedelta(hours=5, minutes=30)))
-                        h = dt.hour
-                        if h >= 21 or h < 5:
-                            night_count += 1
-                except Exception:
-                    pass
-            
-            subject_counts = {}
-            for s in completed_sessions:
-                subj = s.get('subject') or 'General'
-                subject_counts[subj] = subject_counts.get(subj, 0) + 1
-            
-            max_subj_count = max(subject_counts.values()) if subject_counts else 0
-            max_subj_ratio = (max_subj_count / len(completed_sessions)) if completed_sessions else 0
-            
-            if user_balls >= 1000 or len(completed_sessions) >= 50 or total_focus_hours >= 50:
-                role = "THE KNOWLEDGE SAGE"
-                role_title = "THE KNOWLEDGE SAGE"
-                role_subtitle = "Master of All Domains"
-                role_image = "assets/recap_sage.jpg"
-                role_desc = "You dominate the arena with grand wisdom."
-            elif (len(completed_sessions) > 0 and (night_count / len(completed_sessions)) >= 0.5) or user_balls >= 500 or len(completed_sessions) >= 25 or total_focus_hours >= 25:
-                role = "GHOST OF UCHIHA"
-                role_title = "GHOST OF UCHIHA"
-                role_subtitle = "Warrior of the Night"
-                role_image = "assets/recap_uchiha.jpg"
-                role_desc = "Your training is forged in the shadows of the night."
-            elif (len(completed_sessions) > 0 and max_subj_ratio >= 0.65) or user_balls >= 200 or len(completed_sessions) >= 10 or total_focus_hours >= 10:
-                role = "SHARINGAN SIGHT"
-                role_title = "SHARINGAN SIGHT"
-                role_subtitle = "Laser-Focused Precision"
-                role_image = "assets/recap_sharingan.jpg"
-                role_desc = "Laser focus on a single domain to achieve mastery."
-            else:
-                role = "THE MULTITASKER"
-                role_title = "THE MULTITASKER"
-                role_subtitle = "Versatile Scholar"
-                role_image = "assets/recap_multitasker.jpg"
-                role_desc = "Perfect balance of discipline across all tasks."
+            role = "THE MULTITASKER"
+            role_title = "THE MULTITASKER"
+            role_subtitle = "Versatile Scholar"
+            role_image = "assets/recap_multitasker.jpg"
+            role_desc = "Perfect balance of discipline across all tasks."
 
 
         if len(completed_sessions) == 0:
